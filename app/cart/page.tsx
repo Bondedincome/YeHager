@@ -4,8 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Trash2, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { useCart } from "../components/CartProvider";
-import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { getSupabase } from "../lib/supabase";
 
 export default function CartPage() {
   const { items, removeItem, clear, count } = useCart();
@@ -20,19 +19,19 @@ export default function CartPage() {
     const confirmationId = `YH-${Math.floor(100000 + Math.random() * 900000)}`;
     setIsCheckingOut(true);
     try {
-      if (db) {
-        await addDoc(collection(db, "orders"), {
-          orderNumber: confirmationId,
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.from("orders").insert({
+          order_number: confirmationId,
           items: items.map((i) => ({
             id: i.id,
             title: i.title,
             price: i.price,
             quantity: i.quantity,
           })),
-          totalUSD,
-          totalETB,
+          total_usd: totalUSD,
+          total_etb: totalETB,
           status: "confirmed",
-          createdAt: serverTimestamp(),
         });
       }
     } catch {

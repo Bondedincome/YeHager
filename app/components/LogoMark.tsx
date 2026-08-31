@@ -1,32 +1,32 @@
 import React from "react";
+import Image from "next/image";
 
 interface LogoMarkProps {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
+  priority?: boolean;
 }
 
-export default function LogoMark({ className = "", size = "md" }: LogoMarkProps) {
-  const sizeClasses = {
-    sm: "text-lg tracking-tight",
-    md: "text-2xl sm:text-3xl tracking-tight",
-    lg: "text-3xl sm:text-4xl tracking-tight",
-    xl: "text-4xl sm:text-5xl tracking-tight",
+export default function LogoMark({ className = "", size = "md", priority = false }: LogoMarkProps) {
+  const sizeStyles = {
+    sm: { width: 110, height: 42, className: "h-7 sm:h-8 w-auto" },
+    md: { width: 160, height: 62, className: "h-9 sm:h-11 w-auto" },
+    lg: { width: 220, height: 85, className: "h-14 sm:h-16 w-auto" },
+    xl: { width: 320, height: 124, className: "h-20 sm:h-24 w-auto" },
   }[size];
 
   return (
     <div className={`inline-flex items-center justify-center select-none ${className}`}>
-      <span
-        className={`font-black uppercase text-black font-serif italic tracking-tighter ${sizeClasses} flex items-start`}
-        style={{
-          fontFamily: "'Playfair Display', 'Didot', 'Bodoni MT', Georgia, serif",
-          letterSpacing: "-0.04em",
-        }}
-      >
-        <span className="font-extrabold not-italic mr-[1px] tracking-normal font-sans">Ye</span>
-        <span className="font-serif italic font-black">Hageré</span>
-        <sup className="text-[9px] font-sans font-semibold not-italic ml-0.5 mt-0.5">TM</sup>
-      </span>
+      <Image
+        src="/logo.svg"
+        alt="YeHagere"
+        width={sizeStyles.width}
+        height={sizeStyles.height}
+        className={`${sizeStyles.className} object-contain transition-transform duration-200`}
+        priority={priority || size === "md" || size === "lg"}
+      />
     </div>
   );
 }
+
 

@@ -2,8 +2,7 @@
 
 import React, { useState } from "react";
 import LogoMark from "../components/LogoMark";
-import { db } from "../lib/firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { getSupabase } from "../lib/supabase";
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -19,13 +18,13 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      if (db) {
-        await addDoc(collection(db, "inquiries"), {
+      const supabase = getSupabase();
+      if (supabase) {
+        await supabase.from("inquiries").insert({
           name: formData.name,
           email: formData.email,
           subject: formData.subject,
           message: formData.message,
-          createdAt: serverTimestamp(),
         });
       }
     } catch {
