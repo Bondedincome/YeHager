@@ -1,18 +1,34 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useCart } from "./CartProvider";
 
-export default function AddToCartClient({ product }: any) {
+type AddToCartProps = {
+  product: {
+    id: number;
+    title: string;
+    price: number;
+    imageUrl?: string;
+  };
+};
+
+export default function AddToCartClient({ product }: AddToCartProps) {
   const { addItem } = useCart();
+  const [added, setAdded] = useState(false);
+
+  const handleAdd = () => {
+    addItem({ id: product.id, title: product.title, price: product.price, imageUrl: product.imageUrl });
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
 
   return (
-    <div className="mt-6">
+    <div className="mt-6 flex items-center gap-4">
       <button
-        className="rounded bg-zinc-900 text-white px-4 py-2"
-        onClick={() => addItem({ id: product.id, title: product.title, price: product.price, imageUrl: product.imageUrl })}
+        className="rounded-full bg-[#1a1410] hover:bg-[#3d3228] text-white px-8 py-3.5 text-sm font-semibold transition shadow-sm"
+        onClick={handleAdd}
       >
-        Add to cart
+        {added ? "✓ Added to Bag" : "Add to Shopping Bag"}
       </button>
     </div>
   );

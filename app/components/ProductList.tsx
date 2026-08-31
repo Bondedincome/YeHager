@@ -14,9 +14,7 @@ type Product = {
   stock?: number;
 };
 
-type ProductsResponse = {
-  data?: Product[];
-};
+type ApiResponse = Product[] | { data?: Product[] };
 
 export default function ProductList() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -24,25 +22,27 @@ export default function ProductList() {
   const { addItem } = useCart();
 
   useEffect(() => {
-    const base = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/$/, "");
+    const base = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
+    const endpoint = base ? `${base}/products` : "/api/products";
     const controller = new AbortController();
 
-    fetch(`${base}/products`, { signal: controller.signal })
+    fetch(endpoint, { signal: controller.signal })
       .then(async (response) => {
         const contentType = response.headers.get("content-type") ?? "";
         if (!response.ok) {
           throw new Error(`Product request failed (${response.status})`);
         }
         if (!contentType.includes("application/json")) {
-          throw new Error("Product API returned a non-JSON response. Check NEXT_PUBLIC_API_URL.");
+          throw new Error("Product API returned a non-JSON response.");
         }
-        return response.json() as Promise<ProductsResponse>;
+        return response.json() as Promise<ApiResponse>;
       })
-      .then((response) => {
-        if (!Array.isArray(response.data)) {
+      .then((response: ApiResponse) => {
+        const items = Array.isArray(response) ? response : Array.isArray(response?.data) ? response.data : null;
+        if (!items) {
           throw new TypeError("Product API returned an invalid response.");
         }
-        setProducts(response.data);
+        setProducts(items);
       })
       .catch((requestError: unknown) => {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
