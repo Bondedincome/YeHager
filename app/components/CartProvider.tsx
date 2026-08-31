@@ -2,12 +2,14 @@
 
 import React, { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
 
-type CartItem = {
+export type CartItem = {
   id: number;
   title: string;
   price: number;
   quantity: number;
   imageUrl?: string;
+  size?: string;
+  color?: string;
 };
 
 type CartContextValue = {

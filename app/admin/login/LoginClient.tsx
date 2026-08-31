@@ -3,8 +3,9 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, EyeOff, Lock, User, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight } from "lucide-react";
 import LogoMark from "../../components/LogoMark";
+import { useAuth } from "../../components/AuthProvider";
 
 export default function LoginClient() {
   const [username, setUsername] = useState("admin");
@@ -13,26 +14,18 @@ export default function LoginClient() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
-
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-  const loginApi = base ? `${base}/auth/login` : "/api/auth/login";
+  const { login } = useAuth();
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setSubmitting(true);
     try {
-      const res = await fetch(loginApi, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      if (!res.ok) throw new Error("Invalid username or password");
-      const data = await res.json();
-      if (typeof window !== "undefined") {
-        localStorage.setItem("token", data.access_token);
+      const res = await login(username, password);
+      if (!res.success) {
+        throw new Error(res.error || "Invalid username or password");
       }
-      router.push("/admin/products");
+      router.push("/admin");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {

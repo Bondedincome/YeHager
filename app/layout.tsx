@@ -3,8 +3,8 @@ import "./globals.css";
 import { CartProvider } from "./components/CartProvider";
 import { WishlistProvider } from "./components/WishlistProvider";
 import AppearanceProvider from "./components/AppearanceProvider";
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
+import { AuthProvider } from "./components/AuthProvider";
+import StorefrontShell from "./components/StorefrontShell";
 
 export const metadata: Metadata = {
   title: "YeHagere — Modern Minimalist Apparel",
@@ -19,15 +19,15 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col bg-white text-black">
-        <AppearanceProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <Navbar />
-              <div className="flex-1">{children}</div>
-              <Footer />
-            </CartProvider>
-          </WishlistProvider>
-        </AppearanceProvider>
+        <AuthProvider>
+          <AppearanceProvider>
+            <WishlistProvider>
+              <CartProvider>
+                <StorefrontShell>{children}</StorefrontShell>
+              </CartProvider>
+            </WishlistProvider>
+          </AppearanceProvider>
+        </AuthProvider>
       </body>
     </html>
   );

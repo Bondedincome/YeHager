@@ -4,10 +4,12 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Send, Globe, Share2 } from "lucide-react";
 import LogoMark from "./LogoMark";
+import { useAppearance } from "./AppearanceProvider";
 
 export default function Footer() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
+  const { cms } = useAppearance();
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -183,6 +185,11 @@ export default function Footer() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-neutral-100">
           <div className="flex items-center gap-3">
             <LogoMark size="sm" />
+            {cms?.footerNotice && (
+              <span className="text-[10px] uppercase tracking-widest text-neutral-400 border-l border-neutral-200 pl-3 hidden md:inline-block">
+                {cms.footerNotice}
+              </span>
+            )}
           </div>
           <p className="text-xs text-neutral-600">
             ©2026 YeHagere. All rights reserved
