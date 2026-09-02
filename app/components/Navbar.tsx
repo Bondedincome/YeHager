@@ -152,11 +152,10 @@ export default function Navbar() {
             </nav>
           </div>
 
-          {/* Center Logo Mark (Responsive size to avoid overlap on mobile viewports) */}
+          {/* Center Logo Mark */}
           <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center justify-center pointer-events-auto">
             <Link href="/" aria-label="YeHagere Homepage" className="inline-block py-1">
-              <LogoMark size="sm" className="sm:hidden hover:opacity-85 transition-opacity" />
-              <LogoMark size="md" className="hidden sm:inline-flex hover:opacity-85 transition-opacity" />
+              <LogoMark size="md" className="hover:opacity-85 transition-opacity" />
             </Link>
           </div>
 

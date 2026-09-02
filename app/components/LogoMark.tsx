@@ -10,7 +10,7 @@ interface LogoMarkProps {
 export default function LogoMark({ className = "", size = "md", priority = false }: LogoMarkProps) {
   const sizeStyles = {
     sm: { width: 110, height: 42, className: "h-7 sm:h-8 w-auto" },
-    md: { width: 160, height: 62, className: "h-9 sm:h-11 w-auto" },
+    md: { width: 160, height: 62, className: "h-8 sm:h-10 w-auto" },
     lg: { width: 220, height: 85, className: "h-14 sm:h-16 w-auto" },
     xl: { width: 320, height: 124, className: "h-20 sm:h-24 w-auto" },
   }[size];
