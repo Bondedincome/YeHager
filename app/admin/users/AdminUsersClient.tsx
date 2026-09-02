@@ -170,8 +170,101 @@ export default function AdminUsersClient() {
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className="bg-white border border-neutral-200 shadow-2xs overflow-hidden">
+      {/* Mobile Users Cards View (Hidden on md+) */}
+      <div className="md:hidden space-y-3">
+        {filteredUsers.length === 0 ? (
+          <div className="bg-white border border-neutral-200 p-8 text-center text-xs text-neutral-400">
+            No patrons found matching query.
+          </div>
+        ) : (
+          filteredUsers.map((user) => {
+            const isCurrent = currentUser?.id === user.id;
+            return (
+              <div key={user.id} className="bg-white border border-neutral-200 p-4 space-y-3 shadow-2xs">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center uppercase flex-shrink-0">
+                      {user.name ? user.name[0] : "U"}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-black text-xs">{user.name}</span>
+                        {isCurrent && (
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.2 bg-neutral-200 text-neutral-700">
+                            You
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-neutral-500 block">{user.email}</span>
+                    </div>
+                  </div>
+
+                  {!isCurrent && (
+                    <button
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to remove user "${user.name}"?`)) {
+                          deleteUser(user.id);
+                        }
+                      }}
+                      className="p-1.5 text-neutral-400 hover:text-rose-600"
+                      title="Delete User"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-neutral-100">
+                  <div>
+                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Role</span>
+                    <select
+                      value={user.role}
+                      onChange={(e) => updateUserRole(user.id, e.target.value as UserRole)}
+                      className="text-[11px] font-bold uppercase tracking-wider py-1 px-2 border bg-neutral-50 mt-1 w-full"
+                    >
+                      <option value="customer">Customer</option>
+                      <option value="vip">VIP Patron</option>
+                      <option value="admin">Staff Admin</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-neutral-400 uppercase tracking-wider block">Status</span>
+                    <button
+                      onClick={() => toggleUserStatus(user.id)}
+                      className={`inline-flex items-center justify-center gap-1 text-[10px] font-bold uppercase px-2 py-1 border mt-1 w-full ${
+                        user.status === "active"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}
+                    >
+                      {user.status === "active" ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Active</span>
+                        </>
+                      ) : (
+                        <>
+                          <Ban className="w-3 h-3" />
+                          <span>Suspended</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-2 border-t border-neutral-100 text-neutral-600">
+                  <span>{user.totalOrders || 0} Orders</span>
+                  <span className="font-bold text-black">${user.totalSpentUSD || 0} USD</span>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Desktop Users Table (Hidden on mobile) */}
+      <div className="hidden md:block bg-white border border-neutral-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-[#fafafa] border-b border-neutral-200 text-[10px] font-bold uppercase tracking-wider text-neutral-500">

@@ -83,24 +83,24 @@ export default function MicroProductCard({ product }: MicroProductCardProps) {
           />
         </button>
 
-        {/* Carousel Arrow Buttons (Shown on Hover) */}
+        {/* Carousel Arrow Buttons (Shown on Hover or Tap) */}
         {images.length > 1 && (
           <>
             <button
               type="button"
               onClick={handlePrevImage}
-              className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 text-neutral-800 hover:text-black transition-colors opacity-70 hover:opacity-100 z-10"
+              className="absolute left-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-neutral-800 hover:text-black bg-white/60 hover:bg-white rounded-full transition-colors z-10"
               aria-label="Previous image"
             >
-              <ChevronLeft className="w-5 h-5 stroke-[2]" />
+              <ChevronLeft className="w-4 h-4 stroke-[2]" />
             </button>
             <button
               type="button"
               onClick={handleNextImage}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-neutral-800 hover:text-black transition-colors opacity-70 hover:opacity-100 z-10"
+              className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-neutral-800 hover:text-black bg-white/60 hover:bg-white rounded-full transition-colors z-10"
               aria-label="Next image"
             >
-              <ChevronRight className="w-5 h-5 stroke-[2]" />
+              <ChevronRight className="w-4 h-4 stroke-[2]" />
             </button>
           </>
         )}

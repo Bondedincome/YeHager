@@ -116,12 +116,12 @@ export default function Footer() {
         </div>
 
         {/* Social Icons Row */}
-        <div className="flex items-center justify-end gap-6 py-6 border-t border-neutral-100 text-black">
+        <div className="flex items-center justify-center sm:justify-end gap-5 sm:gap-6 flex-wrap py-6 border-t border-neutral-100 text-black">
           <a
             href="https://instagram.com"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-neutral-500 transition-colors"
+            className="p-1 hover:text-neutral-500 transition-colors"
             aria-label="Instagram"
           >
             <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
@@ -134,7 +134,7 @@ export default function Footer() {
             href="https://tiktok.com"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-neutral-500 transition-colors"
+            className="p-1 hover:text-neutral-500 transition-colors"
             aria-label="TikTok"
           >
             <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
@@ -145,7 +145,7 @@ export default function Footer() {
             href="https://facebook.com"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-neutral-500 transition-colors"
+            className="p-1 hover:text-neutral-500 transition-colors"
             aria-label="Facebook"
           >
             <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
@@ -156,7 +156,7 @@ export default function Footer() {
             href="https://pinterest.com"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-neutral-500 transition-colors"
+            className="p-1 hover:text-neutral-500 transition-colors"
             aria-label="Pinterest"
           >
             <Share2 className="w-5 h-5 stroke-[1.75]" />
@@ -165,7 +165,7 @@ export default function Footer() {
             href="https://t.me"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-neutral-500 transition-colors"
+            className="p-1 hover:text-neutral-500 transition-colors"
             aria-label="Telegram"
           >
             <Send className="w-5 h-5 stroke-[1.75]" />
@@ -174,7 +174,7 @@ export default function Footer() {
             href="https://yehagere.com"
             target="_blank"
             rel="noreferrer"
-            className="hover:text-neutral-500 transition-colors"
+            className="p-1 hover:text-neutral-500 transition-colors"
             aria-label="Global"
           >
             <Globe className="w-5 h-5 stroke-[1.75]" />
@@ -182,7 +182,7 @@ export default function Footer() {
         </div>
 
         {/* Bottom Bar: Logo Mark on Left, Copyright on Right */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-neutral-100">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-neutral-100 text-center sm:text-left">
           <div className="flex items-center gap-3">
             <LogoMark size="sm" />
             {cms?.footerNotice && (

@@ -11,11 +11,7 @@ import {
   ArrowUpRight,
   Receipt,
   PackageCheck,
-  Clock,
-  ArrowDownRight,
-  Filter,
   CheckCircle2,
-  Calendar,
   CreditCard,
 } from "lucide-react";
 import {
@@ -29,8 +25,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
 } from "recharts";
 import { useAuth } from "../components/AuthProvider";
 import { getAllProducts } from "../lib/products-store";
@@ -135,7 +129,7 @@ export default function AdminAnalyticsClient() {
             className="px-3.5 py-2 bg-black text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
           >
             <Receipt className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Orders ({pendingOrders} Actionable)</span>
+            <span className="text-white">Orders ({pendingOrders} Actionable)</span>
           </Link>
         </div>
       </div>
@@ -472,7 +466,12 @@ export default function AdminAnalyticsClient() {
                   <td className="py-4 px-6">
                     <select
                       value={order.status}
-                      onChange={(e) => updateOrderStatus(order.id, e.target.value as any)}
+                      onChange={(e) =>
+                        updateOrderStatus(
+                          order.id,
+                          e.target.value as "confirmed" | "preparing" | "shipped" | "delivered"
+                        )
+                      }
                       className="bg-neutral-100 border border-neutral-300 text-[11px] font-bold uppercase tracking-wider py-1 px-2 text-black outline-none cursor-pointer"
                     >
                       <option value="confirmed">Confirmed</option>

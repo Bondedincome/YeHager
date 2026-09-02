@@ -7,8 +7,8 @@ import { AuthProvider } from "./components/AuthProvider";
 import StorefrontShell from "./components/StorefrontShell";
 
 export const metadata: Metadata = {
-  title: "YeHagere — Modern Minimalist Apparel",
-  description: "Explore effortless matching sets, relaxed denim silhouettes, and luxurious seasonal essentials.",
+  title: "YeHagere — Made with lots of hearts and souls.",
+  description: "Handmade brand based in Ethiopia Eco Friendly | Cruelty free | Ethically made.",
 };
 
 export default function RootLayout({

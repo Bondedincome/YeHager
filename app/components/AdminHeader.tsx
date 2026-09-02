@@ -96,7 +96,7 @@ export default function AdminHeader() {
                 href={item.href}
                 className={`px-3.5 py-2 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-all ${
                   active
-                    ? "bg-white text-black shadow-sm"
+                    ? "bg-white text-black! shadow-sm"
                     : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
                 }`}
               >
@@ -155,7 +155,7 @@ export default function AdminHeader() {
       </div>
 
       {/* Mobile/Tablet Secondary Nav Bar */}
-      <div className="lg:hidden border-t border-neutral-800 bg-neutral-900 px-4 py-2 flex items-center gap-2 overflow-x-auto">
+      <div className="lg:hidden border-t border-neutral-800 bg-neutral-900 px-3 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none touch-pan-x">
         {navItems.map((item) => {
           const active = isActive(item);
           const Icon = item.icon;
@@ -163,16 +163,16 @@ export default function AdminHeader() {
             <Link
               key={item.href}
               href={item.href}
-              className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5 whitespace-nowrap transition-colors ${
-                active ? "bg-white text-black" : "text-neutral-300 hover:text-white"
+              className={`px-3.5 py-2 min-h-[38px] text-xs font-bold uppercase tracking-wider flex items-center gap-2 whitespace-nowrap transition-colors flex-shrink-0 ${
+                active ? "bg-white text-black" : "text-neutral-300 hover:text-white bg-neutral-800/60"
               }`}
             >
-              <Icon className="w-3 h-3" />
+              <Icon className="w-3.5 h-3.5" />
               <span>{item.label}</span>
               {item.badge !== undefined && item.badge > 0 && (
                 <span
-                  className={`text-[9px] px-1 rounded-full font-bold ${
-                    active ? "bg-black text-white" : "bg-neutral-800 text-white"
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    active ? "bg-black text-white" : "bg-neutral-700 text-white"
                   }`}
                 >
                   {item.badge}

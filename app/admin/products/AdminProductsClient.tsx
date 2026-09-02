@@ -182,13 +182,13 @@ export default function AdminProductsClient() {
         )}
 
         {/* Products Table / Grid View */}
-        <div className="mt-8 bg-white border border-neutral-200 divide-y divide-neutral-100">
-          <div className="grid grid-cols-12 px-6 py-3.5 bg-neutral-50 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-            <div className="col-span-6 sm:col-span-5">Garment Details</div>
+        <div className="mt-8 bg-white border border-neutral-200 divide-y divide-neutral-100 overflow-hidden">
+          <div className="grid grid-cols-12 px-3 sm:px-6 py-3.5 bg-neutral-50 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+            <div className="col-span-8 sm:col-span-5">Garment Details</div>
             <div className="col-span-2 hidden sm:block">Category</div>
-            <div className="col-span-3 sm:col-span-2 text-right">Price (USD / ETB)</div>
+            <div className="col-span-3 sm:col-span-2 text-right hidden sm:block">Price (USD / ETB)</div>
             <div className="col-span-1 hidden sm:block text-center">Stock</div>
-            <div className="col-span-3 sm:col-span-2 text-right">Actions</div>
+            <div className="col-span-4 sm:col-span-2 text-right">Actions</div>
           </div>
 
           {products.length === 0 ? (
@@ -197,18 +197,18 @@ export default function AdminProductsClient() {
             </div>
           ) : (
             products.map((p) => (
-              <div key={p.id} className="grid grid-cols-12 px-6 py-4 items-center hover:bg-neutral-50/75 transition-colors">
+              <div key={p.id} className="grid grid-cols-12 px-3 sm:px-6 py-3.5 sm:py-4 items-center hover:bg-neutral-50/75 transition-colors gap-2 sm:gap-0">
                 {/* Garment Details */}
-                <div className="col-span-6 sm:col-span-5 flex items-center gap-4">
-                  <div className="w-14 h-16 bg-neutral-100 relative flex-shrink-0 overflow-hidden border border-neutral-200">
+                <div className="col-span-8 sm:col-span-5 flex items-center gap-3 sm:gap-4">
+                  <div className="w-12 h-14 sm:w-14 sm:h-16 bg-neutral-100 relative flex-shrink-0 overflow-hidden border border-neutral-200">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
                   </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-black tracking-tight">{p.title}</h3>
-                    <span className="text-[11px] text-neutral-500">{p.subtitle || "Atelier Silhouette"}</span>
-                    <div className="sm:hidden text-xs font-semibold text-black mt-1">
-                      ${p.price.toFixed(2)} • Br{p.priceETB?.toLocaleString()} ETB
+                  <div className="min-w-0">
+                    <h3 className="text-xs sm:text-sm font-bold text-black tracking-tight truncate">{p.title}</h3>
+                    <span className="text-[10px] sm:text-[11px] text-neutral-500 block truncate">{p.subtitle || "Atelier Silhouette"}</span>
+                    <div className="sm:hidden text-[11px] font-semibold text-black mt-0.5">
+                      ${p.price.toFixed(2)} USD • Br{p.priceETB?.toLocaleString()}
                     </div>
                   </div>
                 </div>
@@ -232,18 +232,18 @@ export default function AdminProductsClient() {
                 </div>
 
                 {/* Actions */}
-                <div className="col-span-6 sm:col-span-2 flex items-center justify-end gap-2">
+                <div className="col-span-4 sm:col-span-2 flex items-center justify-end gap-1 sm:gap-2">
                   <Link
                     href={`/products/${p.id}`}
                     target="_blank"
-                    className="p-2 text-neutral-500 hover:text-black transition-colors"
+                    className="p-1.5 sm:p-2 text-neutral-500 hover:text-black transition-colors"
                     title="View Garment Page"
                   >
                     <ArrowUpRight className="w-4 h-4" />
                   </Link>
                   <button
                     onClick={() => handleDelete(p.id, p.title)}
-                    className="p-2 text-neutral-400 hover:text-red-600 transition-colors"
+                    className="p-1.5 sm:p-2 text-neutral-400 hover:text-red-600 transition-colors"
                     title="Delete Garment"
                   >
                     <Trash2 className="w-4 h-4" />

@@ -66,20 +66,45 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 lg:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
           {/* LEFT: 2-Column Side-by-Side Gallery Images */}
-          <div className="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-            {gallery.slice(0, 2).map((imgUrl, idx) => (
-              <div
-                key={idx}
-                className="relative aspect-[3/4] w-full bg-[#f4f4f4] overflow-hidden"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imgUrl}
-                  alt={`${product.title} - View ${idx + 1}`}
-                  className="w-full h-full object-cover object-center"
-                />
+          <div className="lg:col-span-8 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+              {gallery.map((imgUrl, idx) => (
+                <div
+                  key={idx}
+                  id={`gallery-img-${idx}`}
+                  className={`relative aspect-[3/4] w-full bg-[#f4f4f4] overflow-hidden ${
+                    idx > 1 ? "hidden sm:block" : ""
+                  }`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imgUrl}
+                    alt={`${product.title} - View ${idx + 1}`}
+                    className="w-full h-full object-cover object-center"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Mobile Horizontal Thumbnail Slider */}
+            {gallery.length > 1 && (
+              <div className="flex sm:hidden items-center gap-2 overflow-x-auto py-2 scrollbar-none">
+                {gallery.map((imgUrl, idx) => (
+                  <a
+                    key={`thumb-${idx}`}
+                    href={`#gallery-img-${idx < 2 ? idx : 0}`}
+                    className="relative w-16 h-20 flex-shrink-0 bg-neutral-100 border border-neutral-300 overflow-hidden"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={imgUrl}
+                      alt={`Thumbnail ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </a>
+                ))}
               </div>
-            ))}
+            )}
           </div>
 
           {/* RIGHT: Sticky Details & Purchase Pane */}
@@ -387,6 +412,39 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
           </div>
         </div>
       )}
+
+      {/* MOBILE STICKY ADD TO BAG BAR (Fixed at bottom for small screens) */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 px-4 z-30 flex items-center justify-between gap-3 shadow-lg">
+        <div className="flex items-center gap-2.5 min-w-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={product.imageUrl}
+            alt={product.title}
+            className="w-10 h-10 object-cover bg-neutral-100 flex-shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="text-xs font-bold text-black truncate">{product.title}</p>
+            <p className="text-[11px] font-semibold text-neutral-600">
+              ${product.price} USD
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleAddToBag}
+          className="bg-black text-white text-xs font-bold uppercase tracking-wider py-2.5 px-4 flex-shrink-0 flex items-center gap-1.5 active:scale-95 transition-transform"
+        >
+          {addedNotice ? (
+            <>
+              <Check className="w-3.5 h-3.5 text-white" />
+              <span>Added</span>
+            </>
+          ) : (
+            <span>Add to Bag</span>
+          )}
+        </button>
+      </div>
     </div>
   );
 }

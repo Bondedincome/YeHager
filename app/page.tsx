@@ -64,7 +64,7 @@ export default function Home() {
       )}
 
       {/* 1. HERO SECTION: MATCHING SETS (CMS Control) */}
-      <section className="relative w-full aspect-[16/9] sm:aspect-[21/9] min-h-[420px] max-h-[720px] bg-[#d9d9d9] overflow-hidden">
+      <section className="relative w-full aspect-[4/5] sm:aspect-[16/9] lg:aspect-[21/9] min-h-[460px] max-h-[720px] bg-[#d9d9d9] overflow-hidden">
         {/* Background Editorial Image */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -74,13 +74,13 @@ export default function Home() {
         />
 
         {/* Hero Text Overlay at Bottom-Left */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex items-end">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent flex items-end">
           <div className="max-w-[1440px] w-full mx-auto px-4 sm:px-8 pb-8 sm:pb-12 text-white">
-            <div className="max-w-xl space-y-2.5 bg-black/30 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none p-5 sm:p-0 rounded-none">
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight uppercase text-white drop-shadow-sm">
+            <div className="max-w-xl space-y-2.5 bg-black/40 sm:bg-transparent backdrop-blur-xs sm:backdrop-blur-none p-4 sm:p-0">
+              <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight uppercase text-white drop-shadow-sm leading-tight">
                 {cms.hero.headline}
               </h1>
-              <p className="text-xs sm:text-sm text-neutral-100 font-normal leading-relaxed drop-shadow-sm">
+              <p className="text-xs sm:text-sm text-neutral-100 font-normal leading-relaxed drop-shadow-sm line-clamp-3 sm:line-clamp-none">
                 {cms.hero.subheadline}
               </p>
               <div className="pt-2">
@@ -97,9 +97,9 @@ export default function Home() {
       </section>
 
       {/* 2. "HELLO, FALL" SECTION (CMS Control) */}
-      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 pt-16 pb-20">
-        <div className="mb-8 space-y-2">
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
+      <section id="fall-lookbook" className="max-w-[1440px] mx-auto px-4 sm:px-8 pt-12 sm:pt-16 pb-16 sm:pb-20 scroll-mt-20">
+        <div className="mb-6 sm:mb-8 space-y-1.5 sm:space-y-2">
+          <h2 className="text-xl sm:text-3xl font-bold tracking-tight text-black">
             {cms.lookbook.title}
           </h2>
           <p className="text-xs sm:text-sm text-neutral-800 font-normal max-w-xl">
@@ -116,11 +116,11 @@ export default function Home() {
       </section>
 
       {/* 3. SPLIT SECTION 1: NEW IN DENIM (CMS Control) */}
-      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-          {/* Left Column: Heading, Subtitle, Shop Link, 3 Micro Cards */}
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 sm:py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-start">
+          {/* Left Column: Heading, Subtitle, Shop Link, Micro Cards */}
           <div className="lg:col-span-7 flex flex-col justify-between h-full">
-            <div className="space-y-2 mb-6">
+            <div className="space-y-2 mb-4 sm:mb-6">
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-black">
                 {cms.splitSection1.title}
               </h2>
@@ -137,10 +137,12 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 3-Column Micro Product Cards */}
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-4 pt-2">
+            {/* Responsive Micro Product Cards: horizontal scroll snap on mobile, 3-col on sm+ */}
+            <div className="flex overflow-x-auto pb-4 pt-2 gap-3 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 snap-x snap-mandatory">
               {denimCards.map((p, idx) => (
-                <MicroProductCard key={`${p.id}-${idx}`} product={p} />
+                <div key={`${p.id}-${idx}`} className="w-[180px] sm:w-auto flex-shrink-0 snap-start">
+                  <MicroProductCard product={p} />
+                </div>
               ))}
             </div>
           </div>
@@ -160,8 +162,8 @@ export default function Home() {
       </section>
 
       {/* 4. SPLIT SECTION 2: INVERTED SPLIT (CMS Control) */}
-      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-10 pb-20">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+      <section className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 sm:py-10 pb-16 sm:pb-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-start">
           {/* Left Column: Large Campaign Photo */}
           <div className="lg:col-span-5 order-2 lg:order-1">
             <div className="relative aspect-[3/4] lg:aspect-[4/5] w-full bg-[#d9d9d9] overflow-hidden">
@@ -174,9 +176,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Right Column: Heading, Subtitle, Shop Link, 3 Micro Cards */}
+          {/* Right Column: Heading, Subtitle, Shop Link, Micro Cards */}
           <div className="lg:col-span-7 flex flex-col justify-between h-full order-1 lg:order-2">
-            <div className="space-y-2 mb-6">
+            <div className="space-y-2 mb-4 sm:mb-6">
               <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-black">
                 {cms.splitSection2.title}
               </h2>
@@ -193,10 +195,12 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 3-Column Micro Product Cards */}
-            <div className="grid grid-cols-3 gap-2.5 sm:gap-4 pt-2">
+            {/* Responsive Micro Product Cards */}
+            <div className="flex overflow-x-auto pb-4 pt-2 gap-3 sm:grid sm:grid-cols-3 sm:overflow-visible sm:pb-0 snap-x snap-mandatory">
               {denimCardsSection2.map((p, idx) => (
-                <MicroProductCard key={`${p.id}-inv-${idx}`} product={p} />
+                <div key={`${p.id}-inv-${idx}`} className="w-[180px] sm:w-auto flex-shrink-0 snap-start">
+                  <MicroProductCard product={p} />
+                </div>
               ))}
             </div>
           </div>

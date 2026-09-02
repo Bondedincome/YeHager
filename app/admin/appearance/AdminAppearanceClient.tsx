@@ -127,72 +127,72 @@ export default function AdminAppearanceClient() {
         )}
 
         {/* CMS Editor Tabs */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Sidebar Menu */}
-          <div className="lg:col-span-3 space-y-1">
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
+          {/* Left Sidebar Menu: Horizontal scroll on mobile, vertical list on lg+ */}
+          <div className="lg:col-span-3 flex lg:flex-col gap-2 lg:gap-0 lg:space-y-1 overflow-x-auto pb-2 lg:pb-0 scrollbar-none">
             <button
               onClick={() => setActiveTab("hero")}
-              className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors ${
+              className={`flex-shrink-0 lg:flex-shrink w-auto lg:w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between gap-3 transition-colors whitespace-nowrap ${
                 activeTab === "hero" ? "bg-black text-white" : "bg-white text-neutral-600 hover:bg-neutral-100 hover:text-black"
               } border border-neutral-200`}
             >
-              <span className="flex items-center gap-2.5">
-                <ImageIcon className="w-4 h-4" />
+              <span className="flex items-center gap-2">
+                <ImageIcon className="w-3.5 h-3.5" />
                 1. Hero Campaign Banner
               </span>
-              <span className="text-[10px] opacity-70">Top</span>
+              <span className="text-[10px] opacity-70 hidden sm:inline">Top</span>
             </button>
 
             <button
               onClick={() => setActiveTab("lookbook")}
-              className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors ${
+              className={`flex-shrink-0 lg:flex-shrink w-auto lg:w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between gap-3 transition-colors whitespace-nowrap ${
                 activeTab === "lookbook" ? "bg-black text-white" : "bg-white text-neutral-600 hover:bg-neutral-100 hover:text-black"
               } border border-neutral-200`}
             >
-              <span className="flex items-center gap-2.5">
-                <LayoutTemplate className="w-4 h-4" />
+              <span className="flex items-center gap-2">
+                <LayoutTemplate className="w-3.5 h-3.5" />
                 2. Hello Fall Lookbook
               </span>
-              <span className="text-[10px] opacity-70">Grid</span>
+              <span className="text-[10px] opacity-70 hidden sm:inline">Grid</span>
             </button>
 
             <button
               onClick={() => setActiveTab("splits")}
-              className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors ${
+              className={`flex-shrink-0 lg:flex-shrink w-auto lg:w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between gap-3 transition-colors whitespace-nowrap ${
                 activeTab === "splits" ? "bg-black text-white" : "bg-white text-neutral-600 hover:bg-neutral-100 hover:text-black"
               } border border-neutral-200`}
             >
-              <span className="flex items-center gap-2.5">
-                <Layers className="w-4 h-4" />
+              <span className="flex items-center gap-2">
+                <Layers className="w-3.5 h-3.5" />
                 3. Denim Split Campaigns
               </span>
-              <span className="text-[10px] opacity-70">Dual</span>
+              <span className="text-[10px] opacity-70 hidden sm:inline">Dual</span>
             </button>
 
             <button
               onClick={() => setActiveTab("announcement")}
-              className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors ${
+              className={`flex-shrink-0 lg:flex-shrink w-auto lg:w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between gap-3 transition-colors whitespace-nowrap ${
                 activeTab === "announcement" ? "bg-black text-white" : "bg-white text-neutral-600 hover:bg-neutral-100 hover:text-black"
               } border border-neutral-200`}
             >
-              <span className="flex items-center gap-2.5">
-                <BellRing className="w-4 h-4" />
+              <span className="flex items-center gap-2">
+                <BellRing className="w-3.5 h-3.5" />
                 4. Announcement Bar
               </span>
-              <span className="text-[10px] opacity-70">Header</span>
+              <span className="text-[10px] opacity-70 hidden sm:inline">Header</span>
             </button>
 
             <button
               onClick={() => setActiveTab("footer")}
-              className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-colors ${
+              className={`flex-shrink-0 lg:flex-shrink w-auto lg:w-full text-left px-3.5 sm:px-4 py-2.5 sm:py-3 text-xs font-bold uppercase tracking-wider flex items-center justify-between gap-3 transition-colors whitespace-nowrap ${
                 activeTab === "footer" ? "bg-black text-white" : "bg-white text-neutral-600 hover:bg-neutral-100 hover:text-black"
               } border border-neutral-200`}
             >
-              <span className="flex items-center gap-2.5">
-                <Sliders className="w-4 h-4" />
+              <span className="flex items-center gap-2">
+                <Sliders className="w-3.5 h-3.5" />
                 5. Atelier Footer Notice
               </span>
-              <span className="text-[10px] opacity-70">Bottom</span>
+              <span className="text-[10px] opacity-70 hidden sm:inline">Bottom</span>
             </button>
           </div>
 
