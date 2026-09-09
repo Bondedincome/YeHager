@@ -157,42 +157,47 @@ export default function AdminAnalyticsClient() {
           </p>
         </div>
 
-        {/* Action Shortcuts */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        {/* Executive Action Controls (Non-repetitive: Time Range & Live Storefront Preview) */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Timeframe Selector */}
+          <div className="flex items-center bg-white border border-neutral-300 p-0.5 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setTimeRange("7d")}
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                timeRange === "7d" ? "bg-black text-white" : "text-neutral-600 hover:text-black"
+              }`}
+            >
+              7 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeRange("30d")}
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                timeRange === "30d" ? "bg-black text-white" : "text-neutral-600 hover:text-black"
+              }`}
+            >
+              30 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => setTimeRange("all")}
+              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
+                timeRange === "all" ? "bg-black text-white" : "text-neutral-600 hover:text-black"
+              }`}
+            >
+              All Time
+            </button>
+          </div>
+
+          {/* Direct Storefront Preview */}
           <Link
-            href="/admin/appearance"
-            className="px-3.5 py-2 bg-white text-black border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-2xs"
+            href="/"
+            target="_blank"
+            className="px-4 py-2 bg-black text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-2xs"
           >
-            <Sliders className="w-3.5 h-3.5 text-neutral-600" />
-            <span>Store CMS</span>
-          </Link>
-          <Link
-            href="/admin/products"
-            className="px-3.5 py-2 bg-white text-black border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-2xs"
-          >
-            <ShoppingBag className="w-3.5 h-3.5 text-neutral-600" />
-            <span>Products</span>
-          </Link>
-          <Link
-            href="/admin/users"
-            className="px-3.5 py-2 bg-white text-black border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-2xs"
-          >
-            <Users className="w-3.5 h-3.5 text-neutral-600" />
-            <span>Users</span>
-          </Link>
-          <Link
-            href="/admin/settings"
-            className="px-3.5 py-2 bg-white text-black border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-2xs"
-          >
-            <Settings className="w-3.5 h-3.5 text-neutral-600" />
-            <span>Settings &amp; Promos</span>
-          </Link>
-          <Link
-            href="/admin/orders"
-            className="px-3.5 py-2 bg-black text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors"
-          >
-            <Receipt className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-white">Orders ({pendingOrders} Actionable)</span>
+            <span>Preview Storefront</span>
+            <ArrowUpRight className="w-3.5 h-3.5 text-neutral-300" />
           </Link>
         </div>
       </div>

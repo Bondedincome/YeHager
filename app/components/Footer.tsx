@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Send, Globe, Share2 } from "lucide-react";
+import { Send, Globe } from "lucide-react";
 import LogoMark from "./LogoMark";
 import { useAppearance } from "./AppearanceProvider";
 
@@ -115,70 +115,87 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Social Icons Row */}
-        <div className="flex items-center justify-center sm:justify-end gap-5 sm:gap-6 flex-wrap py-6 border-t border-neutral-100 text-black">
-          <a
-            href="https://instagram.com"
-            target="_blank"
-            rel="noreferrer"
-            className="p-1 hover:text-neutral-500 transition-colors"
-            aria-label="Instagram"
-          >
-            <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-              <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
-              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-              <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
-            </svg>
-          </a>
-          <a
-            href="https://tiktok.com"
-            target="_blank"
-            rel="noreferrer"
-            className="p-1 hover:text-neutral-500 transition-colors"
-            aria-label="TikTok"
-          >
-            <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-              <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.81 4.48 6.27 6.27 0 0 0 1.87-4.47V8.69a8.28 8.28 0 0 0 4.91 1.6v-3.6z" />
-            </svg>
-          </a>
-          <a
-            href="https://facebook.com"
-            target="_blank"
-            rel="noreferrer"
-            className="p-1 hover:text-neutral-500 transition-colors"
-            aria-label="Facebook"
-          >
-            <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-            </svg>
-          </a>
-          <a
-            href="https://pinterest.com"
-            target="_blank"
-            rel="noreferrer"
-            className="p-1 hover:text-neutral-500 transition-colors"
-            aria-label="Pinterest"
-          >
-            <Share2 className="w-5 h-5 stroke-[1.75]" />
-          </a>
-          <a
-            href="https://t.me"
-            target="_blank"
-            rel="noreferrer"
-            className="p-1 hover:text-neutral-500 transition-colors"
-            aria-label="Telegram"
-          >
-            <Send className="w-5 h-5 stroke-[1.75]" />
-          </a>
-          <a
-            href="https://yehagere.com"
-            target="_blank"
-            rel="noreferrer"
-            className="p-1 hover:text-neutral-500 transition-colors"
-            aria-label="Global"
-          >
-            <Globe className="w-5 h-5 stroke-[1.75]" />
-          </a>
+        {/* Social Icons & Concierge Row */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-6 border-t border-neutral-100 text-black">
+          {/* Atelier Concierge Details */}
+          <div className="text-xs text-neutral-600 space-y-0.5 text-center sm:text-left">
+            {cms.footer?.boutiqueAddress && (
+              <p className="font-medium text-black">{cms.footer.boutiqueAddress}</p>
+            )}
+            <div className="flex items-center gap-3 text-[11px] justify-center sm:justify-start">
+              {cms.footer?.conciergePhone && (
+                <span>Tel: {cms.footer.conciergePhone}</span>
+              )}
+              {cms.footer?.conciergeEmail && (
+                <>
+                  <span>•</span>
+                  <span>{cms.footer.conciergeEmail}</span>
+                </>
+              )}
+              {cms.footer?.openingHours && (
+                <>
+                  <span className="hidden md:inline">•</span>
+                  <span className="hidden md:inline text-neutral-500">{cms.footer.openingHours}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center sm:justify-end gap-5 sm:gap-6 flex-wrap">
+            <a
+              href={cms.footer?.instagramUrl || "https://instagram.com"}
+              target="_blank"
+              rel="noreferrer"
+              className="p-1 hover:text-neutral-500 transition-colors"
+              aria-label="Instagram"
+            >
+              <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+              </svg>
+            </a>
+            <a
+              href={cms.footer?.tiktokUrl || "https://tiktok.com"}
+              target="_blank"
+              rel="noreferrer"
+              className="p-1 hover:text-neutral-500 transition-colors"
+              aria-label="TikTok"
+            >
+              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.81 4.48 6.27 6.27 0 0 0 1.87-4.47V8.69a8.28 8.28 0 0 0 4.91 1.6v-3.6z" />
+              </svg>
+            </a>
+            <a
+              href={cms.footer?.facebookUrl || "https://facebook.com"}
+              target="_blank"
+              rel="noreferrer"
+              className="p-1 hover:text-neutral-500 transition-colors"
+              aria-label="Facebook"
+            >
+              <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+              </svg>
+            </a>
+            <a
+              href={cms.footer?.telegramUrl || "https://t.me"}
+              target="_blank"
+              rel="noreferrer"
+              className="p-1 hover:text-neutral-500 transition-colors"
+              aria-label="Telegram"
+            >
+              <Send className="w-5 h-5 stroke-[1.75]" />
+            </a>
+            <a
+              href="https://yehagere.com"
+              target="_blank"
+              rel="noreferrer"
+              className="p-1 hover:text-neutral-500 transition-colors"
+              aria-label="Global"
+            >
+              <Globe className="w-5 h-5 stroke-[1.75]" />
+            </a>
+          </div>
         </div>
 
         {/* Bottom Bar: Logo Mark on Left, Copyright on Right */}
