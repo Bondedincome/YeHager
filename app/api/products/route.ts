@@ -48,10 +48,15 @@ export async function POST(request: Request) {
     const product = addProduct({
       title: body.title || "Untitled Product",
       name: body.name || body.title || "Untitled Product",
+      subtitle: body.subtitle,
       description: body.description || "",
       price: Number(body.price) || 0,
+      priceETB: body.priceETB ? Number(body.priceETB) : undefined,
       imageUrl: body.imageUrl || "",
       stock: Number(body.stock) || 0,
+      category: body.category || "sets",
+      tag: body.tag || "New",
+      details: body.details,
     });
 
     const supabaseAdmin = getSupabaseAdmin() || getSupabase();

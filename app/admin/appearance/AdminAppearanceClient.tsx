@@ -33,6 +33,7 @@ import {
   FooterCMS,
 } from "../../components/AppearanceProvider";
 import { getAllProducts, Product } from "../../lib/products-store";
+import { getAllCategories } from "../../lib/categories-store";
 
 export default function AdminAppearanceClient() {
   const { cms, updateCMS, resetCMS } = useAppearance();
@@ -677,17 +678,17 @@ export default function AdminAppearanceClient() {
                       onChange={(e) =>
                         setLookbookForm({
                           ...lookbookForm,
-                          categoryFilter: e.target.value as "all" | "sets" | "fall" | "knitwear" | "denim" | "outerwear",
+                          categoryFilter: e.target.value,
                         })
                       }
                       className="w-full bg-[#f4f4f4] px-4 py-3 text-sm text-black focus:outline-none focus:ring-1 focus:ring-black"
                     >
                       <option value="all">All Products (Full Collection)</option>
-                      <option value="sets">Matching Sets</option>
-                      <option value="fall">Fall &amp; Autumn Capsule</option>
-                      <option value="knitwear">Artisan Knitwear</option>
-                      <option value="denim">Selvedge Denim</option>
-                      <option value="outerwear">Outerwear &amp; Tailored Coats</option>
+                      {getAllCategories().map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

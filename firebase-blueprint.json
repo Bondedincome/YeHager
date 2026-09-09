@@ -68,6 +68,24 @@
         "update": "Allow admin notes",
         "delete": "Allow admin cleanup"
       }
+    },
+    "categories": {
+      "title": "Product Categories",
+      "description": "Atelier collection categories and descriptions",
+      "type": "collection",
+      "properties": {
+        "id": { "type": "string", "description": "Category slug identifier e.g. sets, fall, kemis" },
+        "name": { "type": "string", "description": "Display name of category" },
+        "description": { "type": "string", "description": "Optional category description" },
+        "isDefault": { "type": "boolean", "description": "Whether built-in category" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "operations": {
+        "read": "Allow public read of catalog categories",
+        "create": "Allow admin creation of categories",
+        "update": "Allow admin update of categories",
+        "delete": "Allow admin deletion of categories"
+      }
     }
   }
 }

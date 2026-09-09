@@ -34,6 +34,7 @@ import {
 import { useAuth } from "../components/AuthProvider";
 import { useAppearance } from "../components/AppearanceProvider";
 import { getAllProducts, updateProduct } from "../lib/products-store";
+import { getAllCategories } from "../lib/categories-store";
 import { getStoreSettings, updateStoreSettings } from "../lib/settings-store";
 
 export default function AdminAnalyticsClient() {
@@ -124,13 +125,24 @@ export default function AdminAnalyticsClient() {
       counts[cat] = (counts[cat] || 0) + 1;
     });
 
-    return [
-      { name: "Matching Sets", value: counts["sets"] || 3, color: "#111111" },
-      { name: "Denim Silhouettes", value: counts["denim"] || 2, color: "#4f46e5" },
-      { name: "Fall Lookbook", value: counts["fall"] || 2, color: "#d97706" },
-      { name: "Knitwear & Henleys", value: counts["knitwear"] || 2, color: "#059669" },
-      { name: "Outerwear & Coats", value: counts["outerwear"] || 1, color: "#7c3aed" },
+    const palette = [
+      "#111111",
+      "#4f46e5",
+      "#d97706",
+      "#059669",
+      "#7c3aed",
+      "#e11d48",
+      "#0284c7",
+      "#ca8a04",
+      "#0d9488",
     ];
+
+    const allCats = getAllCategories();
+    return allCats.map((cat, idx) => ({
+      name: cat.name,
+      value: counts[cat.id.toLowerCase()] || 0,
+      color: palette[idx % palette.length],
+    }));
   }, [productsList]);
 
   // Order status counts

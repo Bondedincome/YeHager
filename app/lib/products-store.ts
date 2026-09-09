@@ -15,7 +15,7 @@ export type Product = {
   formattedPriceETB?: string;
   imageUrl: string;
   galleryImages?: string[];
-  category?: "sets" | "denim" | "fall" | "knitwear" | "outerwear" | "shoes";
+  category?: string;
   isNew?: boolean;
   tag?: string;
   colors?: ProductColor[];
@@ -315,7 +315,7 @@ export type CreateProductInput = {
   formattedPriceETB?: string;
   imageUrl?: string;
   galleryImages?: string[];
-  category?: "sets" | "denim" | "fall" | "knitwear" | "outerwear" | "shoes";
+  category?: string;
   isNew?: boolean;
   tag?: string;
   colors?: ProductColor[];

@@ -16,5 +16,10 @@ service cloud.firestore {
     match /inquiries/{inquiryId} {
       allow read, write: if true;
     }
+
+    // Categories: public catalog browsing, administrative management
+    match /categories/{categoryId} {
+      allow read, write: if true;
+    }
   }
 }

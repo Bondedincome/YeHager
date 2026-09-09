@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "./CartProvider";
+import { getAllProducts } from "../lib/products-store";
 
 type Product = {
   id: number;
@@ -46,8 +47,12 @@ export default function ProductList() {
       })
       .catch((requestError: unknown) => {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
-        console.error(requestError);
-        setError(requestError instanceof Error ? requestError.message : "Unable to load products.");
+        const local = getAllProducts();
+        if (local && local.length > 0) {
+          setProducts(local as Product[]);
+        } else {
+          setError(requestError instanceof Error ? requestError.message : "Unable to load products.");
+        }
       });
 
     return () => controller.abort();

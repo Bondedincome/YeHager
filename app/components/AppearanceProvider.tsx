@@ -18,7 +18,7 @@ export type HeroBanner = {
 export type LookbookSection = {
   title: string;
   subtitle: string;
-  categoryFilter?: "all" | "sets" | "fall" | "knitwear" | "denim" | "outerwear";
+  categoryFilter?: string;
   badge?: string;
   viewAllLinkText?: string;
   itemLimit?: number;
