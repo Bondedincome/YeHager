@@ -25,6 +25,8 @@ type AuthContextType = {
   userOrders: CustomerOrder[];
   placeOrder: (orderData: Omit<CustomerOrder, "id" | "createdAt" | "orderNumber">) => Promise<CustomerOrder>;
   updateOrderStatus: (orderId: string, status: CustomerOrder["status"]) => void;
+  updateOrderDetails: (orderId: string, updates: Partial<CustomerOrder>) => void;
+  deleteOrder: (orderId: string) => void;
   usersList: AppUser[];
   addUser: (userData: Omit<AppUser, "id" | "memberSince" | "totalOrders" | "totalSpentUSD">) => void;
   updateUserRole: (userId: string, role: AppUser["role"]) => void;
@@ -194,6 +196,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setOrders(updated);
   };
 
+  const updateOrderDetails = (orderId: string, updates: Partial<CustomerOrder>) => {
+    const updated = orders.map((o) => (o.id === orderId ? { ...o, ...updates } : o));
+    saveStoredOrders(updated);
+    setOrders(updated);
+  };
+
+  const deleteOrder = (orderId: string) => {
+    const updated = orders.filter((o) => o.id !== orderId);
+    saveStoredOrders(updated);
+    setOrders(updated);
+  };
+
   const addUser = (userData: Omit<AppUser, "id" | "memberSince" | "totalOrders" | "totalSpentUSD">) => {
     const newUser: AppUser = {
       ...userData,
@@ -251,6 +265,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     userOrders,
     placeOrder,
     updateOrderStatus,
+    updateOrderDetails,
+    deleteOrder,
     usersList,
     addUser,
     updateUserRole,

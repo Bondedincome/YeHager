@@ -1,7 +1,5 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-
 export type UserRole = "admin" | "customer" | "vip";
 
 export type AppUser = {
@@ -47,7 +45,7 @@ export type CustomerOrder = {
   totalUSD: number;
   totalETB: number;
   status: OrderStatus;
-  paymentMethod: "stripe" | "card" | "apple_pay";
+  paymentMethod: "stripe" | "card" | "apple_pay" | "cash_on_delivery" | "manual_boutique";
   paymentIntentId?: string;
   last4?: string;
   createdAt: string;
@@ -58,6 +56,8 @@ export type CustomerOrder = {
     country: string;
   };
   trackingNumber?: string;
+  carrier?: string;
+  internalNotes?: string;
 };
 
 export const INITIAL_USERS: AppUser[] = [

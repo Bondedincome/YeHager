@@ -363,6 +363,52 @@ export function addProduct(product: CreateProductInput): Product {
 }
 
 
+export function updateProduct(id: number | string, updates: Partial<Product>): Product | undefined {
+  const numId = Number(id);
+  const products = getAllProducts();
+  const index = products.findIndex((p) => p.id === numId);
+  if (index === -1) return undefined;
+
+  const existing = products[index];
+  const updatedPrice = updates.price !== undefined ? updates.price : existing.price;
+  const updatedETB = updates.priceETB !== undefined ? updates.priceETB : (updates.price !== undefined ? updates.price * 125 : existing.priceETB);
+  
+  const updated: Product = {
+    ...existing,
+    ...updates,
+    id: numId,
+    price: updatedPrice,
+    priceETB: updatedETB,
+    formattedPriceETB: updates.formattedPriceETB || `Br${updatedETB.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB`,
+    details: {
+      ...existing.details,
+      ...updates.details,
+      overview: updates.description || updates.details?.overview || existing.details?.overview || "",
+      measurements: updates.details?.measurements || existing.details?.measurements || [],
+      fabric: updates.details?.fabric || existing.details?.fabric || "",
+      care: updates.details?.care || existing.details?.care || "",
+    },
+  };
+
+  const newProducts = [...products];
+  newProducts[index] = updated;
+  globalThis.__YEHAGERE_PRODUCTS__ = newProducts;
+  return updated;
+}
+
+export function duplicateProduct(id: number | string): Product | undefined {
+  const existing = getProductById(id);
+  if (!existing) return undefined;
+
+  return addProduct({
+    ...existing,
+    id: undefined,
+    title: `${existing.title} (Copy)`,
+    name: `${existing.title} (Copy)`,
+    stock: existing.stock,
+  });
+}
+
 export function deleteProduct(id: number | string): boolean {
   const numId = Number(id);
   const products = getAllProducts();

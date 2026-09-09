@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getProductById, deleteProduct } from "../../../lib/products-store";
+import { getProductById, deleteProduct, updateProduct } from "../../../lib/products-store";
 import { getSupabaseAdmin, getSupabase } from "../../../lib/supabase";
 
 export async function GET(
@@ -69,5 +69,63 @@ export async function DELETE(
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
   }
   return NextResponse.json({ success: true, message: "Product deleted" });
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  try {
+    const body = await request.json();
+    const updated = updateProduct(id, body);
+
+    if (!updated) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+
+    const supabaseAdmin = getSupabaseAdmin() || getSupabase();
+    if (supabaseAdmin) {
+      try {
+        await supabaseAdmin
+          .from("products")
+          .update({
+            title: updated.title,
+            name: updated.name || updated.title,
+            subtitle: updated.subtitle,
+            description: updated.description,
+            price: updated.price,
+            price_etb: updated.priceETB,
+            formatted_price_etb: updated.formattedPriceETB,
+            image_url: updated.imageUrl,
+            category: updated.category,
+            stock: updated.stock,
+            is_new: updated.isNew,
+            tag: updated.tag,
+            colors: updated.colors,
+            sizes: updated.sizes,
+            details: updated.details,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+      } catch {
+        // ignore
+      }
+    }
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to update product" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  return PUT(request, { params });
 }
 

@@ -44,7 +44,7 @@ export default function AboutPage() {
         <div className="pt-8 text-center">
           <Link
             href="/"
-            className="inline-block bg-black text-white px-8 py-3.5 text-xs font-semibold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
+            className="inline-block bg-black text-white! px-8 py-3.5 text-xs font-semibold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
           >
             Explore the Collection
           </Link>

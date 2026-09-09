@@ -132,12 +132,6 @@ export default function Navbar() {
                 Home
               </Link>
               <Link
-                href="/#fall-lookbook"
-                className="text-sm font-normal tracking-wide text-black hover:text-neutral-500 transition-colors"
-              >
-                Lookbook
-              </Link>
-              <Link
                 href="/about"
                 className="text-sm font-normal tracking-wide text-black hover:text-neutral-500 transition-colors"
               >
@@ -457,15 +451,6 @@ export default function Navbar() {
                 </Link>
 
                 <Link
-                  href="/#fall-lookbook"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center justify-between py-3 text-sm font-bold uppercase tracking-wider text-black border-b border-neutral-100 hover:text-neutral-500"
-                >
-                  <span>Hello Fall Lookbook</span>
-                  <ChevronRight className="w-4 h-4 text-neutral-400" />
-                </Link>
-
-                <Link
                   href="/products/2"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center justify-between py-3 text-sm font-bold uppercase tracking-wider text-black border-b border-neutral-100 hover:text-neutral-500"
@@ -580,7 +565,7 @@ export default function Navbar() {
                     <Link
                       href="/login"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block w-full py-2.5 bg-black text-white text-center text-xs font-bold uppercase tracking-wider"
+                      className="block w-full py-2.5 bg-black text-white! text-center text-xs font-bold uppercase tracking-wider"
                     >
                       Sign In / Register
                     </Link>

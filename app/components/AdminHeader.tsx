@@ -12,6 +12,7 @@ import {
   ArrowUpRight,
   LogOut,
   Shield,
+  Settings,
 } from "lucide-react";
 import LogoMark from "./LogoMark";
 import { useAuth } from "./AuthProvider";
@@ -34,14 +35,20 @@ export default function AdminHeader() {
       exact: true,
     },
     {
-      label: "Store CMS",
-      href: "/admin/appearance",
-      icon: Sliders,
-    },
-    {
       label: "Products",
       href: "/admin/products",
       icon: ShoppingBag,
+    },
+    {
+      label: "Orders",
+      href: "/admin/orders",
+      icon: Receipt,
+      badge: orders.filter((o) => o.status === "preparing" || o.status === "confirmed").length,
+    },
+    {
+      label: "Store CMS",
+      href: "/admin/appearance",
+      icon: Sliders,
     },
     {
       label: "Users & Clients",
@@ -49,10 +56,9 @@ export default function AdminHeader() {
       icon: Users,
     },
     {
-      label: "Orders",
-      href: "/admin/orders",
-      icon: Receipt,
-      badge: orders.filter((o) => o.status === "preparing" || o.status === "confirmed").length,
+      label: "Settings & Promos",
+      href: "/admin/settings",
+      icon: Settings,
     },
   ];
 

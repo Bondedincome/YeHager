@@ -13,6 +13,11 @@ import {
   PackageCheck,
   CheckCircle2,
   CreditCard,
+  Settings,
+  Tag,
+  AlertTriangle,
+  Check,
+  Sparkles,
 } from "lucide-react";
 import {
   AreaChart,
@@ -27,11 +32,20 @@ import {
   Cell,
 } from "recharts";
 import { useAuth } from "../components/AuthProvider";
-import { getAllProducts } from "../lib/products-store";
+import { useAppearance } from "../components/AppearanceProvider";
+import { getAllProducts, updateProduct } from "../lib/products-store";
+import { getStoreSettings, updateStoreSettings } from "../lib/settings-store";
 
 export default function AdminAnalyticsClient() {
   const { orders, usersList, updateOrderStatus } = useAuth();
-  const products = useMemo(() => getAllProducts(), []);
+  const { cms, updateCMS } = useAppearance();
+  const [storeSettings, setStoreSettings] = useState(() => getStoreSettings());
+  const [exchangeRateInput, setExchangeRateInput] = useState(storeSettings.exchangeRateUSDToETB);
+  const [announcementText, setAnnouncementText] = useState(cms.announcement.text);
+  const [announcementSaved, setAnnouncementSaved] = useState(false);
+  const [rateSaved, setRateSaved] = useState(false);
+  const [productsList, setProductsList] = useState(() => getAllProducts());
+
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "all">("30d");
 
   // Key KPI calculations
@@ -39,11 +53,53 @@ export default function AdminAnalyticsClient() {
     return orders.reduce((sum, o) => sum + (o.totalUSD || 0), 0);
   }, [orders]);
 
-  const totalRevenueETB = totalRevenueUSD * 125;
+  const totalRevenueETB = totalRevenueUSD * storeSettings.exchangeRateUSDToETB;
   const totalOrdersCount = orders.length;
   const totalCustomersCount = usersList.filter((u) => u.role !== "admin").length;
-  const activeProductsCount = products.length;
+  const activeProductsCount = productsList.length;
   const avgOrderValue = totalOrdersCount > 0 ? Math.round(totalRevenueUSD / totalOrdersCount) : 0;
+
+  const lowStockProducts = useMemo(() => {
+    return productsList.filter((p) => (p.stock ?? 10) <= (storeSettings.lowStockThreshold || 5));
+  }, [productsList, storeSettings.lowStockThreshold]);
+
+  const handleQuickRestock = (productId: number) => {
+    const p = productsList.find((x) => x.id === productId);
+    if (!p) return;
+    const current = p.stock ?? 10;
+    const updated = updateProduct(productId, { stock: current + 10 });
+    if (updated) {
+      setProductsList(getAllProducts());
+    }
+  };
+
+  const handleSaveAnnouncement = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateCMS({
+      announcement: {
+        ...cms.announcement,
+        text: announcementText,
+      },
+    });
+    setAnnouncementSaved(true);
+    setTimeout(() => setAnnouncementSaved(false), 2500);
+  };
+
+  const handleToggleAnnouncement = () => {
+    updateCMS({
+      announcement: {
+        ...cms.announcement,
+        enabled: !cms.announcement.enabled,
+      },
+    });
+  };
+
+  const handleSaveRate = () => {
+    const updated = updateStoreSettings({ exchangeRateUSDToETB: exchangeRateInput });
+    setStoreSettings(updated);
+    setRateSaved(true);
+    setTimeout(() => setRateSaved(false), 2500);
+  };
 
   // Chart data: 30-day sales growth
   const salesTrendData = useMemo(() => {
@@ -63,7 +119,7 @@ export default function AdminAnalyticsClient() {
   // Category distribution
   const categoryData = useMemo(() => {
     const counts: Record<string, number> = {};
-    products.forEach((p) => {
+    productsList.forEach((p) => {
       const cat = (p.category || "sets").toLowerCase();
       counts[cat] = (counts[cat] || 0) + 1;
     });
@@ -75,7 +131,7 @@ export default function AdminAnalyticsClient() {
       { name: "Knitwear & Henleys", value: counts["knitwear"] || 2, color: "#059669" },
       { name: "Outerwear & Coats", value: counts["outerwear"] || 1, color: "#7c3aed" },
     ];
-  }, [products]);
+  }, [productsList]);
 
   // Order status counts
   const pendingOrders = orders.filter((o) => o.status === "confirmed" || o.status === "preparing").length;
@@ -123,6 +179,13 @@ export default function AdminAnalyticsClient() {
           >
             <Users className="w-3.5 h-3.5 text-neutral-600" />
             <span>Users</span>
+          </Link>
+          <Link
+            href="/admin/settings"
+            className="px-3.5 py-2 bg-white text-black border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-2xs"
+          >
+            <Settings className="w-3.5 h-3.5 text-neutral-600" />
+            <span>Settings &amp; Promos</span>
           </Link>
           <Link
             href="/admin/orders"
@@ -228,6 +291,168 @@ export default function AdminAnalyticsClient() {
           </div>
           <div className="pt-2 border-t border-neutral-100 flex items-center gap-1.5 text-[11px] text-neutral-600 font-medium">
             <span>{activeProductsCount} Live Active Garments</span>
+          </div>
+        </div>
+      </div>
+
+      {/* EXECUTIVE QUICK CONTROLS HUB */}
+      <div className="bg-white border border-neutral-200 p-6 shadow-2xs space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
+                Atelier Master Controls
+              </span>
+              <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black text-white">
+                Live Storefront Governance
+              </span>
+            </div>
+            <h2 className="text-base font-bold text-black">Instant Operational Actions</h2>
+            <p className="text-xs text-neutral-500">
+              Directly adjust storefront broadcast banners, currency conversion ratios, and execute 1-click inventory restocks.
+            </p>
+          </div>
+          <Link
+            href="/admin/settings"
+            className="text-xs font-bold uppercase tracking-wider text-black border border-neutral-300 hover:border-black px-3 py-1.5 bg-neutral-50 transition-colors self-start sm:self-auto flex items-center gap-1.5"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span>Full Settings &amp; Promos</span>
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Control 1: Announcement Bar Live Toggle & Edit */}
+          <div className="bg-[#fafafa] border border-neutral-200 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                Storefront Announcement Bar
+              </span>
+              <button
+                onClick={handleToggleAnnouncement}
+                className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                  cms.announcement.enabled
+                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                    : "bg-neutral-200 text-neutral-600"
+                }`}
+              >
+                {cms.announcement.enabled ? "Live / Active" : "Hidden"}
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAnnouncement} className="space-y-2">
+              <input
+                type="text"
+                value={announcementText}
+                onChange={(e) => setAnnouncementText(e.target.value)}
+                placeholder="Broadcast message at top of storefront..."
+                className="w-full p-2 bg-white border border-neutral-300 text-xs text-black"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-neutral-400">Appears globally on all client pages</span>
+                <button
+                  type="submit"
+                  className="px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 hover:bg-neutral-800 transition-colors"
+                >
+                  {announcementSaved ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span>Saved!</span>
+                    </>
+                  ) : (
+                    <span>Update Banner</span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Control 2: Live Currency Conversion Rate */}
+          <div className="bg-[#fafafa] border border-neutral-200 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                Active Forex Valuation
+              </span>
+              <span className="text-[10px] font-mono font-bold text-neutral-700">
+                USD : ETB
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold font-mono text-black">$1 USD =</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="0.5"
+                  value={exchangeRateInput}
+                  onChange={(e) => setExchangeRateInput(parseFloat(e.target.value) || 125)}
+                  className="w-24 p-2 bg-white border border-neutral-300 text-xs font-mono font-bold text-black"
+                />
+                <span className="text-xs font-bold font-mono text-black">ETB</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[10px] text-neutral-400">Recalculates cart &amp; checkout</span>
+                <button
+                  onClick={handleSaveRate}
+                  className="px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 hover:bg-neutral-800 transition-colors"
+                >
+                  {rateSaved ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-400" />
+                      <span>Updated!</span>
+                    </>
+                  ) : (
+                    <span>Set Rate</span>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Control 3: Urgent Inventory Restock Radar */}
+          <div className="bg-[#fafafa] border border-neutral-200 p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3 text-amber-500" />
+                <span>Low Inventory Radar ({lowStockProducts.length})</span>
+              </span>
+              <Link
+                href="/admin/products"
+                className="text-[10px] font-bold uppercase tracking-wider text-blue-700 hover:underline"
+              >
+                All SKUs →
+              </Link>
+            </div>
+
+            {lowStockProducts.length === 0 ? (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>All atelier garments are well-stocked above {storeSettings.lowStockThreshold} units.</span>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
+                {lowStockProducts.map((p) => (
+                  <div
+                    key={p.id}
+                    className="flex items-center justify-between bg-white p-2 border border-neutral-200 text-xs"
+                  >
+                    <div className="truncate pr-2">
+                      <span className="font-bold text-black block truncate">{p.title}</span>
+                      <span className="text-[10px] text-rose-600 font-bold">
+                        Only {p.stock ?? 0} remaining
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handleQuickRestock(p.id)}
+                      className="px-2 py-1 bg-black text-white hover:bg-neutral-800 text-[9px] font-bold uppercase tracking-wider flex-shrink-0"
+                    >
+                      +10 Restock
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
