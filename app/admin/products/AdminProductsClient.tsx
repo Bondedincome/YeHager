@@ -522,10 +522,10 @@ export default function AdminProductsClient() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full md:w-auto">
             <button
               onClick={loadProducts}
-              className="p-2.5 text-neutral-600 hover:text-black border border-neutral-300 hover:bg-neutral-100 transition-colors"
+              className="p-2.5 text-neutral-600 hover:text-black border border-neutral-300 hover:bg-neutral-100 transition-colors flex-shrink-0"
               title="Refresh Products"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -535,28 +535,28 @@ export default function AdminProductsClient() {
                 setCatError("");
                 setShowCategoriesModal(true);
               }}
-              className="px-4 py-2.5 text-xs font-bold uppercase tracking-wider bg-white text-black border border-neutral-300 hover:bg-neutral-100 transition-colors flex items-center gap-2 shadow-2xs"
+              className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 text-xs font-bold uppercase tracking-wider bg-white text-black border border-neutral-300 hover:bg-neutral-100 transition-colors flex items-center justify-center gap-2 shadow-2xs"
             >
               <FolderPlus className="w-4 h-4 text-black" />
-              Manage Categories
+              <span>Manage Categories</span>
             </button>
             <button
               onClick={() => setShowAddModal(true)}
-              className="px-5 py-2.5 text-xs font-bold uppercase tracking-wider bg-black text-white hover:bg-neutral-800 transition-colors flex items-center gap-2 shadow-2xs"
+              className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 text-xs font-bold uppercase tracking-wider bg-black text-white hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 shadow-2xs"
             >
               <Plus className="w-4 h-4" />
-              Add New Garment
+              <span>Add Garment</span>
             </button>
           </div>
         </div>
 
         {/* Inventory KPI Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <div className="bg-white border border-neutral-200 p-4">
             <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
               Active Catalog SKUs
             </span>
-            <div className="text-2xl font-extrabold text-black mt-1 flex items-baseline gap-2">
+            <div className="text-xl sm:text-2xl font-extrabold text-black mt-1 flex items-baseline gap-2">
               {products.length}
               <span className="text-xs font-normal text-neutral-500">silhouettes</span>
             </div>
@@ -566,7 +566,7 @@ export default function AdminProductsClient() {
             <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
               Total Units On Hand
             </span>
-            <div className="text-2xl font-extrabold text-black mt-1 flex items-baseline gap-2">
+            <div className="text-xl sm:text-2xl font-extrabold text-black mt-1 flex items-baseline gap-2">
               {totalUnits}
               <span className="text-xs font-normal text-neutral-500">pieces</span>
             </div>
@@ -576,9 +576,9 @@ export default function AdminProductsClient() {
             <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
               Inventory Valuation
             </span>
-            <div className="text-2xl font-extrabold text-black mt-1">
+            <div className="text-xl sm:text-2xl font-extrabold text-black mt-1">
               ${totalValuationUSD.toLocaleString()}
-              <span className="text-xs font-normal text-neutral-500 ml-2">
+              <span className="text-xs font-normal text-neutral-500 ml-1.5 block sm:inline">
                 (Br {(totalValuationUSD * settings.exchangeRateUSDToETB).toLocaleString()})
               </span>
             </div>
@@ -588,7 +588,7 @@ export default function AdminProductsClient() {
             <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
               Stock Warnings
             </span>
-            <div className="text-2xl font-extrabold mt-1 flex items-center gap-3">
+            <div className="text-xl sm:text-2xl font-extrabold mt-1 flex items-center gap-3">
               <span className={lowStockCount > 0 ? "text-amber-600" : "text-neutral-700"}>
                 {lowStockCount} Low
               </span>
@@ -621,14 +621,14 @@ export default function AdminProductsClient() {
             />
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto overflow-x-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full md:w-auto">
             {/* Category Filter */}
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Category:</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 whitespace-nowrap">Category:</span>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-2.5 py-1.5 bg-[#f4f4f4] border border-neutral-200 text-xs font-bold text-black focus:outline-none"
+                className="w-full sm:w-auto px-2.5 py-1.5 bg-[#f4f4f4] border border-neutral-200 text-xs font-bold text-black focus:outline-none"
               >
                 <option value="all">All Categories ({products.length})</option>
                 {categories.map((cat) => {
@@ -646,11 +646,11 @@ export default function AdminProductsClient() {
 
             {/* Stock Health Filter */}
             <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Stock:</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 whitespace-nowrap">Stock:</span>
               <select
                 value={stockFilter}
                 onChange={(e) => setStockFilter(e.target.value as "all" | "low" | "out" | "healthy")}
-                className="px-2.5 py-1.5 bg-[#f4f4f4] border border-neutral-200 text-xs font-bold text-black focus:outline-none"
+                className="w-full sm:w-auto px-2.5 py-1.5 bg-[#f4f4f4] border border-neutral-200 text-xs font-bold text-black focus:outline-none"
               >
                 <option value="all">All Levels</option>
                 <option value="low">Low Stock (&le; {lowStockThreshold})</option>
@@ -661,14 +661,153 @@ export default function AdminProductsClient() {
           </div>
         </div>
 
-        {/* Products Table */}
-        <div className="bg-white border border-neutral-200 divide-y divide-neutral-100 overflow-hidden shadow-2xs">
-          <div className="grid grid-cols-12 px-4 sm:px-6 py-3.5 bg-neutral-50 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-            <div className="col-span-6 sm:col-span-4">Garment Silhouette</div>
-            <div className="col-span-2 hidden sm:block">Category &amp; Tag</div>
-            <div className="col-span-3 sm:col-span-2 text-right">Price (USD / ETB)</div>
-            <div className="col-span-3 sm:col-span-2 text-center">Stock Inventory</div>
-            <div className="col-span-3 sm:col-span-2 text-right">Admin Actions</div>
+        {/* MOBILE PRODUCTS CARDS VIEW (md:hidden) */}
+        <div className="md:hidden space-y-3">
+          {filteredProducts.length === 0 ? (
+            <div className="bg-white border border-neutral-200 p-8 text-center text-xs text-neutral-500">
+              No garments matching your filter criteria.
+            </div>
+          ) : (
+            filteredProducts.map((p) => {
+              const stock = p.stock ?? 0;
+              const isOut = stock === 0;
+              const isLow = stock > 0 && stock <= lowStockThreshold;
+
+              return (
+                <div key={p.id} className="bg-white border border-neutral-200 p-4 space-y-3 shadow-2xs">
+                  {/* Card Header: Image + Details + Tag */}
+                  <div className="flex items-start gap-3">
+                    <div className="w-16 h-20 bg-neutral-100 relative flex-shrink-0 overflow-hidden border border-neutral-200">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] text-neutral-400 font-mono">#{p.id}</span>
+                        <button
+                          onClick={() => handleToggleNew(p)}
+                          className={`text-[9px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded border transition-colors ${
+                            p.tag === "New" || p.isNew
+                              ? "bg-amber-50 text-amber-900 border-amber-300"
+                              : "bg-neutral-50 text-neutral-500 border-neutral-200"
+                          }`}
+                        >
+                          {p.tag || "Standard"}
+                        </button>
+                      </div>
+
+                      <h3 className="text-sm font-bold text-black tracking-tight mt-0.5 truncate">
+                        {p.title}
+                      </h3>
+                      <span className="text-[11px] text-neutral-500 block truncate">
+                        {p.subtitle || "Atelier Handcrafted Piece"}
+                      </span>
+
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-neutral-100 rounded text-neutral-700">
+                          {getCategoryName(p.category)}
+                        </span>
+                        <span className="text-xs font-bold text-black">
+                          ${p.price.toFixed(2)} USD
+                        </span>
+                        <span className="text-[10px] text-neutral-400">
+                          (Br{p.priceETB ? p.priceETB.toLocaleString() : (p.price * settings.exchangeRateUSDToETB).toLocaleString()})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stock Stepper & Health Status Bar */}
+                  <div className="pt-2 border-t border-neutral-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                        Stock:
+                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleAdjustStock(p, -1)}
+                          className="w-7 h-7 flex items-center justify-center bg-neutral-100 active:bg-neutral-200 text-neutral-800 font-bold text-sm border border-neutral-300"
+                          aria-label="Decrease stock"
+                        >
+                          -
+                        </button>
+                        <span
+                          className={`text-xs font-bold px-2.5 py-1 min-w-[36px] text-center border ${
+                            isOut
+                              ? "bg-rose-50 text-rose-800 border-rose-300"
+                              : isLow
+                              ? "bg-amber-50 text-amber-800 border-amber-300"
+                              : "bg-emerald-50 text-emerald-800 border-emerald-300"
+                          }`}
+                        >
+                          {stock}
+                        </span>
+                        <button
+                          onClick={() => handleAdjustStock(p, +1)}
+                          className="w-7 h-7 flex items-center justify-center bg-neutral-100 active:bg-neutral-200 text-neutral-800 font-bold text-sm border border-neutral-300"
+                          aria-label="Increase stock"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+
+                    <span
+                      className={`text-[10px] uppercase tracking-wider px-2 py-0.5 font-bold ${
+                        isOut ? "text-rose-700 bg-rose-50" : isLow ? "text-amber-700 bg-amber-50" : "text-emerald-700 bg-emerald-50"
+                      }`}
+                    >
+                      {isOut ? "Out of Stock" : isLow ? "Low Stock" : "In Stock"}
+                    </span>
+                  </div>
+
+                  {/* Mobile Quick Actions Row */}
+                  <div className="pt-2 border-t border-neutral-100 grid grid-cols-4 gap-1.5 text-xs">
+                    <button
+                      onClick={() => setEditingProduct({ ...p })}
+                      className="py-2 px-1 text-center bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 font-bold text-neutral-700 flex items-center justify-center gap-1"
+                    >
+                      <Edit className="w-3.5 h-3.5" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDuplicate(p)}
+                      className="py-2 px-1 text-center bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 font-bold text-neutral-700 flex items-center justify-center gap-1"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Clone</span>
+                    </button>
+                    <Link
+                      href={`/products/${p.id}`}
+                      target="_blank"
+                      className="py-2 px-1 text-center bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 font-bold text-neutral-700 flex items-center justify-center gap-1"
+                    >
+                      <ArrowUpRight className="w-3.5 h-3.5" />
+                      <span>View</span>
+                    </Link>
+                    <button
+                      onClick={() => handleDelete(p.id, p.title)}
+                      className="py-2 px-1 text-center bg-rose-50 hover:bg-rose-100 border border-rose-200 font-bold text-rose-700 flex items-center justify-center gap-1"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* DESKTOP PRODUCTS TABLE (hidden md:block) */}
+        <div className="hidden md:block bg-white border border-neutral-200 divide-y divide-neutral-100 overflow-hidden shadow-2xs">
+          <div className="grid grid-cols-12 px-6 py-3.5 bg-neutral-50 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
+            <div className="col-span-4">Garment Silhouette</div>
+            <div className="col-span-2">Category &amp; Tag</div>
+            <div className="col-span-2 text-right">Price (USD / ETB)</div>
+            <div className="col-span-2 text-center">Stock Inventory</div>
+            <div className="col-span-2 text-right">Admin Actions</div>
           </div>
 
           {filteredProducts.length === 0 ? (
@@ -684,37 +823,29 @@ export default function AdminProductsClient() {
               return (
                 <div
                   key={p.id}
-                  className="grid grid-cols-12 px-4 sm:px-6 py-4 items-center hover:bg-neutral-50/75 transition-colors gap-2 sm:gap-0"
+                  className="grid grid-cols-12 px-6 py-4 items-center hover:bg-neutral-50/75 transition-colors"
                 >
                   {/* Garment Details */}
-                  <div className="col-span-6 sm:col-span-4 flex items-center gap-3 sm:gap-4">
-                    <div className="w-12 h-14 sm:w-14 sm:h-16 bg-neutral-100 relative flex-shrink-0 overflow-hidden border border-neutral-200">
+                  <div className="col-span-4 flex items-center gap-4">
+                    <div className="w-14 h-16 bg-neutral-100 relative flex-shrink-0 overflow-hidden border border-neutral-200">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-xs sm:text-sm font-bold text-black tracking-tight truncate">
+                        <h3 className="text-sm font-bold text-black tracking-tight truncate">
                           {p.title}
                         </h3>
                         <span className="text-[10px] text-neutral-400 font-mono">#{p.id}</span>
                       </div>
-                      <span className="text-[10px] sm:text-[11px] text-neutral-500 block truncate">
+                      <span className="text-[11px] text-neutral-500 block truncate">
                         {p.subtitle || "Atelier Handcrafted Piece"}
                       </span>
-                      <div className="flex items-center gap-1.5 mt-1 sm:hidden">
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 bg-neutral-100 rounded text-neutral-700">
-                          {getCategoryName(p.category)}
-                        </span>
-                        <span className="text-[10px] text-neutral-500 font-bold">
-                          ${p.price.toFixed(2)}
-                        </span>
-                      </div>
                     </div>
                   </div>
 
                   {/* Category & Tag */}
-                  <div className="col-span-2 hidden sm:block">
+                  <div className="col-span-2">
                     <div className="space-y-1">
                       <span className="inline-block text-[10px] font-bold uppercase tracking-wider bg-neutral-100 px-2 py-0.5 rounded text-neutral-800">
                         {getCategoryName(p.category)}
@@ -734,7 +865,7 @@ export default function AdminProductsClient() {
                   </div>
 
                   {/* Price */}
-                  <div className="col-span-3 sm:col-span-2 text-right">
+                  <div className="col-span-2 text-right">
                     <div className="text-sm font-bold text-black">${p.price.toFixed(2)} USD</div>
                     <div className="text-[11px] text-neutral-500">
                       Br{p.priceETB ? p.priceETB.toLocaleString() : (p.price * settings.exchangeRateUSDToETB).toLocaleString()} ETB
@@ -742,7 +873,7 @@ export default function AdminProductsClient() {
                   </div>
 
                   {/* Stock Controls (Interactive +/- buttons) */}
-                  <div className="col-span-3 sm:col-span-2 flex flex-col items-center justify-center">
+                  <div className="col-span-2 flex flex-col items-center justify-center">
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleAdjustStock(p, -1)}
@@ -776,17 +907,17 @@ export default function AdminProductsClient() {
                   </div>
 
                   {/* Admin Actions */}
-                  <div className="col-span-3 sm:col-span-2 flex items-center justify-end gap-1 sm:gap-2">
+                  <div className="col-span-2 flex items-center justify-end gap-2">
                     <button
                       onClick={() => setEditingProduct({ ...p })}
-                      className="p-1.5 sm:p-2 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors"
+                      className="p-2 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors"
                       title="Edit Garment Details"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDuplicate(p)}
-                      className="p-1.5 sm:p-2 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors"
+                      className="p-2 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors"
                       title="Clone / Duplicate Garment"
                     >
                       <Copy className="w-4 h-4" />
@@ -794,14 +925,14 @@ export default function AdminProductsClient() {
                     <Link
                       href={`/products/${p.id}`}
                       target="_blank"
-                      className="p-1.5 sm:p-2 text-neutral-500 hover:text-black hover:bg-neutral-100 transition-colors"
+                      className="p-2 text-neutral-500 hover:text-black hover:bg-neutral-100 transition-colors"
                       title="Preview in Storefront"
                     >
                       <ArrowUpRight className="w-4 h-4" />
                     </Link>
                     <button
                       onClick={() => handleDelete(p.id, p.title)}
-                      className="p-1.5 sm:p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                       title="Delete Garment"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1494,31 +1625,32 @@ export default function AdminProductsClient() {
                         <div className="space-y-1 flex-1">
                           {isEditing ? (
                             <div className="space-y-2">
-                              <div className="flex items-center gap-2">
+                              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                 <input
                                   type="text"
                                   value={editingCatName}
                                   onChange={(e) => setEditingCatName(e.target.value)}
-                                  className="bg-white border border-neutral-300 px-2 py-1 text-xs font-bold text-black"
+                                  className="bg-white border border-neutral-300 px-2.5 py-1.5 text-xs font-bold text-black sm:w-48"
+                                  placeholder="Category Name"
                                 />
                                 <input
                                   type="text"
                                   value={editingCatDesc}
                                   placeholder="Description"
                                   onChange={(e) => setEditingCatDesc(e.target.value)}
-                                  className="bg-white border border-neutral-300 px-2 py-1 text-xs text-neutral-600 flex-1"
+                                  className="bg-white border border-neutral-300 px-2.5 py-1.5 text-xs text-neutral-600 flex-1"
                                 />
                               </div>
                               <div className="flex items-center gap-2">
                                 <button
                                   onClick={() => handleUpdateCategory(cat.id)}
-                                  className="px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider"
+                                  className="px-3.5 py-1.5 bg-black text-white text-[10px] font-bold uppercase tracking-wider"
                                 >
                                   Save
                                 </button>
                                 <button
                                   onClick={() => setEditingCatId(null)}
-                                  className="px-3 py-1 bg-neutral-100 text-neutral-600 text-[10px] font-bold uppercase tracking-wider"
+                                  className="px-3.5 py-1.5 bg-neutral-100 text-neutral-600 text-[10px] font-bold uppercase tracking-wider"
                                 >
                                   Cancel
                                 </button>
@@ -1526,7 +1658,7 @@ export default function AdminProductsClient() {
                             </div>
                           ) : (
                             <>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-extrabold text-black">
                                   {cat.name}
                                 </span>
@@ -1547,8 +1679,8 @@ export default function AdminProductsClient() {
                         </div>
 
                         {!isEditing && (
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
+                          <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-100">
+                            <div className="text-left sm:text-right">
                               <span className="text-xs font-bold text-black block">
                                 {assigned} {assigned === 1 ? "garment" : "garments"}
                               </span>

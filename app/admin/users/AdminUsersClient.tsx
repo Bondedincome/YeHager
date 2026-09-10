@@ -107,36 +107,36 @@ export default function AdminUsersClient() {
       </div>
 
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-white border border-neutral-200 p-5 space-y-1 shadow-2xs">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white border border-neutral-200 p-4 sm:p-5 space-y-1 shadow-2xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-            Total Registered Users
+            Total Users
           </span>
-          <p className="text-2xl font-extrabold text-black">{usersList.length}</p>
-          <span className="text-[10px] text-neutral-400">All accounts across atelier</span>
+          <p className="text-xl sm:text-2xl font-extrabold text-black">{usersList.length}</p>
+          <span className="text-[10px] text-neutral-400">All accounts</span>
         </div>
 
-        <div className="bg-white border border-neutral-200 p-5 space-y-1 shadow-2xs">
+        <div className="bg-white border border-neutral-200 p-4 sm:p-5 space-y-1 shadow-2xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
             VIP Patron Tier
           </span>
-          <p className="text-2xl font-extrabold text-black">{vipCount}</p>
-          <span className="text-[10px] text-emerald-600 font-semibold">Priority preview access</span>
+          <p className="text-xl sm:text-2xl font-extrabold text-black">{vipCount}</p>
+          <span className="text-[10px] text-emerald-600 font-semibold">Priority preview</span>
         </div>
 
-        <div className="bg-white border border-neutral-200 p-5 space-y-1 shadow-2xs">
+        <div className="bg-white border border-neutral-200 p-4 sm:p-5 space-y-1 shadow-2xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
             Standard Patrons
           </span>
-          <p className="text-2xl font-extrabold text-black">{customerCount}</p>
-          <span className="text-[10px] text-neutral-400">Verified retail shoppers</span>
+          <p className="text-xl sm:text-2xl font-extrabold text-black">{customerCount}</p>
+          <span className="text-[10px] text-neutral-400">Verified shoppers</span>
         </div>
 
-        <div className="bg-white border border-neutral-200 p-5 space-y-1 shadow-2xs">
+        <div className="bg-white border border-neutral-200 p-4 sm:p-5 space-y-1 shadow-2xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
             Staff Administrators
           </span>
-          <p className="text-2xl font-extrabold text-black">{adminCount}</p>
+          <p className="text-xl sm:text-2xl font-extrabold text-black">{adminCount}</p>
           <span className="text-[10px] text-neutral-400">Full system governance</span>
         </div>
       </div>
@@ -400,8 +400,8 @@ export default function AdminUsersClient() {
       {/* Add User Modal */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white border border-neutral-200 max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-xl animate-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-neutral-200 pb-4">
+          <div className="bg-white border border-neutral-200 max-w-lg w-full p-4 sm:p-8 space-y-5 shadow-xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
               <div>
                 <h3 className="text-base font-bold text-black">Create Atelier User / Patron</h3>
                 <p className="text-xs text-neutral-500">Register a new client or grant staff privileges.</p>
@@ -439,7 +439,7 @@ export default function AdminUsersClient() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
                   <label className="font-bold uppercase tracking-wider text-black">Account Role</label>
                   <select
@@ -476,17 +476,17 @@ export default function AdminUsersClient() {
                 />
               </div>
 
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-neutral-200">
+              <div className="pt-4 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 border-t border-neutral-200">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2.5 border border-neutral-300 text-xs font-bold uppercase tracking-wider hover:border-black"
+                  className="px-4 py-2.5 border border-neutral-300 text-xs font-bold uppercase tracking-wider hover:border-black text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
+                  className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 text-center shadow-2xs"
                 >
                   Save User Account
                 </button>

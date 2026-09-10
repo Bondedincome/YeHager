@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { hashPassword, validatePasswordStrength, generateToken } from "../../../lib/auth-security";
 import { AppUser } from "../../../lib/auth-seed";
+import { db } from "../../../lib/firebase";
+import { doc, setDoc } from "firebase/firestore";
 
 export async function POST(request: Request) {
   try {
@@ -39,6 +41,13 @@ export async function POST(request: Request) {
       totalOrders: 0,
       totalSpentUSD: 0,
     };
+
+    // Persist to Firestore
+    try {
+      await setDoc(doc(db, "users", newUser.id), newUser);
+    } catch (e) {
+      console.warn("Firestore user registration write warning:", e);
+    }
 
     const token = generateToken({
       userId: newUser.id,

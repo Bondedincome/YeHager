@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifyPassword, generateToken } from "../../../lib/auth-security";
 import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
+import { db } from "../../../lib/firebase";
+import { collection, getDocs, query, where, limit } from "firebase/firestore";
 
 // In-memory rate limiting map: identifier -> { attempts: number, lockUntil: number }
 const loginAttempts = new Map<string, { attempts: number; lockUntil: number }>();
@@ -64,22 +66,45 @@ export async function POST(request: Request) {
       );
     }
 
-    // User lookup: check INITIAL_USERS and client users list if passed
-    const clientUsers: AppUser[] = Array.isArray(body.clientUsers) ? body.clientUsers : [];
-    const allUsers: AppUser[] = [...INITIAL_USERS];
+    // User lookup: check Firestore first, then fallback to INITIAL_USERS and client users
+    let user: AppUser | undefined;
 
-    for (const u of clientUsers) {
-      if (!allUsers.some((existing) => existing.id === u.id || existing.email.toLowerCase() === u.email.toLowerCase())) {
-        allUsers.push(u);
+    try {
+      const usersCol = collection(db, "users");
+      if (identifier === "admin" || identifier === "admin@yehagere.com") {
+        const q = query(usersCol, where("role", "==", "admin"), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          user = { id: snap.docs[0].id, ...docData } as AppUser;
+        }
+      } else {
+        const q = query(usersCol, where("email", "==", identifier), limit(1));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const docData = snap.docs[0].data();
+          user = { id: snap.docs[0].id, ...docData } as AppUser;
+        }
       }
+    } catch (dbErr) {
+      console.warn("Firestore user lookup warning, continuing with local fallback:", dbErr);
     }
 
-    // Match admin or email
-    let user: AppUser | undefined;
-    if (identifier === "admin" || identifier === "admin@yehagere.com") {
-      user = allUsers.find((u) => u.role === "admin") || INITIAL_USERS[0];
-    } else {
-      user = allUsers.find((u) => u.email.toLowerCase() === identifier);
+    if (!user) {
+      const clientUsers: AppUser[] = Array.isArray(body.clientUsers) ? body.clientUsers : [];
+      const allUsers: AppUser[] = [...INITIAL_USERS];
+
+      for (const u of clientUsers) {
+        if (!allUsers.some((existing) => existing.id === u.id || existing.email.toLowerCase() === u.email.toLowerCase())) {
+          allUsers.push(u);
+        }
+      }
+
+      if (identifier === "admin" || identifier === "admin@yehagere.com") {
+        user = allUsers.find((u) => u.role === "admin") || INITIAL_USERS[0];
+      } else {
+        user = allUsers.find((u) => u.email.toLowerCase() === identifier);
+      }
     }
 
     if (!user) {

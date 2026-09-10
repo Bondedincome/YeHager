@@ -110,3 +110,34 @@ export function validatePasswordStrength(password: string): { valid: boolean; me
   }
   return { valid: true };
 }
+
+/**
+ * Calculates password strength score and criteria fulfillment for interactive UI indicators.
+ */
+export function getPasswordStrengthInfo(password: string): {
+  score: number;
+  label: "Weak" | "Fair" | "Good" | "Strong";
+  hasMinLength: boolean;
+  hasLetter: boolean;
+  hasNumber: boolean;
+  hasSpecial: boolean;
+} {
+  const p = password || "";
+  const hasMinLength = p.length >= 8;
+  const hasLetter = /[a-zA-Z]/.test(p);
+  const hasNumber = /[0-9]/.test(p);
+  const hasSpecial = /[^a-zA-Z0-9]/.test(p);
+
+  let score = 0;
+  if (hasMinLength) score++;
+  if (hasLetter) score++;
+  if (hasNumber) score++;
+  if (hasSpecial) score++;
+
+  let label: "Weak" | "Fair" | "Good" | "Strong" = "Weak";
+  if (score >= 4) label = "Strong";
+  else if (score === 3) label = "Good";
+  else if (score === 2) label = "Fair";
+
+  return { score, label, hasMinLength, hasLetter, hasNumber, hasSpecial };
+}

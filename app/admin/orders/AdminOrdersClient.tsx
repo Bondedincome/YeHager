@@ -224,33 +224,33 @@ export default function AdminOrdersClient() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full sm:w-auto">
           <button
             onClick={() => setShowManualModal(true)}
-            className="px-4 py-2 bg-black text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-2xs"
+            className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 bg-black text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Create Manual Order</span>
+            <span>Manual Order</span>
           </button>
           <Link
             href="/admin"
-            className="px-4 py-2 bg-white text-black border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors shadow-2xs"
+            className="flex-1 sm:flex-initial px-3.5 sm:px-4 py-2.5 bg-white text-black border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Executive Analytics</span>
+            <span>Analytics</span>
           </Link>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white border border-neutral-200 p-4">
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
             Gross Settlements
           </span>
-          <div className="text-2xl font-extrabold text-black mt-1">
+          <div className="text-xl sm:text-2xl font-extrabold text-black mt-1">
             ${totalRevenueUSD.toLocaleString()}
-            <span className="text-xs font-normal text-neutral-500 ml-2">
+            <span className="text-xs font-normal text-neutral-500 ml-1.5 block sm:inline">
               (Br {(totalRevenueUSD * settings.exchangeRateUSDToETB).toLocaleString()})
             </span>
           </div>
@@ -260,7 +260,7 @@ export default function AdminOrdersClient() {
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
             Total Orders Logged
           </span>
-          <div className="text-2xl font-extrabold text-black mt-1 flex items-baseline gap-2">
+          <div className="text-xl sm:text-2xl font-extrabold text-black mt-1 flex items-baseline gap-2">
             {orders.length}
             <span className="text-xs font-normal text-neutral-500">transactions</span>
           </div>
@@ -270,7 +270,7 @@ export default function AdminOrdersClient() {
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
             Awaiting Fulfillment
           </span>
-          <div className="text-2xl font-extrabold text-amber-600 mt-1 flex items-baseline gap-2">
+          <div className="text-xl sm:text-2xl font-extrabold text-amber-600 mt-1 flex items-baseline gap-2">
             {pendingCount}
             <span className="text-xs font-normal text-neutral-500">orders</span>
           </div>
@@ -280,7 +280,7 @@ export default function AdminOrdersClient() {
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
             In Transit (Courier / DHL)
           </span>
-          <div className="text-2xl font-extrabold text-blue-600 mt-1 flex items-baseline gap-2">
+          <div className="text-xl sm:text-2xl font-extrabold text-blue-600 mt-1 flex items-baseline gap-2">
             {inTransitCount}
             <span className="text-xs font-normal text-neutral-500">dispatches</span>
           </div>
@@ -288,25 +288,25 @@ export default function AdminOrdersClient() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white border border-neutral-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-2xs">
-        <div className="w-full sm:w-96 relative">
+      <div className="bg-white border border-neutral-200 p-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-2xs">
+        <div className="w-full md:w-80 relative">
           <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by #order number, client name, email, or tracking..."
+            placeholder="Search by #order, client, email, tracking..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-[#f4f4f4] text-xs text-black placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
           />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          <span className="text-xs font-bold uppercase tracking-wider text-neutral-400 pr-2">Status:</span>
+        <div className="flex items-center gap-1.5 w-full md:w-auto overflow-x-auto scrollbar-none py-1 -mx-4 px-4 md:mx-0 md:px-0">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 pr-1 flex-shrink-0">Status:</span>
           {["all", "confirmed", "preparing", "shipped", "delivered", "cancelled"].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider transition-colors ${
+              className={`px-3 py-1.5 min-h-[36px] text-[11px] font-bold uppercase tracking-wider transition-colors flex-shrink-0 ${
                 statusFilter === st ? "bg-black text-white" : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
               }`}
             >
@@ -338,9 +338,9 @@ export default function AdminOrdersClient() {
                 }`}
               >
                 {/* Main Order Row */}
-                <div className="p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  {/* Left Metadata */}
-                  <div className="flex flex-wrap items-center gap-6">
+                <div className="p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  {/* Left Metadata Grid on mobile */}
+                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-start sm:items-center gap-3.5 sm:gap-6">
                     <div>
                       <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                         Order #
@@ -352,8 +352,8 @@ export default function AdminOrdersClient() {
                       <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                         Client / Patron
                       </span>
-                      <span className="text-xs font-bold text-black block">{order.customerName}</span>
-                      <span className="text-[11px] text-neutral-500">{order.customerEmail}</span>
+                      <span className="text-xs font-bold text-black block truncate max-w-[140px] sm:max-w-none">{order.customerName}</span>
+                      <span className="text-[11px] text-neutral-500 truncate block max-w-[140px] sm:max-w-none">{order.customerEmail}</span>
                     </div>
 
                     <div>
@@ -383,7 +383,7 @@ export default function AdminOrdersClient() {
                     </div>
 
                     {order.trackingNumber && (
-                      <div>
+                      <div className="col-span-2 sm:col-span-1">
                         <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                           Tracking ({order.carrier || "DHL"})
                         </span>
@@ -395,13 +395,13 @@ export default function AdminOrdersClient() {
                   </div>
 
                   {/* Status & Actions */}
-                  <div className="flex items-center gap-3 self-start lg:self-auto flex-wrap">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold uppercase text-neutral-500">Status:</span>
+                  <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-3 w-full lg:w-auto pt-3 lg:pt-0 border-t lg:border-t-0 border-neutral-100 flex-wrap sm:flex-nowrap">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      <span className="text-[11px] font-bold uppercase text-neutral-500 hidden xs:inline">Status:</span>
                       <select
                         value={order.status}
                         onChange={(e) => updateOrderStatus(order.id, e.target.value as OrderStatus)}
-                        className={`text-xs font-bold uppercase tracking-wider py-1.5 px-3 border outline-none cursor-pointer ${getStatusClass(
+                        className={`text-xs font-bold uppercase tracking-wider py-1.5 px-2.5 sm:px-3 border outline-none cursor-pointer ${getStatusClass(
                           order.status
                         )}`}
                       >
@@ -413,32 +413,34 @@ export default function AdminOrdersClient() {
                       </select>
                     </div>
 
-                    {/* Print Packing Slip */}
-                    <button
-                      onClick={() => setInvoiceOrder(order)}
-                      className="p-1.5 text-neutral-600 hover:text-black border border-neutral-300 hover:bg-neutral-100 transition-colors"
-                      title="Generate Packing Slip / Commercial Invoice"
-                    >
-                      <Printer className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                      {/* Print Packing Slip */}
+                      <button
+                        onClick={() => setInvoiceOrder(order)}
+                        className="p-2 text-neutral-600 hover:text-black border border-neutral-300 hover:bg-neutral-100 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
+                        title="Generate Packing Slip / Commercial Invoice"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </button>
 
-                    {/* Expand Details */}
-                    <button
-                      onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                      className="px-3 py-1.5 bg-neutral-100 hover:bg-neutral-200 text-black text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors"
-                    >
-                      <span>{isExpanded ? "Hide Details" : "Manage Order"}</span>
-                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
+                      {/* Expand Details */}
+                      <button
+                        onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                        className="px-3 py-1.5 min-h-[36px] bg-neutral-100 hover:bg-neutral-200 text-black text-xs font-bold uppercase tracking-wider flex items-center gap-1 transition-colors"
+                      >
+                        <span>{isExpanded ? "Hide" : "Manage"}</span>
+                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
 
-                    {/* Delete Order */}
-                    <button
-                      onClick={() => handleDeleteOrder(order)}
-                      className="p-1.5 text-neutral-400 hover:text-rose-600 transition-colors"
-                      title="Delete this order"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      {/* Delete Order */}
+                      <button
+                        onClick={() => handleDeleteOrder(order)}
+                        className="p-2 text-neutral-400 hover:text-rose-600 transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
+                        title="Delete this order"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -667,7 +669,7 @@ export default function AdminOrdersClient() {
       {/* PRINTABLE PACKING SLIP / INVOICE MODAL */}
       {invoiceOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white max-w-2xl w-full p-8 border border-neutral-300 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white max-w-2xl w-full p-4 sm:p-8 border border-neutral-300 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
             {/* Action buttons (hidden on print) */}
             <div className="flex items-center justify-between border-b border-neutral-200 pb-4 print:hidden">
               <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
@@ -790,7 +792,7 @@ export default function AdminOrdersClient() {
       {/* CREATE MANUAL ORDER MODAL */}
       {showManualModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white max-w-lg w-full p-6 border border-neutral-300 shadow-xl space-y-4">
+          <div className="bg-white max-w-lg w-full p-4 sm:p-6 border border-neutral-300 shadow-xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-black flex items-center gap-2">
                 <Plus className="w-4 h-4" />
@@ -942,17 +944,17 @@ export default function AdminOrdersClient() {
                 </select>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-neutral-200">
+              <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 pt-4 border-t border-neutral-200">
                 <button
                   type="button"
                   onClick={() => setShowManualModal(false)}
-                  className="px-4 py-2 border border-neutral-300 text-xs font-bold uppercase tracking-wider text-neutral-600 hover:text-black"
+                  className="px-4 py-2.5 border border-neutral-300 text-xs font-bold uppercase tracking-wider text-neutral-600 hover:text-black text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800"
+                  className="px-6 py-2.5 bg-black text-white text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 text-center shadow-2xs"
                 >
                   Confirm &amp; Log Order
                 </button>

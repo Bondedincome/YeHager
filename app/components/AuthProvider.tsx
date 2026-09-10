@@ -33,6 +33,7 @@ type AuthContextType = {
   updateUserRole: (userId: string, role: AppUser["role"]) => void;
   toggleUserStatus: (userId: string) => void;
   deleteUser: (userId: string) => void;
+  syncWithFirestore: () => Promise<{ success: boolean; message: string }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -54,6 +55,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const timer = setTimeout(() => {
       setMounted(true);
       refreshState();
+
+      // Background synchronization with Cloud Firestore
+      fetch("/api/users")
+        .then((res) => res.json())
+        .then((res) => {
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            setUsersList((prev) => {
+              // Merge Firestore users with any local ones
+              const merged = [...res.data];
+              for (const p of prev) {
+                if (!merged.some((m) => m.id === p.id || m.email.toLowerCase() === p.email.toLowerCase())) {
+                  merged.push(p);
+                }
+              }
+              saveStoredUsers(merged);
+              return merged;
+            });
+          }
+        })
+        .catch(() => {});
+
+      fetch("/api/orders")
+        .then((res) => res.json())
+        .then((res) => {
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            setOrders((prev) => {
+              const merged = [...res.data];
+              for (const p of prev) {
+                if (!merged.some((m) => m.id === p.id || m.orderNumber === p.orderNumber)) {
+                  merged.push(p);
+                }
+              }
+              saveStoredOrders(merged);
+              return merged;
+            });
+          }
+        })
+        .catch(() => {});
     }, 0);
 
     const handleAuthChange = () => refreshState();
@@ -282,6 +321,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updated = [newUser, ...usersList];
     saveStoredUsers(updated);
     setUsersList(updated);
+
+    // Persist to Firestore
+    fetch("/api/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(userData),
+    }).catch(() => {});
   };
 
   const updateUserRole = (userId: string, role: AppUser["role"]) => {
@@ -293,20 +339,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setActiveUser(active);
       setUser(active);
     }
+
+    // Persist to Firestore
+    fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, updates: { role } }),
+    }).catch(() => {});
   };
 
   const toggleUserStatus = (userId: string) => {
+    const targetUser = usersList.find((u) => u.id === userId);
+    const newStatus = targetUser?.status === "active" ? ("suspended" as const) : ("active" as const);
+
     const updated = usersList.map((u) =>
-      u.id === userId ? { ...u, status: u.status === "active" ? ("suspended" as const) : ("active" as const) } : u
+      u.id === userId ? { ...u, status: newStatus } : u
     );
     saveStoredUsers(updated);
     setUsersList(updated);
+
+    // Persist to Firestore
+    fetch("/api/users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId, updates: { status: newStatus } }),
+    }).catch(() => {});
   };
 
   const deleteUser = (userId: string) => {
     const updated = usersList.filter((u) => u.id !== userId);
     saveStoredUsers(updated);
     setUsersList(updated);
+
+    // Persist to Firestore
+    fetch(`/api/users?userId=${encodeURIComponent(userId)}`, {
+      method: "DELETE",
+    }).catch(() => {});
+  };
+
+  const syncWithFirestore = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const res = await fetch("/api/migrate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          users: usersList,
+          orders: orders,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        return { success: true, message: data.message || "Data successfully synced with Cloud Firestore." };
+      }
+      return { success: false, message: data.error || "Sync encountered an issue." };
+    } catch {
+      return { success: false, message: "Network error while connecting to Firestore migration endpoint." };
+    }
   };
 
   const userOrders = mounted && user
@@ -336,6 +424,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateUserRole,
     toggleUserStatus,
     deleteUser,
+    syncWithFirestore,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
