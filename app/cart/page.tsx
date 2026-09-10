@@ -10,8 +10,6 @@ import {
   CreditCard,
   ShieldCheck,
   Truck,
-  Sparkles,
-  ArrowRight,
   User,
 } from "lucide-react";
 import { useCart } from "../components/CartProvider";

@@ -20,9 +20,47 @@ import {
 import { useAuth } from "../components/AuthProvider";
 
 export default function AccountPage() {
-  const { user, isAuthenticated, isAdmin, logout, userOrders } = useAuth();
+  const { user, isAuthenticated, isAdmin, logout, userOrders, changePassword } = useAuth();
   const router = useRouter();
   const [selectedTab, setSelectedTab] = useState<"orders" | "profile" | "addresses">("orders");
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwdMsg, setPwdMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [isChangingPwd, setIsChangingPwd] = useState(false);
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPwdMsg(null);
+
+    if (newPassword !== confirmPassword) {
+      setPwdMsg({ type: "error", text: "New passwords do not match." });
+      return;
+    }
+    if (newPassword.length < 8) {
+      setPwdMsg({ type: "error", text: "New password must be at least 8 characters long." });
+      return;
+    }
+
+    setIsChangingPwd(true);
+    try {
+      const res = await changePassword(currentPassword, newPassword);
+      if (res.success) {
+        setPwdMsg({ type: "success", text: res.message || "Password updated successfully!" });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        setPwdMsg({ type: "error", text: res.error || "Failed to update password." });
+      }
+    } catch {
+      setPwdMsg({ type: "error", text: "An error occurred while communicating with the server." });
+    } finally {
+      setIsChangingPwd(false);
+    }
+  };
 
   if (!isAuthenticated || !user) {
     return (
@@ -365,28 +403,110 @@ export default function AccountPage() {
 
         {/* Tab 3: Profile */}
         {selectedTab === "profile" && (
-          <div className="space-y-6 max-w-xl">
-            <h2 className="text-lg font-bold text-black">Patron Information</h2>
-            <div className="bg-[#fafafa] border border-neutral-200 p-6 space-y-4 text-xs">
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                  Full Name
-                </label>
-                <p className="text-sm font-semibold text-black">{user.name}</p>
+          <div className="space-y-8 max-w-xl">
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-black">Patron Information</h2>
+              <div className="bg-[#fafafa] border border-neutral-200 p-6 space-y-4 text-xs">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    Full Name
+                  </label>
+                  <p className="text-sm font-semibold text-black">{user.name}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    Email Address
+                  </label>
+                  <p className="text-sm font-semibold text-black">{user.email}</p>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
+                    Account Tier
+                  </label>
+                  <p className="text-sm font-semibold text-black uppercase tracking-wider">
+                    {user.role} Patron
+                  </p>
+                </div>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                  Email Address
-                </label>
-                <p className="text-sm font-semibold text-black">{user.email}</p>
+            </div>
+
+            {/* Password Security Card */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold text-black">Account Security &amp; Password</h2>
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-200">
+                  PBKDF2 Encrypted
+                </span>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                  Account Tier
-                </label>
-                <p className="text-sm font-semibold text-black uppercase tracking-wider">
-                  {user.role} Patron
+
+              <div className="bg-[#fafafa] border border-neutral-200 p-6 space-y-4">
+                <p className="text-xs text-neutral-500 leading-relaxed">
+                  Your password is securely salted and hashed with 100,000 rounds of PBKDF2-HMAC-SHA256. Passwords are never stored in plain text.
                 </p>
+
+                <form onSubmit={handlePasswordSubmit} className="space-y-3 pt-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-black">
+                      Current Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full bg-white border border-neutral-200 px-3.5 py-2.5 text-xs text-black focus:outline-none focus:border-black"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-black">
+                      New Password (min. 8 characters)
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="At least 8 characters with letters & numbers"
+                      className="w-full bg-white border border-neutral-200 px-3.5 py-2.5 text-xs text-black focus:outline-none focus:border-black"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-black">
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat new password"
+                      className="w-full bg-white border border-neutral-200 px-3.5 py-2.5 text-xs text-black focus:outline-none focus:border-black"
+                    />
+                  </div>
+
+                  {pwdMsg && (
+                    <div
+                      className={`p-3 text-xs font-medium border ${
+                        pwdMsg.type === "success"
+                          ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          : "bg-rose-50 text-rose-700 border-rose-200"
+                      }`}
+                    >
+                      {pwdMsg.text}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isChangingPwd}
+                    className="w-full bg-black text-white py-3 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
+                  >
+                    {isChangingPwd ? "Encrypting & Updating..." : "Update Password"}
+                  </button>
+                </form>
               </div>
             </div>
           </div>

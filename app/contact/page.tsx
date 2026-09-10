@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import LogoMark from "../components/LogoMark";
-import { getSupabase } from "../lib/supabase";
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
@@ -18,15 +17,11 @@ export default function ContactPage() {
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const supabase = getSupabase();
-      if (supabase) {
-        await supabase.from("inquiries").insert({
-          name: formData.name,
-          email: formData.email,
-          subject: formData.subject,
-          message: formData.message,
-        });
-      }
+      await fetch("/api/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
     } catch {
       // Fallback gracefully to client acknowledgment
     } finally {

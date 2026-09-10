@@ -21,5 +21,15 @@ service cloud.firestore {
     match /categories/{categoryId} {
       allow read, write: if true;
     }
+
+    // Users: patron profiles and atelier staff records
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // Store Settings: atelier operational config, banner text, and discount codes
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
   }
 }

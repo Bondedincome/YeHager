@@ -20,6 +20,7 @@ type AuthContextType = {
   isAdmin: boolean;
   login: (emailOrUsername: string, pass: string) => Promise<{ success: boolean; error?: string; user?: AppUser }>;
   register: (name: string, email: string, pass: string) => Promise<{ success: boolean; error?: string; user?: AppUser }>;
+  changePassword: (currentPass: string, newPass: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   logout: () => void;
   orders: CustomerOrder[];
   userOrders: CustomerOrder[];
@@ -74,101 +75,163 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshState]);
 
   const login = async (emailOrUsername: string, pass: string) => {
-    const trimmed = emailOrUsername.trim().toLowerCase();
-    
-    // Check if staff/admin login
-    if (trimmed === "admin" || trimmed === "admin@yehagere.com") {
-      if (pass === "admin123" || pass === "admin") {
-        const adminUser = usersList.find((u) => u.role === "admin") || INITIAL_USERS[0];
-        setActiveUser(adminUser);
-        setUser(adminUser);
-        return { success: true, user: adminUser };
-      }
-      return { success: false, error: "Incorrect password for admin access." };
-    }
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          emailOrUsername,
+          password: pass,
+          clientUsers: usersList,
+        }),
+      });
 
-    // Customer match
-    const existing = usersList.find((u) => u.email.toLowerCase() === trimmed);
-    if (existing) {
-      if (existing.status === "suspended") {
-        return { success: false, error: "Your account is temporarily suspended. Please contact atelier support." };
-      }
-      setActiveUser(existing);
-      setUser(existing);
-      return { success: true, user: existing };
-    }
+      const data = await res.json();
 
-    // Auto register simple customer if password provided
-    if (trimmed.includes("@") && pass.length >= 4) {
-      const newUser: AppUser = {
-        id: `usr_${Date.now()}`,
-        name: trimmed.split("@")[0].replace(/[^a-zA-Z]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) || "Atelier Guest",
-        email: trimmed,
-        role: "customer",
-        memberSince: new Date().toISOString().split("T")[0],
-        status: "active",
-        totalOrders: 0,
-        totalSpentUSD: 0,
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || "Authentication failed. Please verify your credentials.",
+        };
+      }
+
+      if (data.token && typeof window !== "undefined") {
+        localStorage.setItem("yehagere_auth_token", data.token);
+      }
+
+      setActiveUser(data.user);
+      setUser(data.user);
+      return { success: true, user: data.user };
+    } catch {
+      return {
+        success: false,
+        error: "Unable to connect to authentication server. Please check your network.",
       };
-      const updated = [newUser, ...usersList];
-      saveStoredUsers(updated);
-      setUsersList(updated);
-      setActiveUser(newUser);
-      setUser(newUser);
-      return { success: true, user: newUser };
     }
-
-    return { success: false, error: "Invalid email or password. Please try again." };
   };
 
   const register = async (name: string, email: string, pass: string) => {
-    const trimmedEmail = email.trim().toLowerCase();
-    if (!trimmedEmail || !pass) {
-      return { success: false, error: "Please provide valid credentials." };
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          email,
+          password: pass,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || "Registration failed.",
+        };
+      }
+
+      if (data.token && typeof window !== "undefined") {
+        localStorage.setItem("yehagere_auth_token", data.token);
+      }
+
+      const updated = [data.fullUser, ...usersList];
+      saveStoredUsers(updated);
+      setUsersList(updated);
+      setActiveUser(data.user);
+      setUser(data.user);
+      return { success: true, user: data.user };
+    } catch {
+      return {
+        success: false,
+        error: "Failed to establish secure patron connection.",
+      };
     }
+  };
 
-    const existing = usersList.find((u) => u.email.toLowerCase() === trimmedEmail);
-    if (existing) {
-      return { success: false, error: "An account with this email already exists." };
+  const changePassword = async (currentPass: string, newPass: string) => {
+    if (!user) {
+      return { success: false, error: "Please log in to change your password." };
     }
+    try {
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.id,
+          currentPassword: currentPass,
+          newPassword: newPass,
+          clientUsers: usersList,
+        }),
+      });
 
-    const newUser: AppUser = {
-      id: `usr_${Date.now()}`,
-      name: name.trim() || "Atelier Patron",
-      email: trimmedEmail,
-      role: "customer",
-      memberSince: new Date().toISOString().split("T")[0],
-      status: "active",
-      totalOrders: 0,
-      totalSpentUSD: 0,
-    };
+      const data = await res.json();
 
-    const updated = [newUser, ...usersList];
-    saveStoredUsers(updated);
-    setUsersList(updated);
-    setActiveUser(newUser);
-    setUser(newUser);
-    return { success: true, user: newUser };
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || "Failed to update password.",
+        };
+      }
+
+      // Update the user record with the new cryptographic hash & salt
+      const updated = usersList.map((u) => {
+        if (u.id === user.id) {
+          return {
+            ...u,
+            passwordHash: data.passwordHash,
+            passwordSalt: data.passwordSalt,
+          };
+        }
+        return u;
+      });
+
+      saveStoredUsers(updated);
+      setUsersList(updated);
+
+      return { success: true, message: data.message };
+    } catch {
+      return { success: false, error: "Network error while updating password." };
+    }
   };
 
   const logout = () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("yehagere_auth_token");
+    }
     setActiveUser(null);
     setUser(null);
   };
 
   const placeOrder = async (orderData: Omit<CustomerOrder, "id" | "createdAt" | "orderNumber">) => {
+    const generatedOrderNumber = `YH-${Math.floor(100000 + Math.random() * 900000)}`;
+    const trackingNumber = `DHL-ET-${Math.floor(1000000 + Math.random() * 9000000)}`;
+
     const newOrder: CustomerOrder = {
       ...orderData,
       id: `ord_${Date.now()}`,
-      orderNumber: `YH-${Math.floor(100000 + Math.random() * 900000)}`,
+      orderNumber: generatedOrderNumber,
       createdAt: new Date().toISOString(),
       status: "confirmed",
-      trackingNumber: `DHL-ET-${Math.floor(1000000 + Math.random() * 9000000)}`,
+      trackingNumber,
     };
 
     const updatedOrders = [newOrder, ...orders];
     saveStoredOrders(updatedOrders);
     setOrders(updatedOrders);
+
+    // Sync order to Firestore API route in background
+    try {
+      fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newOrder),
+      }).catch(() => {
+        // Safe ignore
+      });
+    } catch {
+      // Safe ignore
+    }
 
     // Update user stats if matched
     if (user || newOrder.customerEmail) {
@@ -260,6 +323,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin: user?.role === "admin",
     login,
     register,
+    changePassword,
     logout,
     orders,
     userOrders,

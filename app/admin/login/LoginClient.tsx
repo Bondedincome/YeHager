@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, EyeOff, Lock, User, ShieldCheck, ArrowRight } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Lock, User, ShieldCheck } from "lucide-react";
 import LogoMark from "../../components/LogoMark";
 import { useAuth } from "../../components/AuthProvider";
 
