@@ -107,10 +107,14 @@ export default function AdminSidebar({
   ];
 
   const isLinkActive = (item: { href: string; exact?: boolean }) => {
+    if (!pathname) return false;
+    const cleanPath = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+    const cleanHref = item.href.length > 1 && item.href.endsWith("/") ? item.href.slice(0, -1) : item.href;
+
     if (item.exact) {
-      return pathname === item.href;
+      return cleanPath === cleanHref;
     }
-    return pathname.startsWith(item.href);
+    return cleanPath === cleanHref || cleanPath.startsWith(cleanHref + "/");
   };
 
   return (
@@ -131,29 +135,43 @@ export default function AdminSidebar({
           <aside className="relative w-80 max-w-[85vw] bg-[#111111] text-white flex flex-col h-full shadow-2xl border-r border-neutral-800 z-10 animate-in slide-in-from-left duration-200">
             {/* Drawer Header */}
             <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-              <Link href="/admin" onClick={onCloseMobile} className="flex items-center gap-3">
-                <div className="bg-white p-1.5 rounded-xs">
+              <Link
+                href="/"
+                onClick={onCloseMobile}
+                className="flex items-center gap-3 group"
+                title="YeHageré Atelier - Visit Customer Storefront"
+              >
+                <div className="bg-white p-1.5 rounded-xs group-hover:scale-105 transition-transform shadow-2xs">
                   <LogoMark size="sm" />
                 </div>
                 <div>
-                  <span className="block text-[9px] font-extrabold uppercase tracking-[0.25em] text-neutral-400">
+                  <span className="block text-[9px] font-extrabold uppercase tracking-[0.25em] text-neutral-400 group-hover:text-neutral-200 transition-colors">
                     YeHageré Atelier
                   </span>
                   <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                    Admin Navigation
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Storefront
+                    <ArrowUpRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-white transition-colors" />
                   </span>
                 </div>
               </Link>
 
-              <button
-                type="button"
-                onClick={onCloseMobile}
-                className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
-                aria-label="Close navigation"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <Link
+                  href="/admin"
+                  onClick={onCloseMobile}
+                  className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded border border-neutral-700 transition-colors"
+                >
+                  Admin
+                </Link>
+                <button
+                  type="button"
+                  onClick={onCloseMobile}
+                  className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+                  aria-label="Close navigation"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             {/* Navigation List */}
@@ -174,18 +192,28 @@ export default function AdminSidebar({
                           onClick={onCloseMobile}
                           className={`w-full flex items-center justify-between px-3.5 py-3 rounded text-xs font-bold uppercase tracking-wider transition-all min-h-[44px] ${
                             active
-                              ? "bg-white text-black font-extrabold shadow-sm"
+                              ? "bg-white !text-black font-extrabold shadow-sm"
                               : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
                           }`}
+                          style={active ? { color: "#000000", backgroundColor: "#ffffff" } : undefined}
                         >
                           <div className="flex items-center gap-3">
-                            <Icon className={`w-4 h-4 ${active ? "text-black" : "text-neutral-400"}`} />
+                            <Icon
+                              className={`w-4 h-4 flex-shrink-0 ${active ? "!text-black" : "text-neutral-400"}`}
+                              style={active ? { color: "#000000" } : undefined}
+                            />
                             <div className="text-left">
-                              <div>{item.label}</div>
+                              <div
+                                className={`${active ? "!text-black font-extrabold" : "text-neutral-200"}`}
+                                style={active ? { color: "#000000" } : undefined}
+                              >
+                                {item.label}
+                              </div>
                               <div
                                 className={`text-[10px] font-normal tracking-normal lowercase first-letter:uppercase ${
-                                  active ? "text-neutral-600" : "text-neutral-400"
+                                  active ? "!text-neutral-700" : "text-neutral-400"
                                 }`}
+                                style={active ? { color: "#374151" } : undefined}
                               >
                                 {item.description}
                               </div>
@@ -195,8 +223,9 @@ export default function AdminSidebar({
                           {item.badge !== undefined && item.badge > 0 && (
                             <span
                               className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-                                active ? "bg-black text-white" : "bg-amber-400 text-black"
+                                active ? "bg-black !text-white" : "bg-amber-400 !text-black"
                               }`}
+                              style={active ? { backgroundColor: "#000000", color: "#ffffff" } : undefined}
                             >
                               {item.badge}
                             </span>
@@ -268,35 +297,103 @@ export default function AdminSidebar({
         }`}
       >
         {/* Sidebar Header / Brand */}
-        <div className="h-16 px-4 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
-          <Link href="/admin" className="flex items-center gap-3 overflow-hidden group">
-            <div className="bg-white p-1 rounded-xs flex-shrink-0">
-              <LogoMark size="sm" />
+        {collapsed ? (
+          <div className="h-16 px-2 border-b border-neutral-800 flex items-center justify-center relative group flex-shrink-0">
+            <Link
+              href="/"
+              title="YeHageré Atelier - Visit Customer Storefront"
+              className="w-10 h-10 bg-white rounded-xs p-1 flex items-center justify-center hover:scale-105 transition-all shadow-sm group-hover:ring-2 group-hover:ring-white/40"
+            >
+              <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+                <LogoMark size="sm" />
+              </div>
+            </Link>
+
+            {/* Hover Floating Action Card for Collapsed Sidebar */}
+            <div className="absolute left-full top-2 ml-3 p-3 bg-neutral-950 text-white rounded-md shadow-2xl border border-neutral-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all z-50 min-w-[200px]">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800">
+                <span className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-400">
+                  YeHageré Atelier
+                </span>
+                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold uppercase tracking-wider">
+                  Store
+                </span>
+              </div>
+              <div className="space-y-1.5">
+                <Link
+                  href="/"
+                  className="flex items-center justify-between text-xs font-semibold text-neutral-200 hover:text-white py-1 px-1.5 rounded hover:bg-neutral-800 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <Store className="w-3.5 h-3.5 text-neutral-400" />
+                    <span>Visit Storefront</span>
+                  </span>
+                  <ArrowUpRight className="w-3.5 h-3.5 text-neutral-400" />
+                </Link>
+                <Link
+                  href="/admin"
+                  className="flex items-center justify-between text-xs font-semibold text-neutral-200 hover:text-white py-1 px-1.5 rounded hover:bg-neutral-800 transition-colors"
+                >
+                  <span className="flex items-center gap-2">
+                    <BarChart3 className="w-3.5 h-3.5 text-neutral-400" />
+                    <span>Admin Dashboard</span>
+                  </span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={onToggleCollapse}
+                  className="w-full flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-white py-1 px-1.5 rounded hover:bg-neutral-800 transition-colors pt-1.5 border-t border-neutral-800 text-left cursor-pointer"
+                >
+                  <PanelLeft className="w-3.5 h-3.5 text-neutral-400" />
+                  <span>Expand Sidebar</span>
+                </button>
+              </div>
             </div>
-            {!collapsed && (
-              <div className="min-w-0 transition-opacity duration-200">
-                <span className="block text-[9px] font-extrabold uppercase tracking-[0.25em] text-neutral-400 truncate">
+          </div>
+        ) : (
+          <div className="h-16 px-3.5 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
+            <Link
+              href="/"
+              title="YeHageré Atelier - Visit Customer Storefront"
+              className="flex items-center gap-2.5 min-w-0 group p-1 -ml-1 rounded hover:bg-neutral-800/60 transition-colors"
+            >
+              <div className="bg-white p-1 rounded-xs flex-shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
+                <LogoMark size="sm" />
+              </div>
+              <div className="min-w-0 text-left">
+                <span className="block text-[9px] font-extrabold uppercase tracking-[0.22em] text-neutral-400 truncate group-hover:text-neutral-200 transition-colors">
                   YeHageré Atelier
                 </span>
                 <span className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
-                  Admin Portal
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                  Storefront
+                  <ArrowUpRight className="w-3 h-3 text-neutral-400 group-hover:text-white transition-colors" />
                 </span>
               </div>
-            )}
-          </Link>
+            </Link>
 
-          {/* Collapse/Expand Toggle Button */}
-          <button
-            type="button"
-            onClick={onToggleCollapse}
-            className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
-            title={collapsed ? "Expand side navigation" : "Collapse side navigation"}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {collapsed ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
-          </button>
-        </div>
+            {/* Quick Header Actions: Store in new tab & Collapse sidebar */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <Link
+                href="/"
+                target="_blank"
+                className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
+                title="Open live storefront in new tab"
+                aria-label="Open live storefront in new tab"
+              >
+                <Store className="w-4 h-4" />
+              </Link>
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors cursor-pointer"
+                title="Collapse side navigation"
+                aria-label="Collapse side navigation"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Sidebar Navigation Body */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-none">
@@ -320,18 +417,23 @@ export default function AdminSidebar({
                         href={item.href}
                         className={`group relative flex items-center justify-center w-full h-11 rounded transition-colors ${
                           active
-                            ? "bg-white text-black font-extrabold shadow-sm"
+                            ? "bg-white !text-black font-extrabold shadow-sm"
                             : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
                         }`}
+                        style={active ? { color: "#000000", backgroundColor: "#ffffff" } : undefined}
                         title={item.label}
                       >
-                        <Icon className="w-5 h-5 flex-shrink-0" />
+                        <Icon
+                          className={`w-5 h-5 flex-shrink-0 ${active ? "!text-black" : ""}`}
+                          style={active ? { color: "#000000" } : undefined}
+                        />
 
                         {item.badge !== undefined && item.badge > 0 && (
                           <span
                             className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${
                               active ? "bg-black" : "bg-amber-400"
                             }`}
+                            style={active ? { backgroundColor: "#000000" } : undefined}
                           />
                         )}
 
@@ -359,20 +461,30 @@ export default function AdminSidebar({
                       href={item.href}
                       className={`flex items-center justify-between px-3 py-2.5 rounded text-xs font-bold uppercase tracking-wider transition-all ${
                         active
-                          ? "bg-white text-black font-extrabold shadow-sm"
+                          ? "bg-white !text-black font-extrabold shadow-sm"
                           : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
                       }`}
+                      style={active ? { color: "#000000", backgroundColor: "#ffffff" } : undefined}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon className={`w-4 h-4 flex-shrink-0 ${active ? "text-black" : "text-neutral-400"}`} />
-                        <span className="truncate">{item.label}</span>
+                        <Icon
+                          className={`w-4 h-4 flex-shrink-0 ${active ? "!text-black" : "text-neutral-400"}`}
+                          style={active ? { color: "#000000" } : undefined}
+                        />
+                        <span
+                          className={`truncate ${active ? "!text-black font-extrabold" : ""}`}
+                          style={active ? { color: "#000000" } : undefined}
+                        >
+                          {item.label}
+                        </span>
                       </div>
 
                       {item.badge !== undefined && item.badge > 0 && (
                         <span
                           className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold flex-shrink-0 ${
-                            active ? "bg-black text-white" : "bg-amber-400 text-black"
+                            active ? "bg-black !text-white" : "bg-amber-400 !text-black"
                           }`}
+                          style={active ? { backgroundColor: "#000000", color: "#ffffff" } : undefined}
                         >
                           {item.badge}
                         </span>
