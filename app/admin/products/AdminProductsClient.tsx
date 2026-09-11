@@ -13,14 +13,17 @@ import {
   RefreshCw,
   Search,
   FolderPlus,
+  Star,
 } from "lucide-react";
 import {
   Product,
+  ProductColor,
   getAllProducts,
   addProduct,
   updateProduct,
   deleteProduct,
   duplicateProduct,
+  setActiveProductColor,
 } from "../../lib/products-store";
 import {
   Category,
@@ -30,6 +33,7 @@ import {
   updateCategory,
 } from "../../lib/categories-store";
 import { getStoreSettings } from "../../lib/settings-store";
+import ProductColorManager from "../../components/ProductColorManager";
 
 export default function AdminProductsClient() {
   const [products, setProducts] = useState<Product[]>(() => {
@@ -87,6 +91,8 @@ export default function AdminProductsClient() {
     description: string;
     fabric: string;
     care: string;
+    colors: ProductColor[];
+    activeColorIndex: number;
   } = {
     title: "",
     subtitle: "",
@@ -99,6 +105,27 @@ export default function AdminProductsClient() {
     description: "",
     fabric: "100% Hand-spun Ethiopian Cotton / Fine Wool",
     care: "Dry clean only or delicate cold hand wash",
+    colors: [
+      {
+        name: "Violet",
+        hex: "#7071e8",
+        image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=1000&auto=format&fit=crop&q=80",
+        active: true,
+      },
+      {
+        name: "Off White",
+        hex: "#f3f4f6",
+        image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=1000&auto=format&fit=crop&q=80",
+        active: true,
+      },
+      {
+        name: "Charcoal",
+        hex: "#27272a",
+        image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=1000&auto=format&fit=crop&q=80",
+        active: true,
+      },
+    ],
+    activeColorIndex: 0,
   };
   const [formData, setFormData] = useState(initialForm);
 
@@ -293,6 +320,30 @@ export default function AdminProductsClient() {
     }).catch(() => {});
   };
 
+  // Quick Active Color Switcher
+  const handleQuickSetActiveColor = async (product: Product, colorIndex: number) => {
+    const updated = setActiveProductColor(product.id, colorIndex);
+    if (updated) {
+      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      const colorName = updated.colors?.[colorIndex]?.name || `Color #${colorIndex + 1}`;
+      showToast(`"${product.title}": Active default color set to ${colorName}`);
+    }
+
+    try {
+      await fetch(`${productsApi}/${product.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          activeColorIndex: colorIndex,
+          activeColorName: product.colors?.[colorIndex]?.name,
+          imageUrl: product.colors?.[colorIndex]?.image || product.imageUrl,
+        }),
+      });
+    } catch {
+      // Safe fallback
+    }
+  };
+
   // Create Product
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,6 +351,9 @@ export default function AdminProductsClient() {
 
     const priceNum = parseFloat(formData.price) || 0;
     const priceETBNum = formData.priceETB ? parseFloat(formData.priceETB) : priceNum * settings.exchangeRateUSDToETB;
+
+    const activeColor = formData.colors[formData.activeColorIndex] || formData.colors[0];
+    const heroImage = activeColor?.image || formData.imageUrl || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80";
 
     const payload = {
       title: formData.title,
@@ -312,7 +366,10 @@ export default function AdminProductsClient() {
       priceETB: priceETBNum,
       formattedPriceETB: `Br${priceETBNum.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB`,
       stock: parseInt(formData.stock) || 10,
-      imageUrl: formData.imageUrl || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80",
+      imageUrl: heroImage,
+      colors: formData.colors,
+      activeColorIndex: formData.activeColorIndex,
+      activeColorName: activeColor?.name,
       description: formData.description || "Impeccably tailored contemporary garment woven by master artisans in Addis Ababa.",
       details: {
         overview: formData.description,
@@ -326,7 +383,7 @@ export default function AdminProductsClient() {
     setProducts((prev) => [createdLocal, ...prev]);
     setFormData(initialForm);
     setShowAddModal(false);
-    showToast(`Garment "${formData.title}" added to atelier catalog!`);
+    showToast(`Garment "${formData.title}" with ${formData.colors.length} colorways added to atelier catalog!`);
 
     try {
       await fetch(productsApi, {
@@ -344,11 +401,17 @@ export default function AdminProductsClient() {
     e.preventDefault();
     if (!editingProduct) return;
 
+    const activeIdx = editingProduct.activeColorIndex ?? 0;
+    const activeColor = editingProduct.colors?.[activeIdx];
+
     const updated = updateProduct(editingProduct.id, {
       ...editingProduct,
       price: Number(editingProduct.price),
       priceETB: Number(editingProduct.priceETB || editingProduct.price * settings.exchangeRateUSDToETB),
       stock: Number(editingProduct.stock),
+      activeColorIndex: activeIdx,
+      activeColorName: activeColor?.name,
+      imageUrl: activeColor?.image || editingProduct.imageUrl,
     });
     if (updated) {
       setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
@@ -365,6 +428,9 @@ export default function AdminProductsClient() {
           price: Number(editingProduct.price),
           priceETB: Number(editingProduct.priceETB || editingProduct.price * settings.exchangeRateUSDToETB),
           stock: Number(editingProduct.stock),
+          activeColorIndex: activeIdx,
+          activeColorName: activeColor?.name,
+          imageUrl: activeColor?.image || editingProduct.imageUrl,
         }),
       });
     } catch {
@@ -403,6 +469,9 @@ export default function AdminProductsClient() {
       stock: product.stock,
       tag: product.tag,
       imageUrl: product.imageUrl,
+      colors: product.colors,
+      activeColorIndex: product.activeColorIndex,
+      activeColorName: product.activeColorName,
       description: product.description,
       details: product.details,
     };
@@ -715,6 +784,40 @@ export default function AdminProductsClient() {
                           (Br{p.priceETB ? p.priceETB.toLocaleString() : (p.price * settings.exchangeRateUSDToETB).toLocaleString()})
                         </span>
                       </div>
+
+                      {/* Mobile Colorways & Active Selector */}
+                      {p.colors && p.colors.length > 0 && (
+                        <div className="flex items-center gap-2 mt-2 pt-1.5 border-t border-neutral-100 flex-wrap">
+                          <span className="text-[10px] text-neutral-400 font-semibold uppercase tracking-wider">
+                            Colors:
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {p.colors.map((c, cIdx) => {
+                              const isActive = cIdx === (p.activeColorIndex ?? 0);
+                              return (
+                                <button
+                                  key={c.name}
+                                  type="button"
+                                  onClick={() => handleQuickSetActiveColor(p, cIdx)}
+                                  className={`relative w-4 h-4 rounded-full border transition-all ${
+                                    isActive
+                                      ? "ring-2 ring-black border-white scale-110 shadow-xs"
+                                      : "border-neutral-300 opacity-70 hover:opacity-100"
+                                  }`}
+                                  style={{ backgroundColor: c.hex }}
+                                  title={`${c.name}${isActive ? " (Active)" : " (Click to set active)"}`}
+                                />
+                              );
+                            })}
+                          </div>
+                          <span className="text-[10px] font-bold text-black flex items-center gap-1">
+                            {p.colors[p.activeColorIndex ?? 0]?.name || p.colors[0]?.name}
+                            <span className="text-[9px] font-extrabold uppercase tracking-wider text-amber-900 bg-amber-100 px-1 rounded">
+                              Active
+                            </span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -831,7 +934,7 @@ export default function AdminProductsClient() {
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={p.imageUrl} alt={p.title} className="w-full h-full object-cover" />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <h3 className="text-sm font-bold text-black tracking-tight truncate">
                           {p.title}
@@ -841,6 +944,47 @@ export default function AdminProductsClient() {
                       <span className="text-[11px] text-neutral-500 block truncate">
                         {p.subtitle || "Atelier Handcrafted Piece"}
                       </span>
+
+                      {/* Colorways and 1-Click Active Selector */}
+                      {p.colors && p.colors.length > 0 && (
+                        <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                          <div className="flex items-center -space-x-0.5">
+                            {p.colors.map((c, cIdx) => {
+                              const isActive = cIdx === (p.activeColorIndex ?? 0);
+                              return (
+                                <button
+                                  key={c.name}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleQuickSetActiveColor(p, cIdx);
+                                  }}
+                                  title={`${c.name}${
+                                    isActive
+                                      ? " (Active default - click to change)"
+                                      : " (Click to set as Active Default)"
+                                  }`}
+                                  className={`relative w-4 h-4 rounded-full border transition-all ${
+                                    isActive
+                                      ? "ring-2 ring-black border-white z-10 scale-110 shadow-xs"
+                                      : "border-neutral-300 opacity-70 hover:opacity-100 hover:scale-110 hover:z-10"
+                                  }`}
+                                  style={{ backgroundColor: c.hex }}
+                                />
+                              );
+                            })}
+                          </div>
+                          <span className="text-[10px] text-neutral-500 font-medium flex items-center gap-1">
+                            <span className="font-bold text-black truncate max-w-[100px]">
+                              {p.colors[p.activeColorIndex ?? 0]?.name || p.colors[0]?.name}
+                            </span>
+                            <span className="text-[8px] font-extrabold uppercase tracking-widest text-amber-900 bg-amber-100 px-1 py-0.2 rounded flex items-center gap-0.5">
+                              <Star className="w-2 h-2 fill-amber-700 text-amber-700" />
+                              Active
+                            </span>
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1169,6 +1313,22 @@ export default function AdminProductsClient() {
                 />
               </div>
 
+              {/* Multi-Color Management & Active Color Selector */}
+              <ProductColorManager
+                colors={editingProduct.colors || []}
+                activeColorIndex={editingProduct.activeColorIndex ?? 0}
+                onChange={(colors, activeIndex) => {
+                  const activeColor = colors[activeIndex];
+                  setEditingProduct({
+                    ...editingProduct,
+                    colors,
+                    activeColorIndex: activeIndex,
+                    activeColorName: activeColor?.name,
+                    imageUrl: activeColor?.image || editingProduct.imageUrl,
+                  });
+                }}
+              />
+
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-neutral-100">
                 <button
                   type="button"
@@ -1369,6 +1529,21 @@ export default function AdminProductsClient() {
                   className="w-full bg-[#f4f4f4] border border-neutral-300 px-4 py-2 text-xs text-black"
                 />
               </div>
+
+              {/* Multi-Color Management & Active Color Selector */}
+              <ProductColorManager
+                colors={formData.colors}
+                activeColorIndex={formData.activeColorIndex}
+                onChange={(colors, activeIndex) => {
+                  const activeColor = colors[activeIndex];
+                  setFormData({
+                    ...formData,
+                    colors,
+                    activeColorIndex: activeIndex,
+                    imageUrl: activeColor?.image || formData.imageUrl,
+                  });
+                }}
+              />
 
               <div className="pt-4 flex items-center justify-end gap-3 border-t border-neutral-100">
                 <button

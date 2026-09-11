@@ -4,8 +4,7 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
-import AdminHeader from "./AdminHeader";
-import AdminFooter from "./AdminFooter";
+import AdminShell from "./AdminShell";
 
 export default function StorefrontShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -13,13 +12,7 @@ export default function StorefrontShell({ children }: { children: React.ReactNod
   const isAdminLoginPage = pathname === "/admin/login";
 
   if (isAdminRoute && !isAdminLoginPage) {
-    return (
-      <div className="min-h-screen flex flex-col bg-[#0d0d0d] text-white">
-        <AdminHeader />
-        <main className="flex-1 bg-[#fafafa] text-black">{children}</main>
-        <AdminFooter />
-      </div>
-    );
+    return <AdminShell>{children}</AdminShell>;
   }
 
   if (isAdminLoginPage) {

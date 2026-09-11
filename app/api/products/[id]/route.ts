@@ -32,6 +32,8 @@ export async function GET(
           isNew: data.is_new,
           tag: data.tag,
           colors: data.colors || [],
+          activeColorIndex: data.active_color_index ?? data.activeColorIndex ?? 0,
+          activeColorName: data.active_color_name ?? data.activeColorName,
           sizes: data.sizes || [],
           stock: data.stock,
           details: data.details || {},

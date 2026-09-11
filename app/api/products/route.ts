@@ -27,6 +27,8 @@ export async function GET() {
           isNew: item.is_new,
           tag: item.tag,
           colors: item.colors || [],
+          activeColorIndex: item.active_color_index ?? item.activeColorIndex ?? 0,
+          activeColorName: item.active_color_name ?? item.activeColorName,
           sizes: item.sizes || [],
           stock: item.stock,
           details: item.details || {},
@@ -56,6 +58,9 @@ export async function POST(request: Request) {
       stock: Number(body.stock) || 0,
       category: body.category || "sets",
       tag: body.tag || "New",
+      colors: body.colors,
+      activeColorIndex: body.activeColorIndex,
+      activeColorName: body.activeColorName,
       details: body.details,
     });
 

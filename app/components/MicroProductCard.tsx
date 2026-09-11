@@ -14,16 +14,48 @@ interface MicroProductCardProps {
 export default function MicroProductCard({ product }: MicroProductCardProps) {
   const { isInWishlist, toggleWishlist } = useWishlist();
   const { addItem } = useCart();
-  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
+
+  const colors = React.useMemo(() => {
+    return product.colors && product.colors.length > 0
+      ? product.colors.filter((c) => c.active !== false)
+      : [];
+  }, [product.colors]);
+
+  const defaultColorIdx = React.useMemo(() => {
+    if (typeof product.activeColorIndex === "number" && product.activeColorIndex >= 0 && product.activeColorIndex < colors.length) {
+      return product.activeColorIndex;
+    }
+    if (product.activeColorName) {
+      const idx = colors.findIndex((c) => c.name.toLowerCase() === product.activeColorName?.toLowerCase());
+      if (idx !== -1) return idx;
+    }
+    return 0;
+  }, [product.activeColorIndex, product.activeColorName, colors]);
+
+  const [selectedColorOverride, setSelectedColorOverride] = useState<number | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showQuickShop, setShowQuickShop] = useState(false);
   const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [addedNotice, setAddedNotice] = useState(false);
 
+  const selectedColorIndex =
+    selectedColorOverride !== null && selectedColorOverride < colors.length
+      ? selectedColorOverride
+      : defaultColorIdx;
+
+  const currentColor = colors[selectedColorIndex];
+
+  const images = React.useMemo(() => {
+    if (currentColor?.image) {
+      const rest = (product.galleryImages || [product.imageUrl]).filter((img) => img !== currentColor.image);
+      return [currentColor.image, ...rest];
+    }
+    return product.galleryImages && product.galleryImages.length > 0
+      ? product.galleryImages
+      : [product.imageUrl];
+  }, [currentColor, product.galleryImages, product.imageUrl]);
+
   const isFav = isInWishlist(product.id);
-  const images = product.galleryImages && product.galleryImages.length > 0
-    ? product.galleryImages
-    : [product.imageUrl];
 
   const handlePrevImage = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -41,11 +73,12 @@ export default function MicroProductCard({ product }: MicroProductCardProps) {
     e.preventDefault();
     e.stopPropagation();
     setSelectedSize(size);
+    const colorLabel = currentColor ? `, ${currentColor.name}` : "";
     addItem({
       id: product.id,
-      title: `${product.title} (${size})`,
+      title: `${product.title} (${size}${colorLabel})`,
       price: product.price,
-      imageUrl: product.imageUrl,
+      imageUrl: currentColor?.image || images[0] || product.imageUrl,
     });
     setAddedNotice(true);
     setTimeout(() => {
@@ -161,23 +194,42 @@ export default function MicroProductCard({ product }: MicroProductCardProps) {
       {/* Info & Swatches Area Below Image */}
       <div className="pt-2.5 pb-1 space-y-1">
         {/* Color Swatches */}
-        {product.colors && product.colors.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            {product.colors.map((color, idx) => (
-              <button
-                key={color.name}
-                type="button"
-                onClick={() => setSelectedColorIndex(idx)}
-                title={color.name}
-                className={`w-2.5 h-2.5 rounded-none transition-all ${
-                  selectedColorIndex === idx
-                    ? "ring-1 ring-black ring-offset-1 scale-110"
-                    : "opacity-80 hover:opacity-100"
-                }`}
-                style={{ backgroundColor: color.hex }}
-                aria-label={`Color: ${color.name}`}
-              />
-            ))}
+        {colors && colors.length > 0 && (
+          <div className="flex items-center gap-1.5 pt-0.5">
+            {colors.map((color, idx) => {
+              const isSelected = selectedColorIndex === idx;
+              const isDefaultActive = idx === defaultColorIdx;
+
+              return (
+                <button
+                  key={color.name}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSelectedColorOverride(idx);
+                  }}
+                  onMouseEnter={() => setSelectedColorOverride(idx)}
+                  title={`${color.name}${isDefaultActive ? " (Active default)" : ""}`}
+                  className={`relative w-3 h-3 rounded-none transition-all ${
+                    isSelected
+                      ? "ring-1.5 ring-black ring-offset-1 scale-110 z-10"
+                      : "opacity-80 hover:opacity-100 hover:scale-105"
+                  }`}
+                  style={{ backgroundColor: color.hex }}
+                  aria-label={`Color: ${color.name}`}
+                >
+                  {isDefaultActive && (
+                    <span className="sr-only">Active Default</span>
+                  )}
+                </button>
+              );
+            })}
+            {currentColor && (
+              <span className="text-[10px] text-neutral-500 font-medium ml-1 truncate max-w-[100px]">
+                {currentColor.name}
+              </span>
+            )}
           </div>
         )}
 

@@ -19,7 +19,31 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const relatedProducts = allProducts.filter((p) => p.id !== product.id).slice(0, 4);
 
   const isFav = isInWishlist(product.id);
-  const [selectedColorIndex, setSelectedColorIndex] = useState(0);
+
+  const colors = React.useMemo(() => {
+    const list = product.colors && product.colors.length > 0
+      ? product.colors.filter((c) => c.active !== false)
+      : [
+          { name: "Violet", hex: "#7071e8", active: true },
+          { name: "Off White", hex: "#f3f4f6", active: true },
+          { name: "Charcoal", hex: "#27272a", active: true },
+        ];
+    return list.length > 0 ? list : product.colors || [];
+  }, [product.colors]);
+
+  // Resolve initial color index from admin-set active color
+  const defaultColorIndex = React.useMemo(() => {
+    if (typeof product.activeColorIndex === "number" && product.activeColorIndex >= 0 && product.activeColorIndex < colors.length) {
+      return product.activeColorIndex;
+    }
+    if (product.activeColorName) {
+      const idx = colors.findIndex((c) => c.name.toLowerCase() === product.activeColorName?.toLowerCase());
+      if (idx !== -1) return idx;
+    }
+    return 0;
+  }, [product.activeColorIndex, product.activeColorName, colors]);
+
+  const [selectedColorOverride, setSelectedColorOverride] = useState<number | null>(null);
   const [selectedSize, setSelectedSize] = useState<string>("Select Size");
   const [isSizeDropdownOpen, setIsSizeDropdownOpen] = useState(false);
   const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
@@ -28,21 +52,27 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const [addedNotice, setAddedNotice] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
 
-  const colors = product.colors || [
-    { name: "Violet", hex: "#7071e8" },
-    { name: "Off White", hex: "#f3f4f6" },
-    { name: "Charcoal", hex: "#27272a" },
-  ];
+  const selectedColorIndex =
+    selectedColorOverride !== null && selectedColorOverride < colors.length
+      ? selectedColorOverride
+      : defaultColorIndex;
 
   const sizes = product.sizes || ["XS", "S", "M", "L", "XL"];
   const currentColor = colors[selectedColorIndex] || colors[0];
 
-  const gallery = product.galleryImages && product.galleryImages.length >= 2
-    ? product.galleryImages
-    : [
-        product.imageUrl,
-        product.galleryImages?.[0] || product.imageUrl,
-      ];
+  // Dynamically update garment photos to match the selected color!
+  const gallery = React.useMemo(() => {
+    if (currentColor?.image) {
+      const remaining = (product.galleryImages || [product.imageUrl]).filter((img) => img !== currentColor.image);
+      return [currentColor.image, ...remaining];
+    }
+    return product.galleryImages && product.galleryImages.length >= 2
+      ? product.galleryImages
+      : [
+          product.imageUrl,
+          product.galleryImages?.[0] || product.imageUrl,
+        ];
+  }, [currentColor, product.galleryImages, product.imageUrl]);
 
   const handleAddToBag = () => {
     if (selectedSize === "Select Size") {
@@ -55,7 +85,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
       id: product.id,
       title: `${product.title} (${selectedSize}, ${currentColor.name})`,
       price: product.price,
-      imageUrl: gallery[0] || product.imageUrl,
+      imageUrl: currentColor?.image || gallery[0] || product.imageUrl,
     });
     setAddedNotice(true);
     setTimeout(() => setAddedNotice(false), 2500);
@@ -125,25 +155,57 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             </p>
 
             {/* Color Swatch Selector */}
-            <div className="space-y-2 pt-2">
-              <p className="text-sm text-neutral-800 font-normal">
-                {currentColor.name}
-              </p>
-              <div className="flex items-center gap-2">
-                {colors.map((c, idx) => (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => setSelectedColorIndex(idx)}
-                    aria-label={`Select color ${c.name}`}
-                    className={`w-5 h-5 rounded-none transition-all ${
-                      selectedColorIndex === idx
-                        ? "ring-2 ring-black ring-offset-2 scale-105"
-                        : "opacity-80 hover:opacity-100 ring-1 ring-neutral-300"
-                    }`}
-                    style={{ backgroundColor: c.hex }}
-                  />
-                ))}
+            <div className="space-y-2.5 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
+                    Color:
+                  </span>
+                  <span className="text-sm text-black font-bold">
+                    {currentColor.name}
+                  </span>
+                  {selectedColorIndex === defaultColorIndex && (
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 border border-amber-300">
+                      ★ Active Color
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-neutral-400 font-medium">
+                  {colors.length} {colors.length === 1 ? "colorway" : "colorways"}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
+                {colors.map((c, idx) => {
+                  const isSelected = selectedColorIndex === idx;
+                  const isDefaultActive = idx === defaultColorIndex;
+
+                  return (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => setSelectedColorOverride(idx)}
+                      title={`Switch to ${c.name}${isDefaultActive ? " (Active default)" : ""}`}
+                      aria-label={`Select color ${c.name}`}
+                      className={`group relative p-1 rounded-sm border transition-all flex items-center gap-2 ${
+                        isSelected
+                          ? "border-black bg-neutral-50 ring-1 ring-black"
+                          : "border-neutral-200 hover:border-neutral-400 bg-white"
+                      }`}
+                    >
+                      <span
+                        className="w-5 h-5 rounded-xs border border-black/15 shadow-2xs block flex-shrink-0"
+                        style={{ backgroundColor: c.hex }}
+                      />
+                      <span className={`text-xs pr-1 ${isSelected ? "font-bold text-black" : "text-neutral-700"}`}>
+                        {c.name}
+                      </span>
+                      {isDefaultActive && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-0.5" title="Active default color" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
