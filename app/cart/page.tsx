@@ -299,7 +299,7 @@ export default function CartPage() {
               <button
                 type="button"
                 onClick={() => setCheckoutStep("payment")}
-                className="w-full bg-black text-white py-4 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-black text-white px-4 py-4 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span>Proceed to Stripe Checkout</span>
