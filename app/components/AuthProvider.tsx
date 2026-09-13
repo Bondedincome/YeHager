@@ -18,6 +18,7 @@ type AuthContextType = {
   user: AppUser | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  authLoading: boolean;
   login: (emailOrUsername: string, pass: string) => Promise<{ success: boolean; error?: string; user?: AppUser }>;
   register: (name: string, email: string, pass: string) => Promise<{ success: boolean; error?: string; user?: AppUser }>;
   changePassword: (currentPass: string, newPass: string) => Promise<{ success: boolean; error?: string; message?: string }>;
@@ -38,15 +39,66 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getAuthHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("yehagere_auth_token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [usersList, setUsersList] = useState<AppUser[]>(INITIAL_USERS);
   const [orders, setOrders] = useState<CustomerOrder[]>(INITIAL_ORDERS);
   const [mounted, setMounted] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // Server-side session verification
+  const verifySessionWithServer = useCallback(async () => {
+    try {
+      setAuthLoading(true);
+      const token = typeof window !== "undefined" ? localStorage.getItem("yehagere_auth_token") : null;
+      
+      const res = await fetch("/api/auth/me", {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.authenticated && data.user) {
+          setUser(data.user);
+          setActiveUser(data.user);
+          return;
+        }
+      }
+
+      // If server verification fails or token is expired/invalid, clear session
+      if (token) {
+        localStorage.removeItem("yehagere_auth_token");
+      }
+      setActiveUser(null);
+      setUser(null);
+    } catch {
+      // Offline fallback: if network error, do not grant admin privileges arbitrarily
+      const local = getActiveUser();
+      if (local && local.role !== "admin") {
+        setUser(local);
+      } else {
+        setUser(null);
+      }
+    } finally {
+      setAuthLoading(false);
+    }
+  }, []);
 
   const refreshState = useCallback(() => {
-    const current = getActiveUser();
-    setUser(current);
     setUsersList(getStoredUsers());
     setOrders(getStoredOrders());
   }, []);
@@ -55,47 +107,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const timer = setTimeout(() => {
       setMounted(true);
       refreshState();
-
-      // Background synchronization with Cloud Firestore
-      fetch("/api/users")
-        .then((res) => res.json())
-        .then((res) => {
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-            setUsersList((prev) => {
-              // Merge Firestore users with any local ones
-              const merged = [...res.data];
-              for (const p of prev) {
-                if (!merged.some((m) => m.id === p.id || m.email.toLowerCase() === p.email.toLowerCase())) {
-                  merged.push(p);
-                }
-              }
-              saveStoredUsers(merged);
-              return merged;
-            });
-          }
-        })
-        .catch(() => {});
-
-      fetch("/api/orders")
-        .then((res) => res.json())
-        .then((res) => {
-          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
-            setOrders((prev) => {
-              const merged = [...res.data];
-              for (const p of prev) {
-                if (!merged.some((m) => m.id === p.id || m.orderNumber === p.orderNumber)) {
-                  merged.push(p);
-                }
-              }
-              saveStoredOrders(merged);
-              return merged;
-            });
-          }
-        })
-        .catch(() => {});
+      verifySessionWithServer();
     }, 0);
 
-    const handleAuthChange = () => refreshState();
+    // Background synchronization with Cloud Firestore
+    fetch("/api/users", {
+      headers: getAuthHeaders(),
+      credentials: "include",
+    })
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((res) => {
+        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setUsersList((prev) => {
+            const merged = [...res.data];
+            for (const p of prev) {
+              if (!merged.some((m) => m.id === p.id || m.email.toLowerCase() === p.email.toLowerCase())) {
+                merged.push(p);
+              }
+            }
+            saveStoredUsers(merged);
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
+
+    fetch("/api/orders", {
+      headers: getAuthHeaders(),
+      credentials: "include",
+    })
+      .then((res) => {
+        if (!res.ok) return null;
+        return res.json();
+      })
+      .then((res) => {
+        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
+          setOrders((prev) => {
+            const merged = [...res.data];
+            for (const p of prev) {
+              if (!merged.some((m) => m.id === p.id || m.orderNumber === p.orderNumber)) {
+                merged.push(p);
+              }
+            }
+            saveStoredOrders(merged);
+            return merged;
+          });
+        }
+      })
+      .catch(() => {});
+
+    const handleAuthChange = () => {
+      refreshState();
+    };
     const handleUsersChange = () => setUsersList(getStoredUsers());
     const handleOrdersChange = () => setOrders(getStoredOrders());
 
@@ -111,17 +177,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("yehagere_orders:updated", handleOrdersChange);
       window.removeEventListener("storage", handleAuthChange);
     };
-  }, [refreshState]);
+  }, [refreshState, verifySessionWithServer]);
 
   const login = async (emailOrUsername: string, pass: string) => {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           emailOrUsername,
           password: pass,
-          clientUsers: usersList,
         }),
       });
 
@@ -154,6 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           name,
           email,
@@ -174,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem("yehagere_auth_token", data.token);
       }
 
-      const updated = [data.fullUser, ...usersList];
+      const updated = [data.user, ...usersList];
       saveStoredUsers(updated);
       setUsersList(updated);
       setActiveUser(data.user);
@@ -195,12 +262,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/auth/change-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
+        credentials: "include",
         body: JSON.stringify({
           userId: user.id,
           currentPassword: currentPass,
           newPassword: newPass,
-          clientUsers: usersList,
         }),
       });
 
@@ -213,28 +280,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // Update the user record with the new cryptographic hash & salt
-      const updated = usersList.map((u) => {
-        if (u.id === user.id) {
-          return {
-            ...u,
-            passwordHash: data.passwordHash,
-            passwordSalt: data.passwordSalt,
-          };
-        }
-        return u;
-      });
-
-      saveStoredUsers(updated);
-      setUsersList(updated);
-
       return { success: true, message: data.message };
     } catch {
       return { success: false, error: "Network error while updating password." };
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch {
+      // Safe ignore
+    }
     if (typeof window !== "undefined") {
       localStorage.removeItem("yehagere_auth_token");
     }
@@ -259,11 +316,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveStoredOrders(updatedOrders);
     setOrders(updatedOrders);
 
-    // Sync order to Firestore API route in background
+    // Sync order to Firestore API route
     try {
       fetch("/api/orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
+        credentials: "include",
         body: JSON.stringify(newOrder),
       }).catch(() => {
         // Safe ignore
@@ -296,18 +354,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const updated = orders.map((o) => (o.id === orderId ? { ...o, status } : o));
     saveStoredOrders(updated);
     setOrders(updated);
+
+    fetch("/api/orders", {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      credentials: "include",
+      body: JSON.stringify({ orderId, updates: { status } }),
+    }).catch(() => {});
   };
 
   const updateOrderDetails = (orderId: string, updates: Partial<CustomerOrder>) => {
     const updated = orders.map((o) => (o.id === orderId ? { ...o, ...updates } : o));
     saveStoredOrders(updated);
     setOrders(updated);
+
+    fetch("/api/orders", {
+      method: "PATCH",
+      headers: getAuthHeaders(),
+      credentials: "include",
+      body: JSON.stringify({ orderId, updates }),
+    }).catch(() => {});
   };
 
   const deleteOrder = (orderId: string) => {
     const updated = orders.filter((o) => o.id !== orderId);
     saveStoredOrders(updated);
     setOrders(updated);
+
+    fetch(`/api/orders?orderId=${encodeURIComponent(orderId)}`, {
+      method: "DELETE",
+      headers: getAuthHeaders(),
+      credentials: "include",
+    }).catch(() => {});
   };
 
   const addUser = (userData: Omit<AppUser, "id" | "memberSince" | "totalOrders" | "totalSpentUSD">) => {
@@ -322,10 +400,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveStoredUsers(updated);
     setUsersList(updated);
 
-    // Persist to Firestore
+    // Persist to Firestore via authenticated admin route
     fetch("/api/users", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
+      credentials: "include",
       body: JSON.stringify(userData),
     }).catch(() => {});
   };
@@ -343,7 +422,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Persist to Firestore
     fetch("/api/users", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
+      credentials: "include",
       body: JSON.stringify({ userId, updates: { role } }),
     }).catch(() => {});
   };
@@ -361,7 +441,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Persist to Firestore
     fetch("/api/users", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
+      credentials: "include",
       body: JSON.stringify({ userId, updates: { status: newStatus } }),
     }).catch(() => {});
   };
@@ -374,6 +455,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Persist to Firestore
     fetch(`/api/users?userId=${encodeURIComponent(userId)}`, {
       method: "DELETE",
+      headers: getAuthHeaders(),
+      credentials: "include",
     }).catch(() => {});
   };
 
@@ -381,7 +464,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/migrate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
+        credentials: "include",
         body: JSON.stringify({
           users: usersList,
           orders: orders,
@@ -409,6 +493,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     isAuthenticated: Boolean(user),
     isAdmin: user?.role === "admin",
+    authLoading,
     login,
     register,
     changePassword,

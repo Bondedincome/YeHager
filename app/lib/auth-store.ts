@@ -122,24 +122,35 @@ const USERS_KEY = "yehagere_users_list_v2";
 const ORDERS_KEY = "yehagere_orders_list_v2";
 const CURRENT_USER_KEY = "yehagere_active_user_v2";
 
+function sanitizeUserForStorage(user: AppUser): AppUser {
+  const safe = { ...user };
+  delete safe.passwordHash;
+  delete safe.passwordSalt;
+  return safe;
+}
+
 export function getStoredUsers(): AppUser[] {
-  if (typeof window === "undefined") return INITIAL_USERS;
+  if (typeof window === "undefined") return INITIAL_USERS.map(sanitizeUserForStorage);
   try {
     const raw = localStorage.getItem(USERS_KEY);
     if (!raw) {
-      localStorage.setItem(USERS_KEY, JSON.stringify(INITIAL_USERS));
-      return INITIAL_USERS;
+      const sanitizedInitial = INITIAL_USERS.map(sanitizeUserForStorage);
+      localStorage.setItem(USERS_KEY, JSON.stringify(sanitizedInitial));
+      return sanitizedInitial;
     }
-    return JSON.parse(raw);
+    const parsed: AppUser[] = JSON.parse(raw);
+    return parsed.map(sanitizeUserForStorage);
   } catch {
-    return INITIAL_USERS;
+    return INITIAL_USERS.map(sanitizeUserForStorage);
   }
 }
 
 export function saveStoredUsers(users: AppUser[]) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    // Strip any sensitive cryptographic hashes from client storage
+    const sanitized = users.map(sanitizeUserForStorage);
+    localStorage.setItem(USERS_KEY, JSON.stringify(sanitized));
     window.dispatchEvent(new CustomEvent("yehagere_users:updated"));
   } catch (e) {
     console.error("Failed to save users", e);
@@ -175,7 +186,8 @@ export function getActiveUser(): AppUser | null {
   try {
     const raw = localStorage.getItem(CURRENT_USER_KEY);
     if (!raw) return null;
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return sanitizeUserForStorage(parsed);
   } catch {
     return null;
   }
@@ -185,11 +197,12 @@ export function setActiveUser(user: AppUser | null) {
   if (typeof window === "undefined") return;
   try {
     if (user) {
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
-      localStorage.setItem("token", `auth_${user.id}_${Date.now()}`);
+      const sanitized = sanitizeUserForStorage(user);
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(sanitized));
     } else {
       localStorage.removeItem(CURRENT_USER_KEY);
       localStorage.removeItem("token");
+      localStorage.removeItem("yehagere_auth_token");
     }
     window.dispatchEvent(new CustomEvent("yehagere_auth:updated"));
   } catch (e) {

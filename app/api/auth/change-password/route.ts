@@ -1,18 +1,34 @@
 import { NextResponse } from "next/server";
-import { verifyPassword, hashPassword, validatePasswordStrength } from "../../../lib/auth-security";
-import { AppUser } from "../../../lib/auth-seed";
+import { verifyPassword, hashPassword, validatePasswordStrength, authenticateRequest } from "../../../lib/auth-security";
+import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
 import { db } from "../../../lib/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 export async function POST(request: Request) {
   try {
+    const auth = authenticateRequest(request);
+    if (!auth.authenticated || !auth.payload) {
+      return NextResponse.json(
+        { error: auth.error || "Authentication required to change password" },
+        { status: auth.status || 401 }
+      );
+    }
+
     const body = await request.json();
-    const { userId, currentPassword, newPassword, clientUsers } = body;
+    const { userId, currentPassword, newPassword } = body;
 
     if (!userId || !currentPassword || !newPassword) {
       return NextResponse.json(
         { error: "Current password and new password are required" },
         { status: 400 }
+      );
+    }
+
+    // Ensure user can only change their own password unless they are an admin
+    if (auth.payload.userId !== userId && auth.payload.role !== "admin") {
+      return NextResponse.json(
+        { error: "Access denied. You cannot modify credentials for another patron." },
+        { status: 403 }
       );
     }
 
@@ -35,12 +51,11 @@ export async function POST(request: Request) {
     }
 
     if (!targetUser) {
-      const users: AppUser[] = Array.isArray(clientUsers) ? clientUsers : [];
-      targetUser = users.find((u) => u.id === userId);
+      targetUser = INITIAL_USERS.find((u) => u.id === userId);
     }
 
     if (!targetUser || !targetUser.passwordHash || !targetUser.passwordSalt) {
-      return NextResponse.json({ error: "User account not found" }, { status: 404 });
+      return NextResponse.json({ error: "User account not found or has no credentials" }, { status: 404 });
     }
 
     const isMatch = verifyPassword(currentPassword, targetUser.passwordHash, targetUser.passwordSalt);
@@ -65,8 +80,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       message: "Password updated successfully with enterprise cryptographic encryption.",
-      passwordHash: hash,
-      passwordSalt: salt,
     });
   } catch (error) {
     console.error("Change password error:", error);

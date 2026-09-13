@@ -3,9 +3,15 @@ import { db } from "../../lib/firebase";
 import { collection, getDocs, doc, setDoc } from "firebase/firestore";
 import { INITIAL_USERS } from "../../lib/auth-seed";
 import { INITIAL_ORDERS, AppUser, CustomerOrder } from "../../lib/auth-store";
+import { requireAdmin } from "../../lib/auth-security";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const auth = requireAdmin(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.error || "Admin authorization required" }, { status: auth.status });
+    }
+
     const usersSnap = await getDocs(collection(db, "users"));
     const ordersSnap = await getDocs(collection(db, "orders"));
     const inqSnap = await getDocs(collection(db, "inquiries"));
@@ -29,6 +35,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const auth = requireAdmin(request);
+    if (!auth.authorized) {
+      return NextResponse.json({ error: auth.error || "Admin authorization required" }, { status: auth.status });
+    }
+
     const body = await request.json().catch(() => ({}));
     const clientUsers: AppUser[] = Array.isArray(body.users) ? body.users : [];
     const clientOrders: CustomerOrder[] = Array.isArray(body.orders) ? body.orders : [];

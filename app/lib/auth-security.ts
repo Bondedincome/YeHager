@@ -95,6 +95,106 @@ export function verifyToken(token: string): { valid: boolean; payload?: TokenPay
   }
 }
 
+export const AUTH_COOKIE_NAME = "yehagere_auth_token";
+
+/**
+ * Extracts session token from either Authorization Bearer header or HttpOnly Cookie.
+ */
+export function extractTokenFromRequest(request: Request): string | null {
+  try {
+    // 1. Check Authorization Bearer header
+    const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7).trim();
+      if (token) return token;
+    }
+
+    // 2. Check Cookie header
+    const cookieHeader = request.headers.get("cookie") || "";
+    if (cookieHeader) {
+      const match = cookieHeader
+        .split(";")
+        .map((c) => c.trim())
+        .find((c) => c.startsWith(`${AUTH_COOKIE_NAME}=`));
+
+      if (match) {
+        const token = match.substring(AUTH_COOKIE_NAME.length + 1).trim();
+        if (token) return decodeURIComponent(token);
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+export type AuthResult = {
+  authenticated: boolean;
+  authorized?: boolean;
+  payload?: TokenPayload;
+  error?: string;
+  status: number;
+};
+
+/**
+ * Validates the session token from an incoming request.
+ */
+export function authenticateRequest(request: Request): AuthResult {
+  const token = extractTokenFromRequest(request);
+  if (!token) {
+    return {
+      authenticated: false,
+      authorized: false,
+      error: "Authentication required. Please sign in with your atelier account.",
+      status: 401,
+    };
+  }
+
+  const result = verifyToken(token);
+  if (!result.valid || !result.payload) {
+    return {
+      authenticated: false,
+      authorized: false,
+      error: "Session token is invalid or has expired. Please sign in again.",
+      status: 401,
+    };
+  }
+
+  return {
+    authenticated: true,
+    authorized: true,
+    payload: result.payload,
+    status: 200,
+  };
+}
+
+/**
+ * Validates the session token AND enforces that the user has the 'admin' role.
+ */
+export function requireAdmin(request: Request): AuthResult {
+  const auth = authenticateRequest(request);
+  if (!auth.authenticated || !auth.payload) {
+    return auth;
+  }
+
+  if (auth.payload.role !== "admin") {
+    return {
+      authenticated: true,
+      authorized: false,
+      payload: auth.payload,
+      error: "Access denied. Administrator privileges required to access this resource.",
+      status: 403,
+    };
+  }
+
+  return {
+    authenticated: true,
+    authorized: true,
+    payload: auth.payload,
+    status: 200,
+  };
+}
+
 /**
  * Validates password strength (min 8 chars, at least one letter and one number).
  */

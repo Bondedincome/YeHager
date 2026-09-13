@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyPassword, generateToken } from "../../../lib/auth-security";
+import { verifyPassword, generateToken, AUTH_COOKIE_NAME } from "../../../lib/auth-security";
 import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
 import { db } from "../../../lib/firebase";
 import { collection, getDocs, query, where, limit } from "firebase/firestore";
@@ -91,19 +91,10 @@ export async function POST(request: Request) {
     }
 
     if (!user) {
-      const clientUsers: AppUser[] = Array.isArray(body.clientUsers) ? body.clientUsers : [];
-      const allUsers: AppUser[] = [...INITIAL_USERS];
-
-      for (const u of clientUsers) {
-        if (!allUsers.some((existing) => existing.id === u.id || existing.email.toLowerCase() === u.email.toLowerCase())) {
-          allUsers.push(u);
-        }
-      }
-
       if (identifier === "admin" || identifier === "admin@yehagere.com") {
-        user = allUsers.find((u) => u.role === "admin") || INITIAL_USERS[0];
+        user = INITIAL_USERS.find((u) => u.role === "admin") || INITIAL_USERS[0];
       } else {
-        user = allUsers.find((u) => u.email.toLowerCase() === identifier);
+        user = INITIAL_USERS.find((u) => u.email.toLowerCase() === identifier);
       }
     }
 
@@ -166,11 +157,24 @@ export async function POST(request: Request) {
       shippingAddress: user.shippingAddress,
     };
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       token,
       user: sanitizedUser,
     });
+
+    // Set HttpOnly, Secure, SameSite=Lax cookie
+    response.cookies.set({
+      name: AUTH_COOKIE_NAME,
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 72 * 60 * 60, // 72 hours
+    });
+
+    return response;
   } catch (error) {
     console.error("Login API Error:", error);
     return NextResponse.json(

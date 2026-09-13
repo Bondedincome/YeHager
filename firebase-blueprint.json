@@ -86,6 +86,30 @@
         "update": "Allow admin update of categories",
         "delete": "Allow admin deletion of categories"
       }
+    },
+    "users": {
+      "title": "Patrons and Staff",
+      "description": "Registered patron accounts and atelier administrative staff",
+      "type": "collection",
+      "properties": {
+        "name": { "type": "string", "description": "Full name of patron or staff member" },
+        "email": { "type": "string", "description": "Email address" },
+        "role": { "type": "string", "description": "User role: admin, customer, or vip" },
+        "status": { "type": "string", "description": "Account status: active or suspended" },
+        "memberSince": { "type": "string", "description": "Membership registration date string" },
+        "totalOrders": { "type": "number", "description": "Lifetime order count" },
+        "totalSpentUSD": { "type": "number", "description": "Lifetime spending total" },
+        "phone": { "type": "string", "description": "Contact telephone number" },
+        "shippingAddress": { "type": "string", "description": "Saved shipping address" },
+        "passwordHash": { "type": "string", "description": "Salted PBKDF2 hash" },
+        "passwordSalt": { "type": "string", "description": "Cryptographic salt" }
+      },
+      "operations": {
+        "read": "Restricted to authenticated owner or administrator",
+        "create": "Allowed upon patron registration or by administrator",
+        "update": "Allowed by owner for profile or by administrator for roles",
+        "delete": "Restricted to administrator"
+      }
     }
   }
 }

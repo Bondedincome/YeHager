@@ -15,7 +15,6 @@ import {
   Settings,
   X,
   PanelLeftClose,
-  PanelLeft,
   Database,
   ShieldCheck,
   Store,
@@ -136,32 +135,33 @@ export default function AdminSidebar({
             {/* Drawer Header */}
             <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
               <Link
-                href="/"
+                href="/admin"
                 onClick={onCloseMobile}
                 className="flex items-center gap-3 group"
-                title="YeHageré Atelier - Visit Customer Storefront"
+                title="YeHageré Atelier Admin Console"
               >
                 <div className="bg-white p-1.5 rounded-xs group-hover:scale-105 transition-transform shadow-2xs">
                   <LogoMark size="sm" />
                 </div>
                 <div>
-                  <span className="block text-[9px] font-extrabold uppercase tracking-[0.25em] text-neutral-400 group-hover:text-neutral-200 transition-colors">
+                  <span className="block text-[9px] font-extrabold uppercase tracking-[0.25em] text-[#d4af37] group-hover:text-amber-300 transition-colors">
                     YeHageré Atelier
                   </span>
                   <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                    Storefront
-                    <ArrowUpRight className="w-3.5 h-3.5 text-neutral-400 group-hover:text-white transition-colors" />
+                    Admin Console
                   </span>
                 </div>
               </Link>
 
               <div className="flex items-center gap-1.5">
                 <Link
-                  href="/admin"
-                  onClick={onCloseMobile}
-                  className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded border border-neutral-700 transition-colors"
+                  href="/"
+                  target="_blank"
+                  className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded border border-neutral-700 transition-colors flex items-center gap-1"
+                  title="View Storefront"
                 >
-                  Admin
+                  <Store className="w-3 h-3" />
+                  <span>Store</span>
                 </Link>
                 <button
                   type="button"
@@ -192,28 +192,31 @@ export default function AdminSidebar({
                           onClick={onCloseMobile}
                           className={`w-full flex items-center justify-between px-3.5 py-3 rounded text-xs font-bold uppercase tracking-wider transition-all min-h-[44px] ${
                             active
-                              ? "bg-white !text-black font-extrabold shadow-sm"
+                              ? "bg-white text-black font-extrabold shadow-sm"
                               : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
                           }`}
-                          style={active ? { color: "#000000", backgroundColor: "#ffffff" } : undefined}
+                          style={{
+                            color: active ? "#000000" : undefined,
+                            backgroundColor: active ? "#ffffff" : undefined,
+                          }}
                         >
                           <div className="flex items-center gap-3">
                             <Icon
-                              className={`w-4 h-4 flex-shrink-0 ${active ? "!text-black" : "text-neutral-400"}`}
-                              style={active ? { color: "#000000" } : undefined}
+                              className={`w-4 h-4 flex-shrink-0 ${active ? "text-black" : "text-neutral-400"}`}
+                              style={{ color: active ? "#000000" : undefined }}
                             />
                             <div className="text-left">
                               <div
-                                className={`${active ? "!text-black font-extrabold" : "text-neutral-200"}`}
-                                style={active ? { color: "#000000" } : undefined}
+                                className={active ? "text-black font-extrabold" : "text-neutral-200"}
+                                style={{ color: active ? "#000000" : undefined }}
                               >
                                 {item.label}
                               </div>
                               <div
                                 className={`text-[10px] font-normal tracking-normal lowercase first-letter:uppercase ${
-                                  active ? "!text-neutral-700" : "text-neutral-400"
+                                  active ? "text-neutral-800" : "text-neutral-400"
                                 }`}
-                                style={active ? { color: "#374151" } : undefined}
+                                style={{ color: active ? "#262626" : undefined }}
                               >
                                 {item.description}
                               </div>
@@ -222,10 +225,11 @@ export default function AdminSidebar({
 
                           {item.badge !== undefined && item.badge > 0 && (
                             <span
-                              className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
-                                active ? "bg-black !text-white" : "bg-amber-400 !text-black"
-                              }`}
-                              style={active ? { backgroundColor: "#000000", color: "#ffffff" } : undefined}
+                              className="text-[10px] px-2 py-0.5 rounded-full font-extrabold"
+                              style={{
+                                backgroundColor: active ? "#000000" : "#fbbf24",
+                                color: active ? "#ffffff" : "#000000",
+                              }}
                             >
                               {item.badge}
                             </span>
@@ -300,8 +304,8 @@ export default function AdminSidebar({
         {collapsed ? (
           <div className="h-16 px-2 border-b border-neutral-800 flex items-center justify-center relative group flex-shrink-0">
             <Link
-              href="/"
-              title="YeHageré Atelier - Visit Customer Storefront"
+              href="/admin"
+              title="YeHageré Atelier - Admin Console"
               className="w-10 h-10 bg-white rounded-xs p-1 flex items-center justify-center hover:scale-105 transition-all shadow-sm group-hover:ring-2 group-hover:ring-white/40"
             >
               <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
@@ -309,64 +313,27 @@ export default function AdminSidebar({
               </div>
             </Link>
 
-            {/* Hover Floating Action Card for Collapsed Sidebar */}
-            <div className="absolute left-full top-2 ml-3 p-3 bg-neutral-950 text-white rounded-md shadow-2xl border border-neutral-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all z-50 min-w-[200px]">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-neutral-800">
-                <span className="text-[10px] font-extrabold uppercase tracking-[0.22em] text-neutral-400">
-                  YeHageré Atelier
-                </span>
-                <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold uppercase tracking-wider">
-                  Store
-                </span>
-              </div>
-              <div className="space-y-1.5">
-                <Link
-                  href="/"
-                  className="flex items-center justify-between text-xs font-semibold text-neutral-200 hover:text-white py-1 px-1.5 rounded hover:bg-neutral-800 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <Store className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>Visit Storefront</span>
-                  </span>
-                  <ArrowUpRight className="w-3.5 h-3.5 text-neutral-400" />
-                </Link>
-                <Link
-                  href="/admin"
-                  className="flex items-center justify-between text-xs font-semibold text-neutral-200 hover:text-white py-1 px-1.5 rounded hover:bg-neutral-800 transition-colors"
-                >
-                  <span className="flex items-center gap-2">
-                    <BarChart3 className="w-3.5 h-3.5 text-neutral-400" />
-                    <span>Admin Dashboard</span>
-                  </span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={onToggleCollapse}
-                  className="w-full flex items-center gap-2 text-xs font-semibold text-neutral-400 hover:text-white py-1 px-1.5 rounded hover:bg-neutral-800 transition-colors pt-1.5 border-t border-neutral-800 text-left cursor-pointer"
-                >
-                  <PanelLeft className="w-3.5 h-3.5 text-neutral-400" />
-                  <span>Expand Sidebar</span>
-                </button>
-              </div>
+            {/* Hover Tooltip for Collapsed Sidebar */}
+            <div className="absolute left-full ml-3 px-3 py-1.5 bg-neutral-950 text-white text-xs font-bold uppercase tracking-wider rounded shadow-2xl border border-neutral-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
+              Admin Console
             </div>
           </div>
         ) : (
           <div className="h-16 px-3.5 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
             <Link
-              href="/"
-              title="YeHageré Atelier - Visit Customer Storefront"
+              href="/admin"
+              title="YeHageré Atelier - Admin Console"
               className="flex items-center gap-2.5 min-w-0 group p-1 -ml-1 rounded hover:bg-neutral-800/60 transition-colors"
             >
               <div className="bg-white p-1 rounded-xs flex-shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
                 <LogoMark size="sm" />
               </div>
               <div className="min-w-0 text-left">
-                <span className="block text-[9px] font-extrabold uppercase tracking-[0.22em] text-neutral-400 truncate group-hover:text-neutral-200 transition-colors">
+                <span className="block text-[9px] font-extrabold uppercase tracking-[0.22em] text-[#d4af37] truncate group-hover:text-amber-300 transition-colors">
                   YeHageré Atelier
                 </span>
                 <span className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
-                  Storefront
-                  <ArrowUpRight className="w-3 h-3 text-neutral-400 group-hover:text-white transition-colors" />
+                  Admin Console
                 </span>
               </div>
             </Link>
@@ -377,8 +344,8 @@ export default function AdminSidebar({
                 href="/"
                 target="_blank"
                 className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
-                title="Open live storefront in new tab"
-                aria-label="Open live storefront in new tab"
+                title="Preview Live Storefront in new tab"
+                aria-label="Preview Live Storefront in new tab"
               >
                 <Store className="w-4 h-4" />
               </Link>
@@ -417,23 +384,26 @@ export default function AdminSidebar({
                         href={item.href}
                         className={`group relative flex items-center justify-center w-full h-11 rounded transition-colors ${
                           active
-                            ? "bg-white !text-black font-extrabold shadow-sm"
+                            ? "bg-white text-black font-extrabold shadow-sm"
                             : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
                         }`}
-                        style={active ? { color: "#000000", backgroundColor: "#ffffff" } : undefined}
+                        style={{
+                          color: active ? "#000000" : undefined,
+                          backgroundColor: active ? "#ffffff" : undefined,
+                        }}
                         title={item.label}
                       >
                         <Icon
-                          className={`w-5 h-5 flex-shrink-0 ${active ? "!text-black" : ""}`}
-                          style={active ? { color: "#000000" } : undefined}
+                          className={`w-5 h-5 flex-shrink-0 ${active ? "text-black" : ""}`}
+                          style={{ color: active ? "#000000" : undefined }}
                         />
 
                         {item.badge !== undefined && item.badge > 0 && (
                           <span
-                            className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ${
-                              active ? "bg-black" : "bg-amber-400"
-                            }`}
-                            style={active ? { backgroundColor: "#000000" } : undefined}
+                            className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full"
+                            style={{
+                              backgroundColor: active ? "#000000" : "#fbbf24",
+                            }}
                           />
                         )}
 
@@ -461,19 +431,22 @@ export default function AdminSidebar({
                       href={item.href}
                       className={`flex items-center justify-between px-3 py-2.5 rounded text-xs font-bold uppercase tracking-wider transition-all ${
                         active
-                          ? "bg-white !text-black font-extrabold shadow-sm"
+                          ? "bg-white text-black font-extrabold shadow-sm"
                           : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
                       }`}
-                      style={active ? { color: "#000000", backgroundColor: "#ffffff" } : undefined}
+                      style={{
+                        color: active ? "#000000" : undefined,
+                        backgroundColor: active ? "#ffffff" : undefined,
+                      }}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <Icon
-                          className={`w-4 h-4 flex-shrink-0 ${active ? "!text-black" : "text-neutral-400"}`}
-                          style={active ? { color: "#000000" } : undefined}
+                          className={`w-4 h-4 flex-shrink-0 ${active ? "text-black" : "text-neutral-400"}`}
+                          style={{ color: active ? "#000000" : undefined }}
                         />
                         <span
-                          className={`truncate ${active ? "!text-black font-extrabold" : ""}`}
-                          style={active ? { color: "#000000" } : undefined}
+                          className={`truncate ${active ? "text-black font-extrabold" : "text-neutral-300"}`}
+                          style={{ color: active ? "#000000" : undefined }}
                         >
                           {item.label}
                         </span>
@@ -481,10 +454,11 @@ export default function AdminSidebar({
 
                       {item.badge !== undefined && item.badge > 0 && (
                         <span
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full font-extrabold flex-shrink-0 ${
-                            active ? "bg-black !text-white" : "bg-amber-400 !text-black"
-                          }`}
-                          style={active ? { backgroundColor: "#000000", color: "#ffffff" } : undefined}
+                          className="text-[10px] px-1.5 py-0.5 rounded-full font-extrabold flex-shrink-0"
+                          style={{
+                            backgroundColor: active ? "#000000" : "#fbbf24",
+                            color: active ? "#ffffff" : "#000000",
+                          }}
                         >
                           {item.badge}
                         </span>

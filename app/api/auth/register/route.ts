@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { hashPassword, validatePasswordStrength, generateToken } from "../../../lib/auth-security";
-import { AppUser } from "../../../lib/auth-seed";
+import { hashPassword, validatePasswordStrength, generateToken, AUTH_COOKIE_NAME } from "../../../lib/auth-security";
+import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
 import { db } from "../../../lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, collection, getDocs, query, where, limit } from "firebase/firestore";
 
 export async function POST(request: Request) {
   try {
@@ -19,6 +19,29 @@ export async function POST(request: Request) {
 
     const cleanEmail = email.trim().toLowerCase();
     const cleanPassword = String(password || "");
+
+    // 1. Duplicate email check in INITIAL_USERS
+    if (INITIAL_USERS.some((u) => u.email.toLowerCase() === cleanEmail)) {
+      return NextResponse.json(
+        { error: "An account with this email address already exists. Please sign in instead." },
+        { status: 409 }
+      );
+    }
+
+    // 2. Duplicate email check in Firestore
+    try {
+      const usersCol = collection(db, "users");
+      const q = query(usersCol, where("email", "==", cleanEmail), limit(1));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        return NextResponse.json(
+          { error: "An account with this email address already exists. Please sign in instead." },
+          { status: 409 }
+        );
+      }
+    } catch (checkErr) {
+      console.warn("Firestore duplicate email check warning:", checkErr);
+    }
 
     // Validate password strength
     const strength = validatePasswordStrength(cleanPassword);
@@ -69,15 +92,27 @@ export async function POST(request: Request) {
       shippingAddress: newUser.shippingAddress,
     };
 
-    return NextResponse.json(
+    const response = NextResponse.json(
       {
         success: true,
         token,
         user: sanitizedUser,
-        fullUser: newUser, // returned for client-side persistent storage update
       },
       { status: 201 }
     );
+
+    // Set HttpOnly, Secure, SameSite=Lax cookie
+    response.cookies.set({
+      name: AUTH_COOKIE_NAME,
+      value: token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 72 * 60 * 60, // 72 hours
+    });
+
+    return response;
   } catch (error) {
     console.error("Register API error:", error);
     return NextResponse.json({ error: "Failed to create patron account" }, { status: 500 });
