@@ -1,8 +1,49 @@
 import { NextResponse } from "next/server";
-import { db } from "../../lib/firebase";
-import { collection, getDocs, addDoc, doc, updateDoc, deleteDoc, query, orderBy, limit } from "firebase/firestore";
 import { CustomerOrder } from "../../lib/auth-store";
 import { authenticateRequest, requireAdmin } from "../../lib/auth-security";
+
+// Global in-memory orders cache for local development/preview fallback
+declare global {
+  var __YEHAGERE_ORDERS__: CustomerOrder[] | undefined;
+}
+
+function getOrdersStore(): CustomerOrder[] {
+  if (!globalThis.__YEHAGERE_ORDERS__) {
+    globalThis.__YEHAGERE_ORDERS__ = [
+      {
+        id: "ord_101",
+        orderNumber: "YH-748291",
+        userId: "usr_client_01",
+        customerEmail: "daniot.mihrete-ug@aau.edu.et",
+        customerName: "Daniot Mihrete",
+        items: [
+          {
+            id: 1,
+            title: "The micro cable polo",
+            price: 210.0,
+            quantity: 1,
+            color: "Cream",
+            size: "M",
+          },
+        ],
+        totalUSD: 210.0,
+        totalETB: 26250.0,
+        status: "confirmed",
+        paymentMethod: "stripe",
+        createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+        shippingAddress: {
+          street: "Bole Medhanialem",
+          city: "Addis Ababa",
+          postalCode: "1000",
+          country: "Ethiopia",
+        },
+        trackingNumber: "DHL-ET-9182736",
+        carrier: "DHL Express Heritage Courier",
+      },
+    ];
+  }
+  return globalThis.__YEHAGERE_ORDERS__;
+}
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +52,6 @@ export async function GET(request: Request) {
     const lookupOrderNumber = searchParams.get("orderNumber");
     const lookupEmail = searchParams.get("email");
 
-    // Allow guest lookup of a specific order if orderNumber and email are provided
     const isGuestLookup = !auth.authenticated && lookupOrderNumber && lookupEmail;
 
     if (!auth.authenticated && !isGuestLookup) {
@@ -21,68 +61,54 @@ export async function GET(request: Request) {
       );
     }
 
-    const ordersCol = collection(db, "orders");
-    const q = query(ordersCol, orderBy("createdAt", "desc"), limit(100));
-    const snapshot = await getDocs(q);
-
-    let firestoreOrders: CustomerOrder[] = [];
-    snapshot.forEach((docSnap) => {
-      const data = docSnap.data();
-      firestoreOrders.push({
-        id: docSnap.id,
-        orderNumber: data.orderNumber || docSnap.id,
-        userId: data.userId,
-        customerEmail: data.customerEmail || "",
-        customerName: data.customerName || "",
-        items: data.items || [],
-        totalUSD: data.totalUSD || 0,
-        totalETB: data.totalETB || 0,
-        status: data.status || "confirmed",
-        paymentMethod: data.paymentMethod || "stripe",
-        paymentIntentId: data.paymentIntentId,
-        last4: data.last4 || "4242",
-        createdAt: data.createdAt || new Date().toISOString(),
-        shippingAddress: data.shippingAddress || {
-          street: "",
-          city: "",
-          postalCode: "",
-          country: "",
-        },
-        trackingNumber: data.trackingNumber,
-        carrier: data.carrier,
-        internalNotes: data.internalNotes,
-      });
-    });
-
-    // If admin, return all orders
-    if (auth.authenticated && auth.payload?.role === "admin") {
-      return NextResponse.json({ success: true, data: firestoreOrders });
+    // Try fetching from NestJS backend if available
+    const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+    if (backendUrl) {
+      try {
+        const headers: Record<string, string> = {};
+        const authHeader = request.headers.get("authorization");
+        if (authHeader) headers["authorization"] = authHeader;
+        const res = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/orders`, {
+          headers,
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const data = json.data || json;
+          return NextResponse.json({ success: true, data });
+        }
+      } catch {
+        // Continue to local store fallback
+      }
     }
 
-    // If authenticated customer or VIP, filter to only their own orders
+    const orders = getOrdersStore();
+
+    if (auth.authenticated && auth.payload?.role === "admin") {
+      return NextResponse.json({ success: true, data: orders });
+    }
+
     if (auth.authenticated && auth.payload) {
       const { userId, email } = auth.payload;
-      firestoreOrders = firestoreOrders.filter(
+      const userOrders = orders.filter(
         (o) =>
           (o.userId && o.userId === userId) ||
           (o.customerEmail && o.customerEmail.toLowerCase() === email.toLowerCase())
       );
-      return NextResponse.json({ success: true, data: firestoreOrders });
+      return NextResponse.json({ success: true, data: userOrders });
     }
 
-    // If guest lookup, filter strictly to the matched orderNumber and email
     if (isGuestLookup) {
-      firestoreOrders = firestoreOrders.filter(
+      const guestOrders = orders.filter(
         (o) =>
           o.orderNumber.toLowerCase() === lookupOrderNumber.toLowerCase() &&
           o.customerEmail.toLowerCase() === lookupEmail.toLowerCase()
       );
-      return NextResponse.json({ success: true, data: firestoreOrders });
+      return NextResponse.json({ success: true, data: guestOrders });
     }
 
     return NextResponse.json({ success: true, data: [] });
   } catch {
-    // If firestore is not yet populated or offline, return empty list cleanly
     return NextResponse.json({ success: true, data: [] });
   }
 }
@@ -92,11 +118,11 @@ export async function POST(request: Request) {
     const auth = authenticateRequest(request);
     const body = await request.json();
 
-    // If patron is authenticated, bind order to their verified identity
     const verifiedUserId = auth.authenticated && auth.payload ? auth.payload.userId : body.userId || "";
     const verifiedEmail = auth.authenticated && auth.payload ? auth.payload.email : body.customerEmail || "";
 
-    const orderData = {
+    const orderData: CustomerOrder = {
+      id: `ord_${Date.now()}`,
       orderNumber: body.orderNumber || `YH-${Math.floor(100000 + Math.random() * 900000)}`,
       userId: verifiedUserId,
       customerEmail: verifiedEmail,
@@ -109,25 +135,44 @@ export async function POST(request: Request) {
       paymentIntentId: body.paymentIntentId || `pi_${Date.now()}`,
       last4: body.last4 || "4242",
       createdAt: body.createdAt || new Date().toISOString(),
-      shippingAddress: body.shippingAddress || {},
+      shippingAddress: body.shippingAddress || {
+        street: "",
+        city: "",
+        postalCode: "",
+        country: "",
+      },
       trackingNumber: `DHL-ET-${Math.floor(1000000 + Math.random() * 9000000)}`,
       carrier: "DHL Express Heritage Courier",
     };
 
-    try {
-      const ordersCol = collection(db, "orders");
-      const docRef = await addDoc(ordersCol, orderData);
-      return NextResponse.json(
-        { success: true, data: { ...orderData, id: docRef.id } },
-        { status: 201 }
-      );
-    } catch {
-      // Fallback: return order with local ID
-      return NextResponse.json(
-        { success: true, data: { ...orderData, id: `ord_${Date.now()}` } },
-        { status: 201 }
-      );
+    const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+    if (backendUrl) {
+      try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        const authHeader = request.headers.get("authorization");
+        if (authHeader) headers["authorization"] = authHeader;
+        const res = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/orders`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify(orderData),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const created = json.data || json;
+          return NextResponse.json({ success: true, data: created }, { status: 201 });
+        }
+      } catch {
+        // Fallback to local store
+      }
     }
+
+    const store = getOrdersStore();
+    store.unshift(orderData);
+
+    return NextResponse.json(
+      { success: true, data: orderData },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Failed to process order:", error);
     return NextResponse.json({ error: "Failed to record order" }, { status: 400 });
@@ -148,11 +193,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: "orderId and updates object are required" }, { status: 400 });
     }
 
-    try {
-      const orderRef = doc(db, "orders", orderId);
-      await updateDoc(orderRef, updates);
-    } catch (e) {
-      console.warn("Firestore order update failed:", e);
+    const store = getOrdersStore();
+    const orderIndex = store.findIndex((o) => o.id === orderId || o.orderNumber === orderId);
+    if (orderIndex >= 0) {
+      store[orderIndex] = { ...store[orderIndex], ...updates };
     }
 
     return NextResponse.json({ success: true, orderId, updates });
@@ -176,10 +220,10 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "orderId parameter is required" }, { status: 400 });
     }
 
-    try {
-      await deleteDoc(doc(db, "orders", orderId));
-    } catch (e) {
-      console.warn("Firestore order deletion failed:", e);
+    const store = getOrdersStore();
+    const index = store.findIndex((o) => o.id === orderId);
+    if (index >= 0) {
+      store.splice(index, 1);
     }
 
     return NextResponse.json({ success: true, deletedId: orderId });

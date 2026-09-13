@@ -6,11 +6,10 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto } from './dto/create-order.dto';
-import { UpdateOrderDto } from './dto/update-order.dto';
 
 @ApiTags('Orders')
 @Controller('orders')
@@ -18,27 +17,37 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  create(@Body() createOrderDto: CreateOrderDto) {
-    return this.ordersService.create(createOrderDto);
+  create(@Body() dto: any) {
+    return this.ordersService.create(dto);
   }
 
   @Get()
-  findAll() {
+  findAll(
+    @Query('userId') userId?: string,
+    @Query('orderNumber') orderNumber?: string,
+    @Query('email') email?: string,
+  ) {
+    if (orderNumber && email) {
+      return this.ordersService.findByNumberAndEmail(orderNumber, email);
+    }
+    if (userId) {
+      return this.ordersService.findByUser(userId);
+    }
     return this.ordersService.findAll();
   }
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.ordersService.findOne(+id);
+    return this.ordersService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
-    return this.ordersService.update(+id, updateOrderDto);
+  update(@Param('id') id: string, @Body() dto: any) {
+    return this.ordersService.update(id, dto);
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.ordersService.remove(+id);
+    return this.ordersService.remove(id);
   }
 }

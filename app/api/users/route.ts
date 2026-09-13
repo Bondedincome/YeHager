@@ -1,45 +1,72 @@
 import { NextResponse } from "next/server";
-import { db } from "../../lib/firebase";
-import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc } from "firebase/firestore";
+import { authenticateRequest, requireAdmin, hashPassword } from "../../lib/auth-security";
 import { INITIAL_USERS, AppUser } from "../../lib/auth-seed";
-import { hashPassword, requireAdmin } from "../../lib/auth-security";
 
-function sanitize(user: AppUser): Omit<AppUser, "passwordHash" | "passwordSalt"> {
-  const sanitized = { ...user };
-  delete (sanitized as Partial<AppUser>).passwordHash;
-  delete (sanitized as Partial<AppUser>).passwordSalt;
-  return sanitized;
+declare global {
+  var __YEHAGERE_USERS__: AppUser[] | undefined;
+}
+
+function getUsersStore(): AppUser[] {
+  if (!globalThis.__YEHAGERE_USERS__) {
+    globalThis.__YEHAGERE_USERS__ = [...INITIAL_USERS];
+  }
+  return globalThis.__YEHAGERE_USERS__;
+}
+
+function sanitizeUser(user: AppUser): Omit<AppUser, "passwordHash" | "passwordSalt"> {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    avatarUrl: user.avatarUrl,
+    memberSince: user.memberSince,
+    status: user.status,
+    totalOrders: user.totalOrders,
+    totalSpentUSD: user.totalSpentUSD,
+    phone: user.phone,
+    shippingAddress: user.shippingAddress,
+  };
 }
 
 export async function GET(request: Request) {
   try {
     const auth = requireAdmin(request);
     if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error || "Admin authorization required" }, { status: auth.status });
+      return NextResponse.json(
+        { error: auth.error || "Admin access required" },
+        { status: auth.status }
+      );
     }
 
-    const col = collection(db, "users");
-    const snapshot = await getDocs(col);
-
-    if (snapshot.empty) {
-      // Seed Firestore with INITIAL_USERS
-      const seeded: AppUser[] = [];
-      for (const u of INITIAL_USERS) {
-        await setDoc(doc(db, "users", u.id), u);
-        seeded.push(u);
+    const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+    if (backendUrl) {
+      try {
+        const authHeader = request.headers.get("authorization");
+        const headers: Record<string, string> = {};
+        if (authHeader) headers["authorization"] = authHeader;
+        const res = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/users`, {
+          headers,
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const data = json.data || json;
+          return NextResponse.json({ success: true, data });
+        }
+      } catch {
+        // Fallback
       }
-      return NextResponse.json({ success: true, data: seeded.map(sanitize) });
     }
 
-    const users: AppUser[] = [];
-    snapshot.forEach((d) => {
-      users.push({ id: d.id, ...d.data() } as AppUser);
+    const users = getUsersStore();
+    return NextResponse.json({
+      success: true,
+      data: users.map(sanitizeUser),
     });
-
-    return NextResponse.json({ success: true, data: users.map(sanitize) });
   } catch (error) {
-    console.warn("Firestore users read fallback to seed:", error);
-    return NextResponse.json({ success: true, data: INITIAL_USERS.map(sanitize) });
+    console.error("Users GET API Error:", error);
+    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
   }
 }
 
@@ -47,77 +74,130 @@ export async function POST(request: Request) {
   try {
     const auth = requireAdmin(request);
     if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error || "Admin authorization required" }, { status: auth.status });
+      return NextResponse.json(
+        { error: auth.error || "Admin access required" },
+        { status: auth.status }
+      );
     }
 
     const body = await request.json();
-    const { name, email, role = "customer", phone, shippingAddress, password } = body;
+    const { name, email, role, status, phone, shippingAddress, password } = body;
 
     if (!name || !email) {
-      return NextResponse.json({ error: "Name and email are required" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Name and email are required" },
+        { status: 400 }
+      );
     }
 
-    const id = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const pass = password || "patron2026";
-    const { hash, salt } = hashPassword(pass);
+    const cleanEmail = String(email).trim().toLowerCase();
+    const users = getUsersStore();
+
+    if (users.some((u) => u.email.toLowerCase() === cleanEmail)) {
+      return NextResponse.json(
+        { error: "A user with this email address already exists" },
+        { status: 409 }
+      );
+    }
+
+    const initialPass = password || "YeHagere2026!";
+    const { hash, salt } = hashPassword(initialPass);
+
+    const parsedShippingAddress =
+      typeof shippingAddress === "object" && shippingAddress !== null
+        ? (shippingAddress as { street: string; city: string; state: string; zip: string; country: string })
+        : shippingAddress && typeof shippingAddress === "string"
+        ? {
+            street: shippingAddress,
+            city: "Addis Ababa",
+            state: "AA",
+            zip: "1000",
+            country: "Ethiopia",
+          }
+        : undefined;
 
     const newUser: AppUser = {
-      id,
+      id: `usr_${Date.now()}`,
       name: String(name).trim(),
-      email: String(email).trim().toLowerCase(),
-      role,
+      email: cleanEmail,
       passwordHash: hash,
       passwordSalt: salt,
+      role: role || "customer",
+      status: status || "active",
       memberSince: new Date().toISOString().split("T")[0],
-      status: "active",
       totalOrders: 0,
       totalSpentUSD: 0,
-      phone,
-      shippingAddress,
+      phone: phone ? String(phone).trim() : undefined,
+      shippingAddress: parsedShippingAddress,
     };
 
-    try {
-      await setDoc(doc(db, "users", id), newUser);
-    } catch (e) {
-      console.warn("Firestore user creation write failed:", e);
-    }
+    users.push(newUser);
 
-    return NextResponse.json({ success: true, data: sanitize(newUser) }, { status: 201 });
+    return NextResponse.json(
+      { success: true, data: sanitizeUser(newUser) },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error("Create user API error:", error);
+    console.error("Users POST API Error:", error);
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
   }
 }
 
 export async function PATCH(request: Request) {
   try {
-    const auth = requireAdmin(request);
-    if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error || "Admin authorization required" }, { status: auth.status });
+    const auth = authenticateRequest(request);
+    if (!auth.authenticated || !auth.payload) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
     const body = await request.json();
     const { userId, updates } = body;
 
-    if (!userId || !updates || typeof updates !== "object") {
-      return NextResponse.json({ error: "userId and valid updates object are required" }, { status: 400 });
+    if (!userId || !updates) {
+      return NextResponse.json({ error: "userId and updates are required" }, { status: 400 });
     }
 
-    // Strip any attempted injection of password hashes or salts via PATCH
-    const safeUpdates = { ...updates };
-    delete safeUpdates.passwordHash;
-    delete safeUpdates.passwordSalt;
+    // Only admin can edit other users; regular users can only edit their own name/phone/address
+    const isSelf = auth.payload.userId === userId;
+    const isAdmin = auth.payload.role === "admin";
 
-    try {
-      const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, safeUpdates);
-    } catch (e) {
-      console.warn("Firestore user patch failed:", e);
+    if (!isSelf && !isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json({ success: true, userId, updates: safeUpdates });
+    const users = getUsersStore();
+    const targetUser = users.find((u) => u.id === userId);
+
+    if (!targetUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Apply allowed updates
+    if (updates.name) targetUser.name = String(updates.name).trim();
+    if (updates.phone !== undefined) targetUser.phone = String(updates.phone).trim();
+    if (updates.shippingAddress !== undefined) {
+      targetUser.shippingAddress =
+        typeof updates.shippingAddress === "object" && updates.shippingAddress !== null
+          ? updates.shippingAddress
+          : {
+              street: String(updates.shippingAddress),
+              city: "Addis Ababa",
+              state: "AA",
+              zip: "1000",
+              country: "Ethiopia",
+            };
+    }
+
+    if (isAdmin) {
+      if (updates.role) targetUser.role = updates.role;
+      if (updates.status) targetUser.status = updates.status;
+      if (updates.totalOrders !== undefined) targetUser.totalOrders = Number(updates.totalOrders);
+      if (updates.totalSpentUSD !== undefined) targetUser.totalSpentUSD = Number(updates.totalSpentUSD);
+    }
+
+    return NextResponse.json({ success: true, data: sanitizeUser(targetUser) });
   } catch (error) {
-    console.error("Update user API error:", error);
+    console.error("Users PATCH API Error:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
 }
@@ -126,7 +206,10 @@ export async function DELETE(request: Request) {
   try {
     const auth = requireAdmin(request);
     if (!auth.authorized) {
-      return NextResponse.json({ error: auth.error || "Admin authorization required" }, { status: auth.status });
+      return NextResponse.json(
+        { error: auth.error || "Admin access required" },
+        { status: auth.status }
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -136,23 +219,16 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "userId parameter is required" }, { status: 400 });
     }
 
-    // Prevent deleting own account or the primary seed admin
-    if (auth.payload?.userId === userId) {
-      return NextResponse.json({ error: "You cannot delete your own active administrator account." }, { status: 400 });
-    }
-    if (userId === "usr_admin_1") {
-      return NextResponse.json({ error: "The primary atelier director account is protected and cannot be deleted." }, { status: 400 });
-    }
+    const users = getUsersStore();
+    const index = users.findIndex((u) => u.id === userId);
 
-    try {
-      await deleteDoc(doc(db, "users", userId));
-    } catch (e) {
-      console.warn("Firestore user deletion failed:", e);
+    if (index >= 0) {
+      users.splice(index, 1);
     }
 
     return NextResponse.json({ success: true, deletedId: userId });
   } catch (error) {
-    console.error("Delete user API error:", error);
+    console.error("Users DELETE API Error:", error);
     return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
   }
 }

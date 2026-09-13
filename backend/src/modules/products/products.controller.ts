@@ -24,6 +24,11 @@ export class ProductsController {
     return this.productsService.findAll();
   }
 
+  @Post('seed')
+  seed() {
+    return this.productsService.seedCatalog();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.productsService.findOne(id);
@@ -44,6 +49,6 @@ export class ProductsController {
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'))
   remove(@Param('id') id: string) {
-    return this.productsService.remove(Number(id));
+    return this.productsService.remove(id);
   }
 }

@@ -1,42 +1,22 @@
 import { NextResponse } from "next/server";
 import { getAllProducts, addProduct } from "../../lib/products-store";
-import { getSupabaseAdmin, getSupabase } from "../../lib/supabase";
 
 export async function GET() {
-  const supabase = getSupabase();
-  if (supabase) {
+  const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+  if (backendUrl) {
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (!error && data && data.length > 0) {
-        const mappedProducts = data.map((item) => ({
-          id: item.id,
-          title: item.title,
-          name: item.name || item.title,
-          subtitle: item.subtitle,
-          description: item.description,
-          price: Number(item.price),
-          priceETB: Number(item.price_etb || item.price * 125),
-          formattedPriceETB: item.formatted_price_etb,
-          imageUrl: item.image_url,
-          galleryImages: item.gallery_images || [item.image_url],
-          category: item.category,
-          isNew: item.is_new,
-          tag: item.tag,
-          colors: item.colors || [],
-          activeColorIndex: item.active_color_index ?? item.activeColorIndex ?? 0,
-          activeColorName: item.active_color_name ?? item.activeColorName,
-          sizes: item.sizes || [],
-          stock: item.stock,
-          details: item.details || {},
-        }));
-        return NextResponse.json({ data: mappedProducts });
+      const res = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/products`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data || json;
+        if (Array.isArray(data) && data.length > 0) {
+          return NextResponse.json({ data });
+        }
       }
     } catch {
-      // Fallback to local catalog if table not yet populated or offline
+      // Fallback cleanly to local store
     }
   }
 
@@ -64,30 +44,16 @@ export async function POST(request: Request) {
       details: body.details,
     });
 
-    const supabaseAdmin = getSupabaseAdmin() || getSupabase();
-    if (supabaseAdmin) {
+    const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+    if (backendUrl) {
       try {
-        await supabaseAdmin.from("products").insert({
-          id: product.id,
-          title: product.title,
-          name: product.name,
-          subtitle: product.subtitle || "",
-          description: product.description || "",
-          price: product.price,
-          price_etb: product.priceETB,
-          formatted_price_etb: product.formattedPriceETB,
-          image_url: product.imageUrl,
-          gallery_images: product.galleryImages,
-          category: product.category,
-          is_new: product.isNew,
-          tag: product.tag,
-          colors: product.colors,
-          sizes: product.sizes,
-          stock: product.stock,
-          details: product.details,
+        await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/products`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(product),
         });
       } catch {
-        // Fallback gracefully
+        // Continue
       }
     }
 
@@ -96,4 +62,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Failed to create product" }, { status: 400 });
   }
 }
-

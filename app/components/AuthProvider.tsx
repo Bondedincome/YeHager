@@ -34,6 +34,7 @@ type AuthContextType = {
   updateUserRole: (userId: string, role: AppUser["role"]) => void;
   toggleUserStatus: (userId: string) => void;
   deleteUser: (userId: string) => void;
+  syncWithDatabase: () => Promise<{ success: boolean; message: string }>;
   syncWithFirestore: () => Promise<{ success: boolean; message: string }>;
 };
 
@@ -460,7 +461,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   };
 
-  const syncWithFirestore = async (): Promise<{ success: boolean; message: string }> => {
+  const syncWithDatabase = async (): Promise<{ success: boolean; message: string }> => {
     try {
       const res = await fetch("/api/migrate", {
         method: "POST",
@@ -473,13 +474,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       const data = await res.json();
       if (data.success) {
-        return { success: true, message: data.message || "Data successfully synced with Cloud Firestore." };
+        return { success: true, message: data.message || "Data successfully verified with PostgreSQL backend." };
       }
       return { success: false, message: data.error || "Sync encountered an issue." };
     } catch {
-      return { success: false, message: "Network error while connecting to Firestore migration endpoint." };
+      return { success: false, message: "Network error while connecting to database status endpoint." };
     }
   };
+
+  const syncWithFirestore = syncWithDatabase;
 
   const userOrders = mounted && user
     ? orders.filter(
@@ -509,6 +512,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateUserRole,
     toggleUserStatus,
     deleteUser,
+    syncWithDatabase,
     syncWithFirestore,
   };
 

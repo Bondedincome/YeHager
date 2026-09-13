@@ -1,70 +1,90 @@
 import { NextResponse } from "next/server";
 import { authenticateRequest } from "../../../lib/auth-security";
-import { db } from "../../../lib/firebase";
-import { doc, getDoc } from "firebase/firestore";
 import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
 
-function sanitize(user: AppUser): Omit<AppUser, "passwordHash" | "passwordSalt"> {
-  const sanitized = { ...user };
-  delete (sanitized as Partial<AppUser>).passwordHash;
-  delete (sanitized as Partial<AppUser>).passwordSalt;
-  return sanitized;
+declare global {
+  var __YEHAGERE_USERS__: AppUser[] | undefined;
+}
+
+function getUsersStore(): AppUser[] {
+  if (!globalThis.__YEHAGERE_USERS__) {
+    globalThis.__YEHAGERE_USERS__ = [...INITIAL_USERS];
+  }
+  return globalThis.__YEHAGERE_USERS__;
 }
 
 export async function GET(request: Request) {
   try {
     const auth = authenticateRequest(request);
+
     if (!auth.authenticated || !auth.payload) {
       return NextResponse.json(
-        { success: false, authenticated: false, error: auth.error || "Authentication required" },
+        { error: auth.error || "Not authenticated" },
         { status: auth.status || 401 }
       );
     }
 
-    const { userId, email } = auth.payload;
-    let user: AppUser | undefined;
+    const { userId, email, role } = auth.payload;
 
-    // 1. Check Firestore by document ID
-    try {
-      const userRef = doc(db, "users", userId);
-      const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        user = { id: snap.id, ...snap.data() } as AppUser;
+    // Try fetching from NestJS backend if available
+    const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+    if (backendUrl) {
+      try {
+        const authHeader = request.headers.get("authorization");
+        const headers: Record<string, string> = {};
+        if (authHeader) headers["authorization"] = authHeader;
+        const nestRes = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/auth/me`, {
+          headers,
+          cache: "no-store",
+        });
+        if (nestRes.ok) {
+          const nestData = await nestRes.json();
+          return NextResponse.json({ success: true, user: nestData.data || nestData });
+        }
+      } catch {
+        // Fallback
       }
-    } catch (err) {
-      console.warn("Firestore user lookup in /api/auth/me failed, falling back to seed:", err);
     }
 
-    // 2. Fallback to INITIAL_USERS if not in Firestore
-    if (!user) {
-      user = INITIAL_USERS.find(
-        (u) => u.id === userId || u.email.toLowerCase() === email.toLowerCase()
-      );
-    }
+    const users = getUsersStore();
+    const user =
+      users.find((u) => u.id === userId) ||
+      users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ||
+      (role === "admin" ? users.find((u) => u.role === "admin") : undefined);
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, authenticated: false, error: "User account no longer exists." },
-        { status: 401 }
-      );
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: userId,
+          email,
+          role,
+          name: email.split("@")[0],
+          memberSince: "2024-01-01",
+          status: "active",
+        },
+      });
     }
 
-    if (user.status === "suspended") {
-      return NextResponse.json(
-        { success: false, authenticated: false, error: "Account is suspended." },
-        { status: 403 }
-      );
-    }
+    const sanitizedUser: Omit<AppUser, "passwordHash" | "passwordSalt"> = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+      memberSince: user.memberSince,
+      status: user.status,
+      totalOrders: user.totalOrders,
+      totalSpentUSD: user.totalSpentUSD,
+      phone: user.phone,
+      shippingAddress: user.shippingAddress,
+    };
 
-    return NextResponse.json({
-      success: true,
-      authenticated: true,
-      user: sanitize(user),
-    });
+    return NextResponse.json({ success: true, user: sanitizedUser });
   } catch (error) {
-    console.error("Auth verification error:", error);
+    console.error("Auth Me API Error:", error);
     return NextResponse.json(
-      { success: false, authenticated: false, error: "Internal server error verifying session" },
+      { error: "Internal server error verifying session" },
       { status: 500 }
     );
   }

@@ -1,43 +1,21 @@
 import { NextResponse } from "next/server";
 import { getProductById, deleteProduct, updateProduct } from "../../../lib/products-store";
-import { getSupabaseAdmin, getSupabase } from "../../../lib/supabase";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = getSupabase();
-  if (supabase) {
+  const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+  if (backendUrl) {
     try {
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (!error && data) {
-        return NextResponse.json({
-          id: data.id,
-          title: data.title,
-          name: data.name || data.title,
-          subtitle: data.subtitle,
-          description: data.description,
-          price: Number(data.price),
-          priceETB: Number(data.price_etb || data.price * 125),
-          formattedPriceETB: data.formatted_price_etb,
-          imageUrl: data.image_url,
-          galleryImages: data.gallery_images || [data.image_url],
-          category: data.category,
-          isNew: data.is_new,
-          tag: data.tag,
-          colors: data.colors || [],
-          activeColorIndex: data.active_color_index ?? data.activeColorIndex ?? 0,
-          activeColorName: data.active_color_name ?? data.activeColorName,
-          sizes: data.sizes || [],
-          stock: data.stock,
-          details: data.details || {},
-        });
+      const res = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/products/${encodeURIComponent(id)}`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const data = json.data || json;
+        if (data) return NextResponse.json(data);
       }
     } catch {
       // fallback
@@ -58,10 +36,12 @@ export async function DELETE(
   const { id } = await params;
   const deleted = deleteProduct(id);
 
-  const supabaseAdmin = getSupabaseAdmin() || getSupabase();
-  if (supabaseAdmin) {
+  const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+  if (backendUrl) {
     try {
-      await supabaseAdmin.from("products").delete().eq("id", id);
+      await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/products/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
     } catch {
       // ignore
     }
@@ -86,30 +66,14 @@ export async function PUT(
       return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
-    const supabaseAdmin = getSupabaseAdmin() || getSupabase();
-    if (supabaseAdmin) {
+    const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+    if (backendUrl) {
       try {
-        await supabaseAdmin
-          .from("products")
-          .update({
-            title: updated.title,
-            name: updated.name || updated.title,
-            subtitle: updated.subtitle,
-            description: updated.description,
-            price: updated.price,
-            price_etb: updated.priceETB,
-            formatted_price_etb: updated.formattedPriceETB,
-            image_url: updated.imageUrl,
-            category: updated.category,
-            stock: updated.stock,
-            is_new: updated.isNew,
-            tag: updated.tag,
-            colors: updated.colors,
-            sizes: updated.sizes,
-            details: updated.details,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", id);
+        await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/products/${encodeURIComponent(id)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
       } catch {
         // ignore
       }
@@ -130,4 +94,3 @@ export async function PATCH(
 ) {
   return PUT(request, { params });
 }
-

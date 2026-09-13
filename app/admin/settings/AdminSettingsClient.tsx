@@ -35,13 +35,15 @@ export default function AdminSettingsClient() {
   const [activeTab, setActiveTab] = useState<"financial" | "shipping" | "promos" | "inventory" | "contact" | "cloud">("promos");
   const [savedToast, setSavedToast] = useState(false);
 
-  // Cloud Firestore Migration & Health State
+  // PostgreSQL & NestJS Database Status State
   const [migrationLoading, setMigrationLoading] = useState(false);
   const [migrationMessage, setMigrationMessage] = useState<string | null>(null);
-  const [firestoreStatus, setFirestoreStatus] = useState<{
-    firestoreUsersCount: number;
-    firestoreOrdersCount: number;
-    firestoreInquiriesCount: number;
+  const [dbStatus, setDbStatus] = useState<{
+    engine: string;
+    backendConnected: boolean;
+    postgresUsersCount: number;
+    postgresOrdersCount: number;
+    postgresProductsCount: number;
     isSeeded: boolean;
   } | null>(null);
 
@@ -76,12 +78,12 @@ export default function AdminSettingsClient() {
     return () => window.removeEventListener("storage", handleStorage);
   }, []);
 
-  const fetchFirestoreStatus = () => {
+  const fetchDbStatus = () => {
     fetch("/api/migrate")
       .then((res) => res.json())
       .then((data) => {
         if (data.success && data.status) {
-          setFirestoreStatus(data.status);
+          setDbStatus(data.status);
         }
       })
       .catch(() => {});
@@ -94,7 +96,7 @@ export default function AdminSettingsClient() {
         .then((res) => res.json())
         .then((data) => {
           if (active && data.success && data.status) {
-            setFirestoreStatus(data.status);
+            setDbStatus(data.status);
           }
         })
         .catch(() => {});
@@ -115,13 +117,13 @@ export default function AdminSettingsClient() {
       });
       const data = await res.json();
       if (data.success) {
-        setMigrationMessage(`Data migration complete: ${data.summary?.migratedUsers ?? 0} users and ${data.summary?.migratedOrders ?? 0} orders synced to Firestore.`);
-        fetchFirestoreStatus();
+        setMigrationMessage(`PostgreSQL synchronization verified: ${data.summary?.migratedProducts ?? 0} products and ${data.summary?.migratedUsers ?? 0} user accounts active.`);
+        fetchDbStatus();
       } else {
-        setMigrationMessage(data.error || "Migration could not be completed.");
+        setMigrationMessage(data.error || "Database synchronization check failed.");
       }
     } catch {
-      setMigrationMessage("Network error while connecting to Firestore migration endpoint.");
+      setMigrationMessage("Network error while connecting to database status endpoint.");
     } finally {
       setMigrationLoading(false);
     }
@@ -324,7 +326,7 @@ export default function AdminSettingsClient() {
           }`}
         >
           <Database className="w-4 h-4" />
-          <span>Cloud Firestore &amp; Migration</span>
+          <span>PostgreSQL &amp; NestJS Sync</span>
         </button>
       </div>
 
@@ -977,23 +979,23 @@ export default function AdminSettingsClient() {
         </div>
       )}
 
-      {/* TAB 6: CLOUD FIRESTORE & MIGRATION */}
+      {/* TAB 6: POSTGRESQL & NESTJS DATABASE */}
       {activeTab === "cloud" && (
         <div className="space-y-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 border border-neutral-200">
             <div>
               <h2 className="text-base font-bold text-black uppercase tracking-wider flex items-center gap-2">
                 <Database className="w-4 h-4 text-emerald-600" />
-                <span>Cloud Firestore Data Persistence &amp; Migration</span>
+                <span>PostgreSQL &amp; NestJS Database Architecture</span>
               </h2>
               <p className="text-xs text-neutral-500 mt-0.5">
-                Centralized cloud synchronization across user accounts, patron orders, bespoke inquiries, and atelier catalog.
+                Decoupled backend powered by NestJS, TypeORM, and PostgreSQL — ready for deployment on cPanel with pgMyAdmin.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={fetchFirestoreStatus}
+                onClick={fetchDbStatus}
                 className="px-3 py-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
@@ -1006,7 +1008,7 @@ export default function AdminSettingsClient() {
                 className="px-4 py-2 bg-black hover:bg-neutral-800 text-white text-xs font-bold uppercase tracking-wider transition-colors flex items-center gap-2 disabled:opacity-50 shadow-sm"
               >
                 <Cloud className="w-4 h-4 text-emerald-400" />
-                <span>{migrationLoading ? "Synchronizing..." : "Sync & Migrate to Firestore"}</span>
+                <span>{migrationLoading ? "Verifying..." : "Verify PostgreSQL Status"}</span>
               </button>
             </div>
           </div>
@@ -1032,19 +1034,19 @@ export default function AdminSettingsClient() {
               </span>
               <div className="text-sm font-extrabold text-black flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" />
-                Google Cloud Firestore
+                {dbStatus ? dbStatus.engine : "PostgreSQL (cPanel pgMyAdmin)"}
               </div>
               <p className="text-[10px] text-neutral-500 truncate font-mono">
-                ai-studio-yehager-b223623d
+                TypeORM / PostgreSQL 14+
               </p>
             </div>
 
             <div className="bg-white p-5 border border-neutral-200 space-y-2">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 block">
-                Firestore User Accounts
+                PostgreSQL User Accounts
               </span>
               <div className="text-2xl font-black text-black">
-                {firestoreStatus ? firestoreStatus.firestoreUsersCount : "..."}
+                {dbStatus ? dbStatus.postgresUsersCount : "..."}
               </div>
               <p className="text-[10px] text-neutral-500">
                 Encrypted patron &amp; admin profiles
@@ -1053,10 +1055,10 @@ export default function AdminSettingsClient() {
 
             <div className="bg-white p-5 border border-neutral-200 space-y-2">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 block">
-                Firestore Patron Orders
+                PostgreSQL Patron Orders
               </span>
               <div className="text-2xl font-black text-black">
-                {firestoreStatus ? firestoreStatus.firestoreOrdersCount : "..."}
+                {dbStatus ? dbStatus.postgresOrdersCount : "..."}
               </div>
               <p className="text-[10px] text-neutral-500">
                 Stripe &amp; Telebirr live transactions
@@ -1065,13 +1067,13 @@ export default function AdminSettingsClient() {
 
             <div className="bg-white p-5 border border-neutral-200 space-y-2">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 block">
-                Password Encryption
+                Catalog Products
               </span>
-              <div className="text-sm font-extrabold text-emerald-700">
-                PBKDF2-SHA256
+              <div className="text-2xl font-black text-black">
+                {dbStatus ? dbStatus.postgresProductsCount : "..."}
               </div>
               <p className="text-[10px] text-neutral-500">
-                100,000 rounds + unique random salt
+                Active luxury catalog items
               </p>
             </div>
           </div>
@@ -1080,37 +1082,37 @@ export default function AdminSettingsClient() {
           <div className="bg-white p-6 border border-neutral-200 space-y-5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-black flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Production Security &amp; Persistence Architecture</span>
+              <span>Decoupled Production Architecture (NextJS + NestJS on cPanel)</span>
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
               <div className="p-4 bg-[#fafafa] border border-neutral-200 space-y-2">
                 <div className="font-bold text-black flex items-center gap-2">
                   <Server className="w-4 h-4 text-neutral-700" />
-                  <span>PBKDF2 Cryptography</span>
+                  <span>NestJS REST API</span>
                 </div>
                 <p className="text-neutral-600 text-[11px] leading-relaxed">
-                  Passwords never sit in plain text. User passwords are converted to 512-bit hashes using 100,000 PBKDF2 iterations and individual cryptographic 16-byte salts.
+                  Decoupled backend in /backend built with NestJS, Fastify/Express, Passport JWT authentication, Class-Validator, and Swagger documentation at /api/docs.
                 </p>
               </div>
 
               <div className="p-4 bg-[#fafafa] border border-neutral-200 space-y-2">
                 <div className="font-bold text-black flex items-center gap-2">
                   <Database className="w-4 h-4 text-neutral-700" />
-                  <span>Durable Cloud Storage</span>
+                  <span>PostgreSQL &amp; TypeORM</span>
                 </div>
                 <p className="text-neutral-600 text-[11px] leading-relaxed">
-                  Data persists permanently across browsers, sessions, and devices. Registration, orders, and role modifications update Cloud Firestore directly.
+                  PostgreSQL database managed in cPanel via pgMyAdmin / phpPgAdmin. Data is modeled with TypeORM entities, relations, indices, and auto-migrations.
                 </p>
               </div>
 
               <div className="p-4 bg-[#fafafa] border border-neutral-200 space-y-2">
                 <div className="font-bold text-black flex items-center gap-2">
                   <Clock className="w-4 h-4 text-neutral-700" />
-                  <span>Brute-Force Shielding</span>
+                  <span>cPanel Deployment Ready</span>
                 </div>
                 <p className="text-neutral-600 text-[11px] leading-relaxed">
-                  Rate-limiting locks out accounts after 5 consecutive failed login attempts for 60 seconds, preventing automated credential stuffing attacks.
+                  Easily deployed using cPanel &quot;Setup Node.js App&quot; (Phusion Passenger) for both the frontend (Next.js) and backend (NestJS dist/main.js).
                 </p>
               </div>
             </div>

@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
   Optional,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
@@ -9,14 +10,40 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User, UserStatus } from './entities/user.entity';
+import { Role, User, UserStatus } from './entities/user.entity';
 
 @Injectable()
-export class UsersService {
+export class UsersService implements OnModuleInit {
   constructor(
     @Optional() @InjectRepository(User)
     private readonly repo?: Repository<User>,
   ) { }
+
+  async onModuleInit() {
+    if (!this.repo) return;
+    try {
+      const count = await this.repo.count();
+      if (count === 0) {
+        const passwordHash = await bcrypt.hash('YeHagere2026!', 12);
+        const adminUser = this.repo.create({
+          firstName: 'Daniot',
+          lastName: 'Mihrete',
+          name: 'Daniot Mihrete',
+          email: 'daniot.mihrete-ug@aau.edu.et',
+          password: passwordHash,
+          passwordHash,
+          role: Role.ADMIN,
+          status: UserStatus.ACTIVE,
+          isVerified: true,
+          totalOrders: 0,
+          totalSpentUSD: 0,
+        });
+        await this.repo.save(adminUser);
+      }
+    } catch {
+      // Database may still be connecting during boot
+    }
+  }
 
   async create(createUserDto: CreateUserDto) {
     if (!this.repo) return undefined;

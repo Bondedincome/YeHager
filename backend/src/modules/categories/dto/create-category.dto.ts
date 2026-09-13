@@ -27,6 +27,14 @@ export class CreateCategoryDto {
   description?: string;
 
   @ApiPropertyOptional({
+    example: 'men',
+    description: 'Category URL slug',
+  })
+  @IsOptional()
+  @IsString()
+  slug?: string;
+
+  @ApiPropertyOptional({
     example:
       'https://res.cloudinary.com/yehagere/image/upload/categories/men.jpg',
     description: 'Category image URL',

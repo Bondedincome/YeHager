@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server";
 import { verifyPassword, generateToken, AUTH_COOKIE_NAME } from "../../../lib/auth-security";
 import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
-import { db } from "../../../lib/firebase";
-import { collection, getDocs, query, where, limit } from "firebase/firestore";
+
+declare global {
+  var __YEHAGERE_USERS__: AppUser[] | undefined;
+}
+
+function getUsersStore(): AppUser[] {
+  if (!globalThis.__YEHAGERE_USERS__) {
+    globalThis.__YEHAGERE_USERS__ = [...INITIAL_USERS];
+  }
+  return globalThis.__YEHAGERE_USERS__;
+}
 
 // In-memory rate limiting map: identifier -> { attempts: number, lockUntil: number }
 const loginAttempts = new Map<string, { attempts: number; lockUntil: number }>();
@@ -28,7 +37,6 @@ function recordFailedAttempt(key: string) {
   const record = loginAttempts.get(key) || { attempts: 0, lockUntil: 0 };
   record.attempts += 1;
 
-  // Lock for 60 seconds after 5 consecutive failed attempts
   if (record.attempts >= 5) {
     record.lockUntil = now + 60 * 1000;
   }
@@ -55,7 +63,6 @@ export async function POST(request: Request) {
     const identifier = String(rawIdentifier).trim().toLowerCase();
     const cleanPassword = String(password);
 
-    // Rate limiting check
     const rateCheck = checkRateLimit(identifier);
     if (!rateCheck.allowed) {
       return NextResponse.json(
@@ -66,36 +73,53 @@ export async function POST(request: Request) {
       );
     }
 
-    // User lookup: check Firestore first, then fallback to INITIAL_USERS and client users
-    let user: AppUser | undefined;
+    // Try authenticating via NestJS backend if available
+    const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+    if (backendUrl) {
+      try {
+        const nestRes = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: identifier, password: cleanPassword }),
+        });
+        if (nestRes.ok) {
+          const nestData = await nestRes.json();
+          const unwrapped = nestData.data || nestData;
+          recordSuccess(identifier);
 
-    try {
-      const usersCol = collection(db, "users");
-      if (identifier === "admin" || identifier === "admin@yehagere.com") {
-        const q = query(usersCol, where("role", "==", "admin"), limit(1));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const docData = snap.docs[0].data();
-          user = { id: snap.docs[0].id, ...docData } as AppUser;
+          const token = unwrapped.access_token || unwrapped.token;
+          const user = unwrapped.user;
+
+          const response = NextResponse.json({
+            success: true,
+            token,
+            user,
+          });
+
+          response.cookies.set({
+            name: AUTH_COOKIE_NAME,
+            value: token,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "lax",
+            path: "/",
+            maxAge: 72 * 60 * 60,
+          });
+
+          return response;
         }
-      } else {
-        const q = query(usersCol, where("email", "==", identifier), limit(1));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const docData = snap.docs[0].data();
-          user = { id: snap.docs[0].id, ...docData } as AppUser;
-        }
+      } catch {
+        // Fallback to local user store
       }
-    } catch (dbErr) {
-      console.warn("Firestore user lookup warning, continuing with local fallback:", dbErr);
     }
 
-    if (!user) {
-      if (identifier === "admin" || identifier === "admin@yehagere.com") {
-        user = INITIAL_USERS.find((u) => u.role === "admin") || INITIAL_USERS[0];
-      } else {
-        user = INITIAL_USERS.find((u) => u.email.toLowerCase() === identifier);
-      }
+    const users = getUsersStore();
+    let user: AppUser | undefined;
+
+    if (identifier === "admin" || identifier === "admin@yehagere.com") {
+      user = users.find((u) => u.role === "admin") || users[0];
+    } else {
+      user = users.find((u) => u.email.toLowerCase() === identifier);
     }
 
     if (!user) {
@@ -113,7 +137,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Verify Password using PBKDF2 (100,000 rounds) and constant-time comparison
     if (!user.passwordHash || !user.passwordSalt) {
       recordFailedAttempt(identifier);
       return NextResponse.json(
@@ -132,17 +155,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Authentication succeeded: clear rate limits
     recordSuccess(identifier);
 
-    // Generate signed session token
     const token = generateToken({
       userId: user.id,
       email: user.email,
       role: user.role,
     });
 
-    // Return sanitized user (strip passwordHash and passwordSalt)
     const sanitizedUser: Omit<AppUser, "passwordHash" | "passwordSalt"> = {
       id: user.id,
       name: user.name,
@@ -163,7 +183,6 @@ export async function POST(request: Request) {
       user: sanitizedUser,
     });
 
-    // Set HttpOnly, Secure, SameSite=Lax cookie
     response.cookies.set({
       name: AUTH_COOKIE_NAME,
       value: token,
@@ -171,7 +190,7 @@ export async function POST(request: Request) {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 72 * 60 * 60, // 72 hours
+      maxAge: 72 * 60 * 60,
     });
 
     return response;

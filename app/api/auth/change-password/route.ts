@@ -1,88 +1,89 @@
 import { NextResponse } from "next/server";
-import { verifyPassword, hashPassword, validatePasswordStrength, authenticateRequest } from "../../../lib/auth-security";
+import { authenticateRequest, verifyPassword, hashPassword } from "../../../lib/auth-security";
 import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
-import { db } from "../../../lib/firebase";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+
+declare global {
+  var __YEHAGERE_USERS__: AppUser[] | undefined;
+}
+
+function getUsersStore(): AppUser[] {
+  if (!globalThis.__YEHAGERE_USERS__) {
+    globalThis.__YEHAGERE_USERS__ = [...INITIAL_USERS];
+  }
+  return globalThis.__YEHAGERE_USERS__;
+}
 
 export async function POST(request: Request) {
   try {
     const auth = authenticateRequest(request);
+
     if (!auth.authenticated || !auth.payload) {
       return NextResponse.json(
-        { error: auth.error || "Authentication required to change password" },
+        { error: auth.error || "Authentication required" },
         { status: auth.status || 401 }
       );
     }
 
     const body = await request.json();
-    const { userId, currentPassword, newPassword } = body;
+    const { currentPassword, newPassword } = body;
 
-    if (!userId || !currentPassword || !newPassword) {
+    if (!currentPassword || !newPassword) {
       return NextResponse.json(
-        { error: "Current password and new password are required" },
+        { error: "Both current password and new password are required" },
         { status: 400 }
       );
     }
 
-    // Ensure user can only change their own password unless they are an admin
-    if (auth.payload.userId !== userId && auth.payload.role !== "admin") {
+    if (String(newPassword).length < 8) {
       return NextResponse.json(
-        { error: "Access denied. You cannot modify credentials for another patron." },
-        { status: 403 }
+        { error: "New password must be at least 8 characters long" },
+        { status: 400 }
       );
     }
 
-    const strength = validatePasswordStrength(newPassword);
-    if (!strength.valid) {
-      return NextResponse.json({ error: strength.message }, { status: 400 });
+    const { userId, email } = auth.payload;
+    const users = getUsersStore();
+    const user =
+      users.find((u) => u.id === userId) ||
+      users.find((u) => u.email.toLowerCase() === email.toLowerCase());
+
+    if (!user) {
+      return NextResponse.json({ error: "User account not found" }, { status: 404 });
     }
 
-    let targetUser: AppUser | undefined;
-
-    // Check Firestore user doc first
-    try {
-      const userRef = doc(db, "users", userId);
-      const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        targetUser = { id: snap.id, ...snap.data() } as AppUser;
-      }
-    } catch (dbErr) {
-      console.warn("Firestore lookup in change-password warning:", dbErr);
+    if (!user.passwordHash || !user.passwordSalt) {
+      return NextResponse.json(
+        { error: "Account credentials cannot be updated directly" },
+        { status: 400 }
+      );
     }
 
-    if (!targetUser) {
-      targetUser = INITIAL_USERS.find((u) => u.id === userId);
+    const isCurrentValid = verifyPassword(
+      String(currentPassword),
+      user.passwordHash,
+      user.passwordSalt
+    );
+
+    if (!isCurrentValid) {
+      return NextResponse.json(
+        { error: "Current password is not correct" },
+        { status: 400 }
+      );
     }
 
-    if (!targetUser || !targetUser.passwordHash || !targetUser.passwordSalt) {
-      return NextResponse.json({ error: "User account not found or has no credentials" }, { status: 404 });
-    }
-
-    const isMatch = verifyPassword(currentPassword, targetUser.passwordHash, targetUser.passwordSalt);
-    if (!isMatch) {
-      return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
-    }
-
-    const { hash, salt } = hashPassword(newPassword);
-
-    // Update in Firestore
-    try {
-      const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, {
-        passwordHash: hash,
-        passwordSalt: salt,
-        updatedAt: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.warn("Failed to persist updated password to Firestore:", e);
-    }
+    const { hash: newHash, salt: newSalt } = hashPassword(String(newPassword));
+    user.passwordHash = newHash;
+    user.passwordSalt = newSalt;
 
     return NextResponse.json({
       success: true,
-      message: "Password updated successfully with enterprise cryptographic encryption.",
+      message: "Password updated successfully",
     });
   } catch (error) {
-    console.error("Change password error:", error);
-    return NextResponse.json({ error: "Failed to update password" }, { status: 500 });
+    console.error("Change Password API Error:", error);
+    return NextResponse.json(
+      { error: "Failed to update password" },
+      { status: 500 }
+    );
   }
 }
