@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authenticateRequest } from "../../../lib/auth-security";
+import { authenticateRequest, extractTokenFromRequest, AUTH_COOKIE_NAME } from "../../../lib/auth-security";
 import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
 
 declare global {
@@ -15,55 +15,80 @@ function getUsersStore(): AppUser[] {
 
 export async function GET(request: Request) {
   try {
+    const token = extractTokenFromRequest(request);
     const auth = authenticateRequest(request);
 
-    if (!auth.authenticated || !auth.payload) {
+    if (!auth.authenticated || !auth.payload || !token) {
       return NextResponse.json(
         { error: auth.error || "Not authenticated" },
         { status: auth.status || 401 }
       );
     }
 
-    const { userId, email, role } = auth.payload;
+    const { userId, email } = auth.payload;
 
-    // Try fetching from NestJS backend if available
+    // Direct synchronization with NestJS backend if configured
     const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
     if (backendUrl) {
       try {
-        const authHeader = request.headers.get("authorization");
-        const headers: Record<string, string> = {};
-        if (authHeader) headers["authorization"] = authHeader;
+        const incomingCookie = request.headers.get("cookie") || "";
+        const cookieHeader = incomingCookie.includes(AUTH_COOKIE_NAME)
+          ? incomingCookie
+          : `${AUTH_COOKIE_NAME}=${token}; ${incomingCookie}`.trim();
+
         const nestRes = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/auth/me`, {
-          headers,
+          headers: {
+            authorization: `Bearer ${token}`,
+            cookie: cookieHeader,
+          },
           cache: "no-store",
         });
+
         if (nestRes.ok) {
           const nestData = await nestRes.json();
-          return NextResponse.json({ success: true, user: nestData.data || nestData });
+          const user = nestData.data || nestData;
+          return NextResponse.json({ success: true, user });
         }
-      } catch {
-        // Fallback
+
+        // If backend explicitly rejected (e.g. 401 user missing/suspended, 403 forbidden)
+        if (nestRes.status === 401 || nestRes.status === 403) {
+          return NextResponse.json(
+            { error: "Session expired or user account no longer active" },
+            { status: 401 }
+          );
+        }
+      } catch (err) {
+        console.error("Failed contacting authentication backend in auth/me:", err);
+      }
+
+      // In production, when backend is configured, reject rather than inventing synthetic state
+      if (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_AUTH_IN_PROD) {
+        return NextResponse.json(
+          { error: "Authentication service unavailable" },
+          { status: 503 }
+        );
       }
     }
 
+    // Local dev store verification
     const users = getUsersStore();
     const user =
       users.find((u) => u.id === userId) ||
-      users.find((u) => u.email.toLowerCase() === email.toLowerCase()) ||
-      (role === "admin" ? users.find((u) => u.role === "admin") : undefined);
+      users.find((u) => u.email.toLowerCase() === email.toLowerCase());
 
+    // Never return synthetic placeholder identity if account was deleted
     if (!user) {
-      return NextResponse.json({
-        success: true,
-        user: {
-          id: userId,
-          email,
-          role,
-          name: email.split("@")[0],
-          memberSince: "2024-01-01",
-          status: "active",
-        },
-      });
+      return NextResponse.json(
+        { error: "User account no longer exists or session has expired" },
+        { status: 401 }
+      );
+    }
+
+    if (user.status === "suspended") {
+      return NextResponse.json(
+        { error: "Your account is temporarily suspended" },
+        { status: 403 }
+      );
     }
 
     const sanitizedUser: Omit<AppUser, "passwordHash" | "passwordSalt"> = {

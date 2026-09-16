@@ -6,40 +6,34 @@ import {
   Patch,
   Param,
   Delete,
-  UseGuards,
   Req,
   ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { AdminCreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { Role } from './entities/user.entity';
 
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) { }
+  constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   create(@Body() adminCreateUserDto: AdminCreateUserDto) {
     return this.usersService.createAdmin(adminCreateUserDto);
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   findAll() {
     return this.usersService.findAll();
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   findOne(@Param('id') id: string, @Req() req: any) {
     const userRole = String(req.user?.role || '').toLowerCase();
@@ -53,7 +47,6 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto, @Req() req: any) {
     const userRole = String(req.user?.role || '').toLowerCase();
@@ -76,7 +69,6 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);

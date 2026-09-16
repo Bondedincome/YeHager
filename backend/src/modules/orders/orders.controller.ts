@@ -7,17 +7,14 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   Req,
   ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { AuthGuard } from '@nestjs/passport';
 import { OrdersService } from './orders.service';
-import { RolesGuard } from '../../auth/guards/roles.guard';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { OptionalJwtAuthGuard } from '../../auth/guards/optional-jwt-auth.guard';
+import { OptionalAuth } from '../../auth/decorators/public.decorator';
 import { Role } from '../users/entities/user.entity';
 
 @ApiTags('Orders')
@@ -26,7 +23,7 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  @UseGuards(OptionalJwtAuthGuard)
+  @OptionalAuth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   create(@Body() dto: any, @Req() req: any) {
     // If authenticated, automatically bind user ID to the order
@@ -37,7 +34,7 @@ export class OrdersController {
   }
 
   @Get()
-  @UseGuards(OptionalJwtAuthGuard)
+  @OptionalAuth()
   findAll(
     @Query('userId') queryUserId?: string,
     @Query('orderNumber') orderNumber?: string,
@@ -75,7 +72,7 @@ export class OrdersController {
   }
 
   @Get(':id')
-  @UseGuards(OptionalJwtAuthGuard)
+  @OptionalAuth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async findOne(@Param('id') id: string, @Query('email') guestEmail: string, @Req() req: any) {
     const order = await this.ordersService.findOne(id);
@@ -111,7 +108,6 @@ export class OrdersController {
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   update(@Param('id') id: string, @Body() dto: any) {
@@ -119,7 +115,6 @@ export class OrdersController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles(Role.ADMIN)
   remove(@Param('id') id: string) {
     return this.ordersService.remove(id);

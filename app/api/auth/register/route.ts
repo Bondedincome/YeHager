@@ -35,13 +35,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Try registering via NestJS backend if available
+    // Direct registration via NestJS backend if configured
     const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
     if (backendUrl) {
       try {
         const nameParts = String(name).trim().split(" ");
         const firstName = nameParts[0] || name;
         const lastName = nameParts.slice(1).join(" ") || "Patron";
+
         const nestRes = await fetch(`${backendUrl.replace(/\/$/, "")}/api/v1/auth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -53,33 +54,55 @@ export async function POST(request: Request) {
             phone: phone || "+251911000000",
           }),
         });
-        if (nestRes.ok) {
-          const nestData = await nestRes.json();
-          const unwrapped = nestData.data || nestData;
-          const token = unwrapped.access_token || unwrapped.token;
-          const user = unwrapped.user;
 
-          const response = NextResponse.json({
-            success: true,
-            token,
-            user,
-          });
+        const nestData = await nestRes.json().catch(() => null);
 
-          response.cookies.set({
-            name: AUTH_COOKIE_NAME,
-            value: token,
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            path: "/",
-            maxAge: 72 * 60 * 60,
-          });
-
-          return response;
+        if (!nestRes.ok) {
+          const errorMessage =
+            nestData?.message ||
+            nestData?.error ||
+            (nestRes.status === 409
+              ? "An account with this email address already exists"
+              : "Registration failed");
+          return NextResponse.json({ error: errorMessage }, { status: nestRes.status });
         }
-      } catch {
-        // Fallback
+
+        const unwrapped = nestData?.data || nestData;
+        const token = unwrapped.access_token || unwrapped.token;
+        const user = unwrapped.user;
+
+        const response = NextResponse.json({
+          success: true,
+          token,
+          user,
+        });
+
+        response.cookies.set({
+          name: AUTH_COOKIE_NAME,
+          value: token,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 72 * 60 * 60,
+        });
+
+        return response;
+      } catch (err) {
+        console.error("Backend registration connectivity failure:", err);
+        return NextResponse.json(
+          { error: "Authentication service currently unreachable. Please try again shortly." },
+          { status: 503 }
+        );
       }
+    }
+
+    // In production, local fallback is strictly prohibited
+    if (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_AUTH_IN_PROD) {
+      return NextResponse.json(
+        { error: "Centralized registration backend must be configured in production." },
+        { status: 503 }
+      );
     }
 
     const users = getUsersStore();

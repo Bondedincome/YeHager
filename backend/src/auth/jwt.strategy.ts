@@ -31,24 +31,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     try {
       const user = await this.usersService.findOne(userId);
-      if (user) {
-        if (user.status === 'suspended') {
-          throw new UnauthorizedException('Your patron account has been temporarily suspended');
-        }
-        return user;
+      if (!user) {
+        throw new UnauthorizedException('User account no longer exists or session has expired');
       }
+
+      if (user.status === 'suspended') {
+        throw new UnauthorizedException('Your patron account has been temporarily suspended');
+      }
+
+      // Return the current database user entity, ensuring fresh roles and status
+      return user;
     } catch (err) {
       if (err instanceof UnauthorizedException) {
         throw err;
       }
+      throw new UnauthorizedException('User account no longer exists or session has expired');
     }
-
-    // Return sanitized token identity if detached in memory
-    return {
-      id: userId,
-      email: payload.email,
-      role: (payload.role || 'customer').toLowerCase(),
-      status: 'active',
-    };
   }
 }

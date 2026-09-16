@@ -55,17 +55,17 @@ export default function LoginClient() {
       <div className="max-w-md w-full mx-auto my-8">
         <div className="bg-white border border-neutral-200 p-8 sm:p-10 shadow-none">
           <form onSubmit={submit} className="space-y-5">
-            {/* Username Input */}
+            {/* Email / Identifier Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-black uppercase tracking-wider flex items-center justify-between">
-                <span>Username</span>
+                <span>Email or Staff ID</span>
                 <User className="w-3.5 h-3.5 text-neutral-400" />
               </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Enter username"
+                placeholder="staff@yehagere.com"
                 className="w-full bg-[#f4f4f4] border-none px-4 py-3.5 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black transition-all"
                 required
                 autoComplete="username"
