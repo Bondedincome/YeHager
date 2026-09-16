@@ -97,8 +97,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // In production, local fallback is strictly prohibited
-    if (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_AUTH_IN_PROD) {
+    // In production, centralized authentication is strictly mandatory; local fallback is prohibited
+    if (process.env.NODE_ENV === "production") {
       return NextResponse.json(
         { error: "Centralized registration backend must be configured in production." },
         { status: 503 }
@@ -177,7 +177,7 @@ export async function POST(request: Request) {
       name: AUTH_COOKIE_NAME,
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: false,
       sameSite: "lax",
       path: "/",
       maxAge: 72 * 60 * 60,

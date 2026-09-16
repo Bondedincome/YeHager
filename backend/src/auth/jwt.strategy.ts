@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Request } from 'express';
 import { UsersService } from '../modules/users/users.service';
+import { resolveJwtSecret } from '../config/jwt.config';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -12,21 +13,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly usersService: UsersService,
   ) {
     const secret =
-      configService.get<string>('jwt.secret') || process.env.JWT_SECRET;
-
-    if (!secret && process.env.NODE_ENV === 'production') {
-      throw new Error(
-        'FATAL: JWT_SECRET environment variable is missing in production. Refusing to start.',
-      );
-    }
+      configService.get<string>('jwt.secret') || resolveJwtSecret();
 
     super({
       jwtFromRequest: (request: Request) =>
         ExtractJwt.fromAuthHeaderAsBearerToken()(request) ??
         request.cookies?.yehagere_auth_token,
       ignoreExpiration: false,
-      secretOrKey:
-        secret || 'yehagere-atelier-secret-key-2026-secure-token-salt',
+      secretOrKey: secret,
     });
   }
 

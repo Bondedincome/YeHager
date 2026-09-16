@@ -96,8 +96,8 @@ export async function POST(request: Request) {
       }
     }
 
-    // In production, local fallback is strictly prohibited
-    if (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_AUTH_IN_PROD) {
+    // In production, centralized authentication is strictly mandatory; local fallback is prohibited
+    if (process.env.NODE_ENV === "production") {
       return NextResponse.json(
         { error: "Centralized authentication backend must be configured in production." },
         { status: 503 }

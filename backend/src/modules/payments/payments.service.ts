@@ -19,8 +19,16 @@ export class PaymentsService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async create(userId: string, createPaymentDto: CreatePaymentDto & any) {
     if (this.repo) {
+      const orderRelation = createPaymentDto.orderId
+        ? ({ id: createPaymentDto.orderId, userId } as any)
+        : createPaymentDto.order;
+
       const payment = this.repo.create({
         ...createPaymentDto,
+        userId,
+        user: { id: userId } as any,
+        ...(orderRelation ? { order: orderRelation } : {}),
+        orderId: createPaymentDto.orderId || createPaymentDto.order?.id,
         status: PaymentStatus.PENDING,
       });
       return this.repo.save(payment);
@@ -43,11 +51,16 @@ export class PaymentsService {
     if (this.repo) {
       if (userId) {
         return this.repo.find({
-          where: { order: { user: { id: userId } } },
-          relations: { order: { user: true } },
+          where: [
+            { userId },
+            { user: { id: userId } },
+            { order: { userId } },
+            { order: { user: { id: userId } } },
+          ],
+          relations: { order: { user: true }, user: true },
         });
       }
-      return this.repo.find({ relations: { order: { user: true } } });
+      return this.repo.find({ relations: { order: { user: true }, user: true } });
     }
 
     const all = Array.from(this.inMemoryPayments.values());
@@ -62,7 +75,7 @@ export class PaymentsService {
     if (this.repo) {
       return this.repo.findOne({
         where: { id },
-        relations: { order: { user: true } },
+        relations: { order: { user: true }, user: true },
       });
     }
     return this.inMemoryPayments.get(id);

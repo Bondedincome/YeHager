@@ -47,27 +47,36 @@ export async function GET(request: Request) {
         if (nestRes.ok) {
           const nestData = await nestRes.json();
           const user = nestData.data || nestData;
-          return NextResponse.json({ success: true, user });
+          return NextResponse.json({ success: true, authenticated: true, user });
         }
 
         // If backend explicitly rejected (e.g. 401 user missing/suspended, 403 forbidden)
         if (nestRes.status === 401 || nestRes.status === 403) {
           return NextResponse.json(
-            { error: "Session expired or user account no longer active" },
+            { success: false, authenticated: false, error: "Session expired or user account no longer active" },
             { status: 401 }
           );
         }
+
+        return NextResponse.json(
+          { success: false, authenticated: false, error: "Authentication service returned an unexpected status" },
+          { status: nestRes.status }
+        );
       } catch (err) {
         console.error("Failed contacting authentication backend in auth/me:", err);
-      }
-
-      // In production, when backend is configured, reject rather than inventing synthetic state
-      if (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_AUTH_IN_PROD) {
         return NextResponse.json(
-          { error: "Authentication service unavailable" },
+          { success: false, authenticated: false, error: "Authentication service currently unreachable" },
           { status: 503 }
         );
       }
+    }
+
+    // In production, centralized authentication is strictly mandatory; local fallback is prohibited
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        { success: false, authenticated: false, error: "Centralized authentication backend must be configured in production." },
+        { status: 503 }
+      );
     }
 
     // Local dev store verification
@@ -101,11 +110,12 @@ export async function GET(request: Request) {
       status: user.status,
       totalOrders: user.totalOrders,
       totalSpentUSD: user.totalSpentUSD,
+      requiresPasswordChange: user.requiresPasswordChange,
       phone: user.phone,
       shippingAddress: user.shippingAddress,
     };
 
-    return NextResponse.json({ success: true, user: sanitizedUser });
+    return NextResponse.json({ success: true, authenticated: true, user: sanitizedUser });
   } catch (error) {
     console.error("Auth Me API Error:", error);
     return NextResponse.json(

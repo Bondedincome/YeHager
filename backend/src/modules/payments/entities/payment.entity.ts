@@ -1,6 +1,7 @@
 import { BaseModel } from '@database/base.model';
 import { Column, Entity, ManyToOne } from 'typeorm';
 import { Order } from '../../orders/entities/order.entity';
+import { User } from '../../users/entities/user.entity';
 
 export enum PaymentProvider {
   CHAPA = 'CHAPA',
@@ -32,6 +33,7 @@ export class Payment extends BaseModel {
   @Column('decimal', {
     precision: 10,
     scale: 2,
+    default: 0,
   })
   amount: number;
 
@@ -49,8 +51,20 @@ export class Payment extends BaseModel {
   paidAt: Date;
 
   @ManyToOne(() => Order, (order) => order.payments, {
-    nullable: false,
+    nullable: true,
     onDelete: 'CASCADE',
   })
   order: Order;
+
+  @Column({ nullable: true })
+  orderId?: string;
+
+  @ManyToOne(() => User, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  user?: User;
+
+  @Column({ nullable: true })
+  userId?: string;
 }

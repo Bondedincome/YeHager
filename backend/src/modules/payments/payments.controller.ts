@@ -53,7 +53,11 @@ export class PaymentsController {
     }
 
     const isAdmin = String(req.user?.role || '').toLowerCase() === 'admin';
-    const ownerId = payment.user?.id || payment.userId || payment.order?.userId;
+    const ownerId =
+      payment.userId ||
+      payment.user?.id ||
+      payment.order?.userId ||
+      payment.order?.user?.id;
 
     if (!isAdmin && ownerId !== req.user.id) {
       throw new ForbiddenException('Access denied: You do not have permission to view this payment');

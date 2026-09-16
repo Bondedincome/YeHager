@@ -12,6 +12,7 @@ export type AppUser = {
   status: "active" | "suspended";
   totalOrders: number;
   totalSpentUSD: number;
+  requiresPasswordChange?: boolean;
   phone?: string;
   shippingAddress?: {
     street: string;

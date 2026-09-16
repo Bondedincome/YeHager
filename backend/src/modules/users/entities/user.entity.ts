@@ -72,6 +72,9 @@ export class User extends BaseModel {
   @Column({ default: false })
   isVerified: boolean;
 
+  @Column({ default: false })
+  requiresPasswordChange: boolean;
+
   @OneToMany(() => Cart, (cart) => cart.user)
   carts: Cart[];
 

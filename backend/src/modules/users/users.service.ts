@@ -6,6 +6,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import * as crypto from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto, AdminCreateUserDto } from './dto/create-user.dto';
@@ -24,7 +25,26 @@ export class UsersService implements OnModuleInit {
     try {
       const count = await this.repo.count();
       if (count === 0) {
-        const passwordHash = await bcrypt.hash('YeHagere2026!', 12);
+        const bootstrapPassword =
+          process.env.ADMIN_BOOTSTRAP_PASSWORD ||
+          process.env.ADMIN_DEFAULT_PASSWORD;
+
+        let passwordToUse: string;
+        if (bootstrapPassword) {
+          passwordToUse = bootstrapPassword;
+        } else {
+          if (process.env.NODE_ENV === 'production') {
+            console.warn(
+              '⚠️ NOTICE: ADMIN_BOOTSTRAP_PASSWORD not configured. Generating a secure one-time bootstrap password.',
+            );
+          }
+          passwordToUse = `Admin_${crypto.randomBytes(8).toString('hex')}!2026`;
+          console.warn(
+            `🔐 Generated initial administrator temporary password for daniot.mihrete-ug@aau.edu.et: ${passwordToUse}`,
+          );
+        }
+
+        const passwordHash = await bcrypt.hash(passwordToUse, 12);
         const adminUser = this.repo.create({
           firstName: 'Daniot',
           lastName: 'Mihrete',
@@ -35,6 +55,7 @@ export class UsersService implements OnModuleInit {
           role: Role.ADMIN,
           status: UserStatus.ACTIVE,
           isVerified: true,
+          requiresPasswordChange: true,
           totalOrders: 0,
           totalSpentUSD: 0,
         });
@@ -93,7 +114,11 @@ export class UsersService implements OnModuleInit {
     const user = await this.repo.findOneBy({ id });
     if (!user) throw new NotFoundException('User not found');
     Object.assign(user, updateUserDto);
-    if (updateUserDto.password) user.password = await bcrypt.hash(updateUserDto.password, 12);
+    if (updateUserDto.password) {
+      user.password = await bcrypt.hash(updateUserDto.password, 12);
+      user.passwordHash = user.password;
+      user.requiresPasswordChange = false;
+    }
     return this.sanitize(await this.repo.save(user));
   }
 
@@ -107,7 +132,16 @@ export class UsersService implements OnModuleInit {
     if (!this.repo) return undefined;
     return this.repo.findOne({
       where: { email },
-      select: includePassword ? undefined : { id: true, email: true, name: true, role: true, status: true },
+      select: includePassword
+        ? undefined
+        : {
+            id: true,
+            email: true,
+            name: true,
+            role: true,
+            status: true,
+            requiresPasswordChange: true,
+          },
     });
   }
 
@@ -129,6 +163,7 @@ export class UsersService implements OnModuleInit {
     if (user) {
       user.password = await bcrypt.hash(password, 12);
       user.passwordHash = user.password;
+      user.requiresPasswordChange = false;
       await this.repo.save(user);
     }
   }
