@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { authenticateRequest, verifyPassword, hashPassword } from "../../../lib/auth-security";
+import {
+  authenticateRequest,
+  extractTokenFromRequest,
+  verifyPassword,
+  hashPassword,
+  AUTH_COOKIE_NAME,
+} from "../../../lib/auth-security";
 import { INITIAL_USERS, AppUser } from "../../../lib/auth-seed";
 
 declare global {
@@ -15,9 +21,10 @@ function getUsersStore(): AppUser[] {
 
 export async function POST(request: Request) {
   try {
+    const token = extractTokenFromRequest(request);
     const auth = authenticateRequest(request);
 
-    if (!auth.authenticated || !auth.payload) {
+    if (!auth.authenticated || !auth.payload || !token) {
       return NextResponse.json(
         { error: auth.error || "Authentication required" },
         { status: auth.status || 401 }
@@ -41,6 +48,63 @@ export async function POST(request: Request) {
       );
     }
 
+    // Direct synchronization with NestJS backend if configured
+    const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
+    if (backendUrl) {
+      try {
+        const incomingCookie = request.headers.get("cookie") || "";
+        const cookieHeader = incomingCookie.includes(AUTH_COOKIE_NAME)
+          ? incomingCookie
+          : `${AUTH_COOKIE_NAME}=${token}; ${incomingCookie}`.trim();
+
+        const nestRes = await fetch(
+          `${backendUrl.replace(/\/$/, "")}/api/v1/auth/change-password`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              authorization: `Bearer ${token}`,
+              cookie: cookieHeader,
+            },
+            body: JSON.stringify({
+              currentPassword: String(currentPassword),
+              newPassword: String(newPassword),
+            }),
+          }
+        );
+
+        const nestData = await nestRes.json().catch(() => null);
+
+        if (!nestRes.ok) {
+          const errorMessage =
+            nestData?.message ||
+            nestData?.error ||
+            (nestRes.status === 401 ? "Current password is incorrect" : "Failed to update password");
+          return NextResponse.json({ error: errorMessage }, { status: nestRes.status });
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: "Password updated successfully",
+        });
+      } catch (err) {
+        console.error("Backend change-password connectivity failure:", err);
+        return NextResponse.json(
+          { error: "Authentication service currently unreachable. Please try again shortly." },
+          { status: 503 }
+        );
+      }
+    }
+
+    // In production, local fallback is strictly prohibited
+    if (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_AUTH_IN_PROD) {
+      return NextResponse.json(
+        { error: "Centralized authentication backend must be configured in production." },
+        { status: 503 }
+      );
+    }
+
+    // Development local store fallback
     const { userId, email } = auth.payload;
     const users = getUsersStore();
     const user =
@@ -49,6 +113,10 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: "User account not found" }, { status: 404 });
+    }
+
+    if (user.status === "suspended") {
+      return NextResponse.json({ error: "Your account is temporarily suspended" }, { status: 403 });
     }
 
     if (!user.passwordHash || !user.passwordSalt) {

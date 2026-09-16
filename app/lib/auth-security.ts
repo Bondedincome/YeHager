@@ -3,10 +3,13 @@ import crypto from "crypto";
 const ITERATIONS = 100000;
 const KEY_LENGTH = 64; // 64 bytes = 512 bits
 const DIGEST = "sha256";
-const TOKEN_SECRET =
-  process.env.JWT_SECRET ||
-  process.env.AUTH_SECRET ||
-  "yehagere-atelier-secret-key-2026-secure-token-salt";
+function getTokenSecret(): string {
+  const secret = process.env.JWT_SECRET || process.env.AUTH_SECRET;
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error("FATAL: JWT_SECRET environment variable is missing in production.");
+  }
+  return secret || "yehagere-atelier-secret-key-2026-secure-token-salt";
+}
 
 /**
  * Generates a cryptographically random salt and hashes the password using PBKDF2.
@@ -78,7 +81,7 @@ export function generateToken(
   const encHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
   const encPayload = Buffer.from(JSON.stringify(fullPayload)).toString("base64url");
   const signature = crypto
-    .createHmac("sha256", TOKEN_SECRET)
+    .createHmac("sha256", getTokenSecret())
     .update(`${encHeader}.${encPayload}`)
     .digest("base64url");
 
@@ -98,7 +101,7 @@ export function verifyToken(token: string): { valid: boolean; payload?: TokenPay
     if (parts.length === 3) {
       const [encHeader, encPayload, signature] = parts;
       const expectedSig = crypto
-        .createHmac("sha256", TOKEN_SECRET)
+        .createHmac("sha256", getTokenSecret())
         .update(`${encHeader}.${encPayload}`)
         .digest("base64url");
 
@@ -134,7 +137,7 @@ export function verifyToken(token: string): { valid: boolean; payload?: TokenPay
     if (parts.length === 2) {
       const [encodedPayload, signature] = parts;
       const expectedSig = crypto
-        .createHmac("sha256", TOKEN_SECRET)
+        .createHmac("sha256", getTokenSecret())
         .update(encodedPayload)
         .digest("base64url");
 
