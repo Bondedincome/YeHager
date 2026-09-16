@@ -6,14 +6,17 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { CartService } from './cart.service';
 import { CreateCartDto } from './dto/create-cart.dto';
 import { UpdateCartDto } from './dto/update-cart.dto';
 
 @ApiTags('Cart')
 @Controller('cart')
+@UseGuards(AuthGuard('jwt'))
 export class CartController {
   constructor(private readonly cartService: CartService) {}
 

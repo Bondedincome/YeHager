@@ -3,13 +3,13 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Eye, EyeOff, Lock, User, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Lock, User } from "lucide-react";
 import LogoMark from "../../components/LogoMark";
 import { useAuth } from "../../components/AuthProvider";
 
 export default function LoginClient() {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -31,12 +31,6 @@ export default function LoginClient() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const fillDemoCredentials = () => {
-    setUsername("admin");
-    setPassword("admin123");
-    setError("");
   };
 
   return (
@@ -124,21 +118,6 @@ export default function LoginClient() {
                 className="w-full bg-black text-white py-3.5 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
               >
                 {submitting ? "Authenticating..." : "Sign In to Atelier"}
-              </button>
-            </div>
-
-            {/* Demo Credential Quick-Helper */}
-            <div className="pt-3 border-t border-neutral-100 flex items-center justify-between text-[11px] text-neutral-500">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-neutral-400" />
-                Default: <strong className="text-black font-semibold">admin</strong> / <strong className="text-black font-semibold">admin123</strong>
-              </span>
-              <button
-                type="button"
-                onClick={fillDemoCredentials}
-                className="text-black underline font-semibold uppercase tracking-wider text-[10px] hover:opacity-75"
-              >
-                Auto-fill
               </button>
             </div>
           </form>

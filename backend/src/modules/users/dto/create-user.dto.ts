@@ -51,21 +51,13 @@ export class CreateUserDto {
   })
   password: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: '+251912345678',
     description: 'User phone number',
   })
-  @IsPhoneNumber()
-  phone: string;
-
-  @ApiPropertyOptional({
-    enum: Role,
-    default: Role.CUSTOMER,
-    description: 'User role',
-  })
   @IsOptional()
-  @IsEnum(Role)
-  role?: Role;
+  @IsPhoneNumber()
+  phone?: string;
 
   @ApiPropertyOptional({
     example: 'https://example.com/profile.jpg',
@@ -74,4 +66,15 @@ export class CreateUserDto {
   @IsOptional()
   @IsUrl()
   profileImage?: string;
+}
+
+export class AdminCreateUserDto extends CreateUserDto {
+  @ApiPropertyOptional({
+    enum: Role,
+    default: Role.CUSTOMER,
+    description: 'Role explicitly assigned by administrator',
+  })
+  @IsOptional()
+  @IsEnum(Role)
+  role?: Role;
 }

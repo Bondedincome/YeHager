@@ -6,14 +6,17 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { AddressesService } from './addresses.service';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
 
 @ApiTags('Addresses')
 @Controller('addresses')
+@UseGuards(AuthGuard('jwt'))
 export class AddressesController {
   constructor(private readonly addressesService: AddressesService) {}
 

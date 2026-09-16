@@ -8,7 +8,7 @@ import {
 import * as bcrypt from 'bcryptjs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto, AdminCreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Role, User, UserStatus } from './entities/user.entity';
 
@@ -52,9 +52,26 @@ export class UsersService implements OnModuleInit {
     const passwordHash = await bcrypt.hash(createUserDto.password, 12);
     const user = this.repo.create({
       ...createUserDto,
+      role: Role.CUSTOMER, // Always strictly assign customer for patron self-registration
       password: passwordHash,
       passwordHash,
       name: `${createUserDto.firstName} ${createUserDto.lastName}`,
+      status: UserStatus.ACTIVE,
+    });
+    return this.sanitize(await this.repo.save(user));
+  }
+
+  async createAdmin(adminCreateUserDto: AdminCreateUserDto) {
+    if (!this.repo) return undefined;
+    const existing = await this.repo.findOne({ where: { email: adminCreateUserDto.email } });
+    if (existing) throw new ConflictException('Email is already registered');
+    const passwordHash = await bcrypt.hash(adminCreateUserDto.password, 12);
+    const user = this.repo.create({
+      ...adminCreateUserDto,
+      role: adminCreateUserDto.role || Role.CUSTOMER,
+      password: passwordHash,
+      passwordHash,
+      name: `${adminCreateUserDto.firstName} ${adminCreateUserDto.lastName}`,
       status: UserStatus.ACTIVE,
     });
     return this.sanitize(await this.repo.save(user));

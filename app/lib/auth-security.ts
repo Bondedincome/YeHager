@@ -3,7 +3,10 @@ import crypto from "crypto";
 const ITERATIONS = 100000;
 const KEY_LENGTH = 64; // 64 bytes = 512 bits
 const DIGEST = "sha256";
-const TOKEN_SECRET = process.env.AUTH_SECRET || "yehagere-atelier-secret-key-2026-secure-token-salt";
+const TOKEN_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.AUTH_SECRET ||
+  "yehagere-atelier-secret-key-2026-secure-token-salt";
 
 /**
  * Generates a cryptographically random salt and hashes the password using PBKDF2.
@@ -42,54 +45,123 @@ export function verifyPassword(password: string, storedHash: string, storedSalt:
 }
 
 export type TokenPayload = {
+  sub?: string;
   userId: string;
   email: string;
   role: string;
-  exp: number; // unix timestamp in ms
+  exp: number; // unix timestamp in seconds
+  iat?: number;
 };
 
 /**
- * Generates an HMAC-SHA256 signed session token.
+ * Generates a standard RFC 7519 HMAC-SHA256 signed JWT session token.
+ * Fully compatible with NestJS JwtStrategy and Next.js session validation.
  */
-export function generateToken(payload: Omit<TokenPayload, "exp">, expiresInHours = 72): string {
-  const exp = Date.now() + expiresInHours * 60 * 60 * 1000;
-  const fullPayload: TokenPayload = { ...payload, exp };
-  const encodedPayload = Buffer.from(JSON.stringify(fullPayload)).toString("base64url");
+export function generateToken(
+  payload: { userId: string; email: string; role: string },
+  expiresInHours = 72
+): string {
+  const nowSec = Math.floor(Date.now() / 1000);
+  const exp = nowSec + expiresInHours * 3600;
+  const normalizedRole = (payload.role || "customer").toLowerCase();
+
+  const header = { alg: "HS256", typ: "JWT" };
+  const fullPayload = {
+    sub: payload.userId,
+    userId: payload.userId,
+    email: payload.email,
+    role: normalizedRole,
+    iat: nowSec,
+    exp,
+  };
+
+  const encHeader = Buffer.from(JSON.stringify(header)).toString("base64url");
+  const encPayload = Buffer.from(JSON.stringify(fullPayload)).toString("base64url");
   const signature = crypto
     .createHmac("sha256", TOKEN_SECRET)
-    .update(encodedPayload)
+    .update(`${encHeader}.${encPayload}`)
     .digest("base64url");
 
-  return `${encodedPayload}.${signature}`;
+  return `${encHeader}.${encPayload}.${signature}`;
 }
 
 /**
- * Verifies and decodes an HMAC-SHA256 signed session token.
+ * Verifies and decodes a standard HMAC-SHA256 signed session token (or legacy HMAC).
+ * Uses constant-time comparison to prevent timing side channels.
  */
 export function verifyToken(token: string): { valid: boolean; payload?: TokenPayload } {
   try {
+    if (!token || typeof token !== "string") return { valid: false };
     const parts = token.split(".");
-    if (parts.length !== 2) return { valid: false };
 
-    const [encodedPayload, signature] = parts;
-    const expectedSig = crypto
-      .createHmac("sha256", TOKEN_SECRET)
-      .update(encodedPayload)
-      .digest("base64url");
+    // Standard 3-part JWT: header.payload.signature
+    if (parts.length === 3) {
+      const [encHeader, encPayload, signature] = parts;
+      const expectedSig = crypto
+        .createHmac("sha256", TOKEN_SECRET)
+        .update(`${encHeader}.${encPayload}`)
+        .digest("base64url");
 
-    const sigBuf = Buffer.from(signature, "utf-8");
-    const expectedBuf = Buffer.from(expectedSig, "utf-8");
+      const sigBuf = Buffer.from(signature, "utf-8");
+      const expectedBuf = Buffer.from(expectedSig, "utf-8");
 
-    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
-      return { valid: false };
+      if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        return { valid: false };
+      }
+
+      const rawPayload = JSON.parse(Buffer.from(encPayload, "base64url").toString("utf-8"));
+      const nowSec = Math.floor(Date.now() / 1000);
+
+      // Support exp in seconds or milliseconds
+      const expSec = rawPayload.exp > 10000000000 ? Math.floor(rawPayload.exp / 1000) : rawPayload.exp;
+      if (expSec && nowSec > expSec) {
+        return { valid: false }; // Expired
+      }
+
+      const payload: TokenPayload = {
+        sub: rawPayload.sub || rawPayload.userId,
+        userId: rawPayload.userId || rawPayload.sub,
+        email: rawPayload.email,
+        role: String(rawPayload.role || "customer").toLowerCase(),
+        exp: expSec,
+        iat: rawPayload.iat,
+      };
+
+      return { valid: true, payload };
     }
 
-    const payload: TokenPayload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf-8"));
-    if (Date.now() > payload.exp) {
-      return { valid: false }; // Expired
+    // Legacy 2-part fallback: payload.signature
+    if (parts.length === 2) {
+      const [encodedPayload, signature] = parts;
+      const expectedSig = crypto
+        .createHmac("sha256", TOKEN_SECRET)
+        .update(encodedPayload)
+        .digest("base64url");
+
+      const sigBuf = Buffer.from(signature, "utf-8");
+      const expectedBuf = Buffer.from(expectedSig, "utf-8");
+
+      if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
+        return { valid: false };
+      }
+
+      const rawPayload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf-8"));
+      if (Date.now() > rawPayload.exp) {
+        return { valid: false };
+      }
+
+      return {
+        valid: true,
+        payload: {
+          userId: rawPayload.userId || rawPayload.sub,
+          email: rawPayload.email,
+          role: String(rawPayload.role || "customer").toLowerCase(),
+          exp: Math.floor(rawPayload.exp / 1000),
+        },
+      };
     }
 
-    return { valid: true, payload };
+    return { valid: false };
   } catch {
     return { valid: false };
   }
@@ -177,7 +249,8 @@ export function requireAdmin(request: Request): AuthResult {
     return auth;
   }
 
-  if (auth.payload.role !== "admin") {
+  const role = String(auth.payload.role || "").toLowerCase();
+  if (role !== "admin") {
     return {
       authenticated: true,
       authorized: false,

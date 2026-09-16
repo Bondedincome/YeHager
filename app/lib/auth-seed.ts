@@ -63,12 +63,12 @@ export type CustomerOrder = {
 export const INITIAL_USERS: AppUser[] = [
   {
     id: "usr_admin_1",
-    name: "YeHageré Atelier Director",
-    email: "admin@yehagere.com",
+    name: "Daniot Mihrete",
+    email: "daniot.mihrete-ug@aau.edu.et",
     role: "admin",
-    // Salted PBKDF2 hash of "admin123" (100,000 rounds)
+    // Salted PBKDF2 hash of "YeHagere2026!" (100,000 rounds)
     passwordSalt: "a1b2c3d4e5f60718293a4b5c6d7e8f90",
-    passwordHash: "db3ef93c37169e5239c3959a8a624eecbd5968432e32299f71551e75b5060036f8e8749f7d45f2159b582b37b169984bba0e49dcae93398b3e95e07afe2dada2",
+    passwordHash: "34dd07f8d9eec4baac2d17e01b56c028e18dd42b5ad183d6740b1b5d6ee170b00b26102f982d7a4ce94a1cb722afea1a2c5b46e9b3004cb36d8a0c0e97613820",
     memberSince: "2024-01-10",
     status: "active",
     totalOrders: 4,
@@ -84,10 +84,10 @@ export const INITIAL_USERS: AppUser[] = [
   },
   {
     id: "usr_cust_1",
-    name: "Daniot Mihrete",
-    email: "daniot.mihrete-ug@aau.edu.et",
+    name: "Selamawit Bekele",
+    email: "selamawit.bekele@atelier-client.et",
     role: "vip",
-    // Salted PBKDF2 hash of "password123" (100,000 rounds)
+    // Salted PBKDF2 hash (100,000 rounds)
     passwordSalt: "b2c3d4e5f60718293a4b5c6d7e8f90a1",
     passwordHash: "b78dd5d51f1a243bc86c9f37606bcdb6a552ba059bd2ecd5f9623dcf857b4084c883164031b8310f42edc7a869170bd4def8dbcd54d141e2e586583e2c5bc398",
     memberSince: "2024-03-15",

@@ -6,14 +6,21 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { InventoryLogsService } from './inventory-logs.service';
 import { CreateInventoryLogDto } from './dto/create-inventory-log.dto';
 import { UpdateInventoryLogDto } from './dto/update-inventory-log.dto';
+import { RolesGuard } from '../../auth/guards/roles.guard';
+import { Roles } from '../../auth/decorators/roles.decorator';
+import { Role } from '../users/entities/user.entity';
 
 @ApiTags('Inventory Logs')
 @Controller('inventory-logs')
+@UseGuards(AuthGuard('jwt'), RolesGuard)
+@Roles(Role.ADMIN)
 export class InventoryLogsController {
   constructor(private readonly inventoryLogsService: InventoryLogsService) {}
 

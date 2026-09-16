@@ -6,15 +6,17 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { WishlistService } from './wishlist.service';
-
 import { CreateWishlistDto } from './dto/create-wishlist.dto';
 import { UpdateWishlistDto } from './dto/update-wishlist.dto';
 
 @ApiTags('Wishlist')
 @Controller('wishlist')
+@UseGuards(AuthGuard('jwt'))
 export class WishlistController {
   constructor(private readonly wishlistService: WishlistService) {}
 

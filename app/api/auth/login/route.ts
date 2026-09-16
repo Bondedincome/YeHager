@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Try authenticating via NestJS backend if available
+    // Direct authentication via NestJS backend if configured
     const backendUrl = process.env.NESTJS_BACKEND_URL || process.env.BACKEND_URL;
     if (backendUrl) {
       try {
@@ -82,45 +82,68 @@ export async function POST(request: Request) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: identifier, password: cleanPassword }),
         });
-        if (nestRes.ok) {
-          const nestData = await nestRes.json();
-          const unwrapped = nestData.data || nestData;
-          recordSuccess(identifier);
 
-          const token = unwrapped.access_token || unwrapped.token;
-          const user = unwrapped.user;
+        const nestData = await nestRes.json().catch(() => null);
 
-          const response = NextResponse.json({
-            success: true,
-            token,
-            user,
-          });
+        if (!nestRes.ok) {
+          recordFailedAttempt(identifier);
+          const errorMessage =
+            nestData?.message ||
+            nestData?.error ||
+            (nestRes.status === 401
+              ? "Invalid credentials. Please verify your email and password."
+              : "Authentication failed");
 
-          response.cookies.set({
-            name: AUTH_COOKIE_NAME,
-            value: token,
-            httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "lax",
-            path: "/",
-            maxAge: 72 * 60 * 60,
-          });
-
-          return response;
+          return NextResponse.json(
+            { error: errorMessage },
+            { status: nestRes.status }
+          );
         }
-      } catch {
-        // Fallback to local user store
+
+        const unwrapped = nestData?.data || nestData;
+        const token = unwrapped.access_token || unwrapped.token;
+        const user = unwrapped.user;
+
+        recordSuccess(identifier);
+
+        const response = NextResponse.json({
+          success: true,
+          token,
+          user,
+        });
+
+        response.cookies.set({
+          name: AUTH_COOKIE_NAME,
+          value: token,
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          path: "/",
+          maxAge: 72 * 60 * 60,
+        });
+
+        return response;
+      } catch (err) {
+        console.error("Backend auth connectivity failure:", err);
+        // Explicitly reject when backend is configured rather than silent bypass
+        return NextResponse.json(
+          { error: "Authentication service currently unreachable. Please try again shortly." },
+          { status: 503 }
+        );
       }
     }
 
-    const users = getUsersStore();
-    let user: AppUser | undefined;
-
-    if (identifier === "admin" || identifier === "admin@yehagere.com") {
-      user = users.find((u) => u.role === "admin") || users[0];
-    } else {
-      user = users.find((u) => u.email.toLowerCase() === identifier);
+    // In production, local demo fallback is strictly disabled
+    if (process.env.NODE_ENV === "production" && !process.env.ALLOW_LOCAL_AUTH_IN_PROD) {
+      return NextResponse.json(
+        { error: "Centralized authentication backend must be configured in production." },
+        { status: 503 }
+      );
     }
+
+    // Development local store authentication (strict email match only, no hardcoded demo bypass)
+    const users = getUsersStore();
+    const user = users.find((u) => u.email.toLowerCase() === identifier);
 
     if (!user) {
       recordFailedAttempt(identifier);
@@ -157,6 +180,7 @@ export async function POST(request: Request) {
 
     recordSuccess(identifier);
 
+    // Standard RFC 7519 JWT session token
     const token = generateToken({
       userId: user.id,
       email: user.email,

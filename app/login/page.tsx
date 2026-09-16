@@ -9,13 +9,11 @@ import {
   Lock,
   Mail,
   ArrowRight,
-  UserCheck,
   Shield,
   Sparkles,
   CheckCircle2,
   XCircle,
   KeyRound,
-  ShieldCheck,
   AlertCircle,
 } from "lucide-react";
 import { useAuth } from "../components/AuthProvider";
@@ -88,24 +86,6 @@ export default function LoginPage() {
     } catch {
       setError("An unexpected error occurred. Please check your connection.");
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickLogin = async (userEmail: string, pass: string) => {
-    setEmail(userEmail);
-    setPassword(pass);
-    setError("");
-    setLoading(true);
-    const res = await login(userEmail, pass);
-    if (res.success) {
-      if (res.user?.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/account");
-      }
-    } else {
-      setError(res.error || "Authentication failed.");
       setLoading(false);
     }
   };
@@ -360,55 +340,6 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
-
-          {/* Secure Fast Sign-In Access Bar */}
-          <div className="pt-6 border-t border-neutral-100 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
-                Authorized Patron &amp; Staff Access
-              </span>
-              <span className="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                PBKDF2 Secured
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("daniot.mihrete-ug@aau.edu.et", "password123")}
-                className="w-full text-left px-3.5 py-2.5 bg-neutral-50 hover:bg-neutral-100 border border-neutral-200 text-xs text-neutral-800 transition-colors flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2.5">
-                  <UserCheck className="w-4 h-4 text-neutral-700 flex-shrink-0" />
-                  <div>
-                    <span className="font-bold text-black block text-xs">Daniot Mihrete</span>
-                    <span className="text-[10px] text-neutral-500">VIP Patron Account • Addis Ababa</span>
-                  </div>
-                </div>
-                <span className="text-[10px] uppercase font-bold text-neutral-500 hover:text-black">
-                  Fast Sign-in →
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin("admin@yehagere.com", "admin123")}
-                className="w-full text-left px-3.5 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-800 text-xs transition-colors flex items-center justify-between"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Shield className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <div>
-                    <span className="font-bold text-white block text-xs">Atelier Director</span>
-                    <span className="text-[10px] text-neutral-400">Staff Administrator Portal</span>
-                  </div>
-                </div>
-                <span className="text-[10px] uppercase font-bold text-emerald-400">
-                  Staff Sign-in →
-                </span>
-              </button>
-            </div>
-          </div>
 
           {/* Cryptographic Security Details */}
           <div className="p-3 bg-neutral-50 border border-neutral-200/70 text-[11px] text-neutral-500 space-y-1.5">
