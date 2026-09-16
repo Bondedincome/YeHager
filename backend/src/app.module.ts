@@ -48,6 +48,8 @@ import { InquiriesModule } from './modules/inquiries/inquiries.module';
         database: configService.get<string>('database.name'),
         autoLoadEntities: true,
         synchronize: configService.get<boolean>('database.synchronize'),
+        migrations: ['dist/database/migrations/*.js'],
+        migrationsRun: true,
         logging: configService.get<string>('app.nodeEnv') !== 'production',
       }),
     }),

@@ -47,6 +47,7 @@ export default function CartPage() {
   const shippingUSD = totalUSD > 200 ? 0 : 25;
   const grandTotalUSD = totalUSD + shippingUSD;
   const grandTotalETB = grandTotalUSD * 125;
+  const itemCountLabel = count === 1 ? "item" : "items";
 
   const handleStripePayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +113,7 @@ export default function CartPage() {
             <p className="text-xs text-neutral-500">
               {checkoutStep === "payment"
                 ? "Powered by Stripe Payment Gateway • 256-bit Encryption"
-                : `${count} ${count === 1 ? "item" : "items"} in your shopping bag`}
+                : `${count} ${itemCountLabel} in your shopping bag`}
             </p>
           </div>
 
@@ -155,7 +156,7 @@ export default function CartPage() {
           </div>
         )}
 
-        {orderConfirmation ? (
+        {orderConfirmation && (
           <div className="bg-[#fafafa] border border-neutral-200 p-8 sm:p-12 text-center space-y-5 max-w-xl mx-auto shadow-sm">
             <div className="w-14 h-14 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full flex items-center justify-center mx-auto">
               <CheckCircle2 className="w-8 h-8 stroke-[1.75]" />
@@ -191,7 +192,9 @@ export default function CartPage() {
               </Link>
             </div>
           </div>
-        ) : items.length === 0 ? (
+        )}
+
+        {!orderConfirmation && items.length === 0 && (
           <div className="py-20 text-center space-y-4 max-w-md mx-auto">
             <p className="text-lg font-bold text-black">Your bag is empty</p>
             <p className="text-xs text-neutral-600 leading-relaxed">
@@ -206,7 +209,9 @@ export default function CartPage() {
               </Link>
             </div>
           </div>
-        ) : checkoutStep === "bag" ? (
+        )}
+
+        {!orderConfirmation && items.length > 0 && checkoutStep === "bag" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Bag Items List */}
             <div className="lg:col-span-8 divide-y divide-neutral-200">
@@ -214,7 +219,7 @@ export default function CartPage() {
                 const itemETB = item.price * 125 * item.quantity;
                 return (
                   <div key={item.id} className="py-6 flex gap-4 sm:gap-6 items-start">
-                    <div className="w-20 h-28 bg-[#f4f4f4] flex-shrink-0 overflow-hidden border border-neutral-200">
+                    <div className="w-20 h-28 bg-[#f4f4f4] shrink-0 overflow-hidden border border-neutral-200">
                       {item.imageUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
@@ -311,7 +316,9 @@ export default function CartPage() {
               </div>
             </div>
           </div>
-        ) : (
+        )}
+
+        {!orderConfirmation && items.length > 0 && checkoutStep !== "bag" && (
           /* Step 2: Stripe Payment Form */
           <form onSubmit={handleStripePayment} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             {/* Left: Shipping & Stripe Card Details */}
@@ -327,8 +334,9 @@ export default function CartPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div className="space-y-1 sm:col-span-2">
-                    <label className="font-bold uppercase tracking-wider text-neutral-600">Full Name</label>
+                    <label htmlFor="customer-name" className="font-bold uppercase tracking-wider text-neutral-600">Full Name</label>
                     <input
+                      id="customer-name"
                       type="text"
                       required
                       value={customerName}
@@ -338,8 +346,9 @@ export default function CartPage() {
                   </div>
 
                   <div className="space-y-1 sm:col-span-2">
-                    <label className="font-bold uppercase tracking-wider text-neutral-600">Email for Stripe Receipt</label>
+                    <label htmlFor="customer-email" className="font-bold uppercase tracking-wider text-neutral-600">Email for Stripe Receipt</label>
                     <input
+                      id="customer-email"
                       type="email"
                       required
                       value={customerEmail}
@@ -349,8 +358,9 @@ export default function CartPage() {
                   </div>
 
                   <div className="space-y-1 sm:col-span-2">
-                    <label className="font-bold uppercase tracking-wider text-neutral-600">Street Address</label>
+                    <label htmlFor="street-address" className="font-bold uppercase tracking-wider text-neutral-600">Street Address</label>
                     <input
+                      id="street-address"
                       type="text"
                       required
                       value={street}
@@ -360,8 +370,9 @@ export default function CartPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-bold uppercase tracking-wider text-neutral-600">City</label>
+                    <label htmlFor="city" className="font-bold uppercase tracking-wider text-neutral-600">City</label>
                     <input
+                      id="city"
                       type="text"
                       required
                       value={city}
@@ -371,8 +382,9 @@ export default function CartPage() {
                   </div>
 
                   <div className="space-y-1">
-                    <label className="font-bold uppercase tracking-wider text-neutral-600">Postal / ZIP Code</label>
+                    <label htmlFor="postal-code" className="font-bold uppercase tracking-wider text-neutral-600">Postal / ZIP Code</label>
                     <input
+                      id="postal-code"
                       type="text"
                       required
                       value={postalCode}
@@ -399,11 +411,12 @@ export default function CartPage() {
 
                 <div className="space-y-3">
                   <div className="space-y-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
+                    <label htmlFor="card-number" className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
                       Card Number
                     </label>
                     <div className="relative">
                       <input
+                        id="card-number"
                         type="text"
                         required
                         value={cardNumber}
@@ -417,10 +430,11 @@ export default function CartPage() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
+                      <label htmlFor="card-expiry" className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
                         Expires (MM/YY)
                       </label>
                       <input
+                        id="card-expiry"
                         type="text"
                         required
                         value={cardExpiry}
@@ -430,10 +444,11 @@ export default function CartPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
+                      <label htmlFor="card-cvc" className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
                         CVC Code
                       </label>
                       <input
+                        id="card-cvc"
                         type="text"
                         required
                         value={cardCvc}
