@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCart } from "./CartProvider";
-import { getAllProducts } from "../lib/products-store";
+import { apiFetch } from "../lib/api";
 
 type Product = {
   id: number;
@@ -23,11 +23,9 @@ export default function ProductList() {
   const { addItem } = useCart();
 
   useEffect(() => {
-    const base = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-    const endpoint = base ? `${base}/products` : "/api/products";
     const controller = new AbortController();
 
-    fetch(endpoint, { signal: controller.signal })
+    apiFetch("products", { signal: controller.signal })
       .then(async (response) => {
         const contentType = response.headers.get("content-type") ?? "";
         if (!response.ok) {
@@ -47,12 +45,7 @@ export default function ProductList() {
       })
       .catch((requestError: unknown) => {
         if (requestError instanceof DOMException && requestError.name === "AbortError") return;
-        const local = getAllProducts();
-        if (local && local.length > 0) {
-          setProducts(local as Product[]);
-        } else {
-          setError(requestError instanceof Error ? requestError.message : "Unable to load products.");
-        }
+        setError(requestError instanceof Error ? requestError.message : "Unable to load products.");
       });
 
     return () => controller.abort();

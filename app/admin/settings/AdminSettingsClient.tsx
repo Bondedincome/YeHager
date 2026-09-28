@@ -29,6 +29,7 @@ import {
   DEFAULT_STORE_SETTINGS,
   validatePromoCode,
 } from "../../lib/settings-store";
+import { apiFetch } from "../../lib/api";
 
 export default function AdminSettingsClient() {
   const [settings, setSettings] = useState<StoreSettings>(DEFAULT_STORE_SETTINGS);
@@ -41,8 +42,8 @@ export default function AdminSettingsClient() {
   const [dbStatus, setDbStatus] = useState<{
     engine: string;
     backendConnected: boolean;
-    postgresUsersCount: number;
-    postgresOrdersCount: number;
+    postgresUsersCount: number | null;
+    postgresOrdersCount: number | null;
     postgresProductsCount: number;
     isSeeded: boolean;
   } | null>(null);
@@ -79,12 +80,25 @@ export default function AdminSettingsClient() {
   }, []);
 
   const fetchDbStatus = () => {
-    fetch("/api/migrate")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && data.status) {
-          setDbStatus(data.status);
-        }
+    Promise.all([apiFetch("products"), apiFetch("users"), apiFetch("orders")])
+      .then(async ([productsResponse, usersResponse, ordersResponse]) => {
+        if (!productsResponse.ok) throw new Error("NestJS API unavailable");
+        const [productsPayload, usersPayload, ordersPayload] = await Promise.all([
+          productsResponse.json(),
+          usersResponse.ok ? usersResponse.json() : Promise.resolve(null),
+          ordersResponse.ok ? ordersResponse.json() : Promise.resolve(null),
+        ]);
+        const products = productsPayload?.data ?? productsPayload;
+        const users = usersPayload?.data ?? usersPayload;
+        const orders = ordersPayload?.data ?? ordersPayload;
+        setDbStatus({
+          engine: "PostgreSQL (NestJS / TypeORM)",
+          backendConnected: true,
+          postgresUsersCount: Array.isArray(users) ? users.length : null,
+          postgresOrdersCount: Array.isArray(orders) ? orders.length : null,
+          postgresProductsCount: Array.isArray(products) ? products.length : 0,
+          isSeeded: Array.isArray(products) && products.length > 0,
+        });
       })
       .catch(() => {});
   };
@@ -92,11 +106,26 @@ export default function AdminSettingsClient() {
   useEffect(() => {
     let active = true;
     if (activeTab === "cloud") {
-      fetch("/api/migrate")
-        .then((res) => res.json())
-        .then((data) => {
-          if (active && data.success && data.status) {
-            setDbStatus(data.status);
+      Promise.all([apiFetch("products"), apiFetch("users"), apiFetch("orders")])
+        .then(async ([productsResponse, usersResponse, ordersResponse]) => {
+          if (!productsResponse.ok) throw new Error("NestJS API unavailable");
+          const [productsPayload, usersPayload, ordersPayload] = await Promise.all([
+            productsResponse.json(),
+            usersResponse.ok ? usersResponse.json() : Promise.resolve(null),
+            ordersResponse.ok ? ordersResponse.json() : Promise.resolve(null),
+          ]);
+          const products = productsPayload?.data ?? productsPayload;
+          const users = usersPayload?.data ?? usersPayload;
+          const orders = ordersPayload?.data ?? ordersPayload;
+          if (active) {
+            setDbStatus({
+              engine: "PostgreSQL (NestJS / TypeORM)",
+              backendConnected: true,
+              postgresUsersCount: Array.isArray(users) ? users.length : null,
+              postgresOrdersCount: Array.isArray(orders) ? orders.length : null,
+              postgresProductsCount: Array.isArray(products) ? products.length : 0,
+              isSeeded: Array.isArray(products) && products.length > 0,
+            });
           }
         })
         .catch(() => {});
@@ -110,17 +139,15 @@ export default function AdminSettingsClient() {
     setMigrationLoading(true);
     setMigrationMessage(null);
     try {
-      const res = await fetch("/api/migrate", {
+      const res = await apiFetch("products/seed", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seedDefaults: true }),
       });
       const data = await res.json();
-      if (data.success) {
-        setMigrationMessage(`PostgreSQL synchronization verified: ${data.summary?.migratedProducts ?? 0} products and ${data.summary?.migratedUsers ?? 0} user accounts active.`);
+      if (res.ok) {
+        setMigrationMessage("NestJS catalog seed completed successfully.");
         fetchDbStatus();
       } else {
-        setMigrationMessage(data.error || "Database synchronization check failed.");
+        setMigrationMessage(data.message || data.error || "Catalog seed failed.");
       }
     } catch {
       setMigrationMessage("Network error while connecting to database status endpoint.");
@@ -1046,7 +1073,7 @@ export default function AdminSettingsClient() {
                 PostgreSQL User Accounts
               </span>
               <div className="text-2xl font-black text-black">
-                {dbStatus ? dbStatus.postgresUsersCount : "..."}
+                {dbStatus ? dbStatus.postgresUsersCount ?? "Unavailable" : "..."}
               </div>
               <p className="text-[10px] text-neutral-500">
                 Encrypted patron &amp; admin profiles
@@ -1058,7 +1085,7 @@ export default function AdminSettingsClient() {
                 PostgreSQL Patron Orders
               </span>
               <div className="text-2xl font-black text-black">
-                {dbStatus ? dbStatus.postgresOrdersCount : "..."}
+                {dbStatus ? dbStatus.postgresOrdersCount ?? "Unavailable" : "..."}
               </div>
               <p className="text-[10px] text-neutral-500">
                 Stripe &amp; Telebirr live transactions

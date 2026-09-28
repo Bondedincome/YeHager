@@ -4,36 +4,35 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import {
   AppUser,
   CustomerOrder,
-  getActiveUser,
   setActiveUser,
   getStoredUsers,
   saveStoredUsers,
   getStoredOrders,
   saveStoredOrders,
-  INITIAL_USERS,
-  INITIAL_ORDERS,
 } from "../lib/auth-store";
+import { apiFetch } from "../lib/api";
 
 type AuthContextType = {
   user: AppUser | null;
   isAuthenticated: boolean;
   isAdmin: boolean;
   authLoading: boolean;
-  login: (emailOrUsername: string, pass: string) => Promise<{ success: boolean; error?: string; user?: AppUser }>;
+  login: (identifier: string, pass: string) => Promise<{ success: boolean; error?: string; user?: AppUser }>;
   register: (name: string, email: string, pass: string) => Promise<{ success: boolean; error?: string; user?: AppUser }>;
   changePassword: (currentPass: string, newPass: string) => Promise<{ success: boolean; error?: string; message?: string }>;
   logout: () => void;
   orders: CustomerOrder[];
   userOrders: CustomerOrder[];
   placeOrder: (orderData: Omit<CustomerOrder, "id" | "createdAt" | "orderNumber">) => Promise<CustomerOrder>;
-  updateOrderStatus: (orderId: string, status: CustomerOrder["status"]) => void;
-  updateOrderDetails: (orderId: string, updates: Partial<CustomerOrder>) => void;
-  deleteOrder: (orderId: string) => void;
+  updateOrderStatus: (orderId: string, status: CustomerOrder["status"]) => Promise<boolean>;
+  updateOrderDetails: (orderId: string, updates: Partial<CustomerOrder>) => Promise<boolean>;
+  deleteOrder: (orderId: string) => Promise<boolean>;
   usersList: AppUser[];
-  addUser: (userData: Omit<AppUser, "id" | "memberSince" | "totalOrders" | "totalSpentUSD">) => void;
-  updateUserRole: (userId: string, role: AppUser["role"]) => void;
-  toggleUserStatus: (userId: string) => void;
-  deleteUser: (userId: string) => void;
+  addUser: (userData: Omit<AppUser, "id" | "memberSince" | "totalOrders" | "totalSpentUSD"> & { password: string }) => Promise<boolean>;
+  updateUserRole: (userId: string, role: AppUser["role"]) => Promise<boolean>;
+  toggleUserStatus: (userId: string) => Promise<boolean>;
+  deleteUser: (userId: string) => Promise<boolean>;
+  mutationError: string | null;
   syncWithDatabase: () => Promise<{ success: boolean; message: string }>;
   syncWithFirestore: () => Promise<{ success: boolean; message: string }>;
 };
@@ -53,12 +52,53 @@ function getAuthHeaders(): HeadersInit {
   return headers;
 }
 
+function normalizeUser(value: Record<string, unknown>): AppUser {
+  let shippingAddress = value.shippingAddress;
+  if (typeof shippingAddress === "string") {
+    try {
+      shippingAddress = JSON.parse(shippingAddress);
+    } catch {
+      shippingAddress = undefined;
+    }
+  }
+
+  const name = typeof value.name === "string"
+    ? value.name
+    : `${String(value.firstName || "")} ${String(value.lastName || "")}`.trim();
+
+  return {
+    ...value,
+    name,
+    avatarUrl: value.avatarUrl ?? value.profileImage,
+    shippingAddress,
+  } as AppUser;
+}
+
+function normalizeOrder(value: Record<string, unknown>): CustomerOrder {
+  const backendStatus = String(value.orderStatus ?? value.status ?? "confirmed").toLowerCase();
+  return {
+    ...value,
+    id: String(value.id),
+    orderNumber: String(value.orderNumber ?? ""),
+    customerEmail: String(value.customerEmail ?? ""),
+    customerName: String(value.customerName ?? ""),
+    status: backendStatus === "processing" ? "preparing" : backendStatus as CustomerOrder["status"],
+    totalUSD: Number(value.totalUSD ?? value.total ?? 0),
+    totalETB: Number(value.totalETB ?? 0),
+    items: (value.items ?? value.itemsData ?? []) as CustomerOrder["items"],
+    internalNotes: String(value.internalNotes ?? value.notes ?? "") || undefined,
+    shippingAddress: (value.shippingAddress ?? { street: "", city: "", postalCode: "", country: "" }) as CustomerOrder["shippingAddress"],
+    createdAt: String(value.createdAt ?? new Date().toISOString()),
+  } as CustomerOrder;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
-  const [usersList, setUsersList] = useState<AppUser[]>(INITIAL_USERS);
-  const [orders, setOrders] = useState<CustomerOrder[]>(INITIAL_ORDERS);
+  const [usersList, setUsersList] = useState<AppUser[]>([]);
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
   const [mounted, setMounted] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
+  const [mutationError, setMutationError] = useState<string | null>(null);
 
   // Server-side session verification
   const verifySessionWithServer = useCallback(async () => {
@@ -66,16 +106,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthLoading(true);
       const token = typeof window !== "undefined" ? localStorage.getItem("yehagere_auth_token") : null;
       
-      const res = await fetch("/api/auth/me", {
+      const res = await apiFetch("auth/me", {
         headers: getAuthHeaders(),
-        credentials: "include",
       });
 
       if (res.ok) {
-        const data = await res.json();
-        if ((data.success || data.authenticated) && data.user) {
-          setUser(data.user);
-          setActiveUser(data.user);
+        const response = await res.json();
+        const data = response.data ?? response;
+        const sessionUser = normalizeUser(data.user ?? data);
+        if (sessionUser?.id) {
+          setUser(sessionUser);
+          setActiveUser(sessionUser);
           return;
         }
       }
@@ -84,130 +125,117 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         localStorage.removeItem("yehagere_auth_token");
       }
+      setUsersList([]);
+      setOrders([]);
+      saveStoredUsers([]);
+      saveStoredOrders([]);
       setActiveUser(null);
       setUser(null);
     } catch {
-      // Offline fallback: if network error, do not grant admin privileges arbitrarily
-      const local = getActiveUser();
-      if (local && local.role !== "admin") {
-        setUser(local);
-      } else {
-        setUser(null);
-      }
+      setUsersList([]);
+      setOrders([]);
+      saveStoredUsers([]);
+      saveStoredOrders([]);
+      setActiveUser(null);
+      setUser(null);
     } finally {
       setAuthLoading(false);
     }
   }, []);
 
-  const refreshState = useCallback(() => {
-    setUsersList(getStoredUsers());
-    setOrders(getStoredOrders());
-  }, []);
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setMounted(true);
-      refreshState();
       verifySessionWithServer();
     }, 0);
-
-    // Background synchronization with Cloud Firestore
-    fetch("/api/users", {
-      headers: getAuthHeaders(),
-      credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then((res) => {
-        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          setUsersList((prev) => {
-            const merged = [...res.data];
-            for (const p of prev) {
-              if (!merged.some((m) => m.id === p.id || m.email.toLowerCase() === p.email.toLowerCase())) {
-                merged.push(p);
-              }
-            }
-            saveStoredUsers(merged);
-            return merged;
-          });
-        }
-      })
-      .catch(() => {});
-
-    fetch("/api/orders", {
-      headers: getAuthHeaders(),
-      credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .then((res) => {
-        if (res && res.success && Array.isArray(res.data) && res.data.length > 0) {
-          setOrders((prev) => {
-            const merged = [...res.data];
-            for (const p of prev) {
-              if (!merged.some((m) => m.id === p.id || m.orderNumber === p.orderNumber)) {
-                merged.push(p);
-              }
-            }
-            saveStoredOrders(merged);
-            return merged;
-          });
-        }
-      })
-      .catch(() => {});
-
-    const handleAuthChange = () => {
-      refreshState();
-    };
     const handleUsersChange = () => setUsersList(getStoredUsers());
     const handleOrdersChange = () => setOrders(getStoredOrders());
 
-    window.addEventListener("yehagere_auth:updated", handleAuthChange);
     window.addEventListener("yehagere_users:updated", handleUsersChange);
     window.addEventListener("yehagere_orders:updated", handleOrdersChange);
-    window.addEventListener("storage", handleAuthChange);
 
     return () => {
       clearTimeout(timer);
-      window.removeEventListener("yehagere_auth:updated", handleAuthChange);
       window.removeEventListener("yehagere_users:updated", handleUsersChange);
       window.removeEventListener("yehagere_orders:updated", handleOrdersChange);
-      window.removeEventListener("storage", handleAuthChange);
     };
-  }, [refreshState, verifySessionWithServer]);
+  }, [verifySessionWithServer]);
 
-  const login = async (emailOrUsername: string, pass: string) => {
+  useEffect(() => {
+    if (!user) return;
+
+    let active = true;
+    const loadProtectedData = async () => {
+      if (user.role === "admin") {
+        const usersResponse = await apiFetch("users", { headers: getAuthHeaders() });
+        if (!usersResponse.ok) throw new Error("Could not load users from NestJS.");
+        const usersPayload = await usersResponse.json();
+        const users = usersPayload.data ?? usersPayload;
+        if (!Array.isArray(users)) throw new Error("NestJS returned an invalid users response.");
+        const normalizedUsers = users.map(normalizeUser);
+        if (active) {
+          saveStoredUsers(normalizedUsers);
+          setUsersList(normalizedUsers);
+        }
+      } else if (active) {
+        setUsersList([]);
+      }
+
+      const ordersResponse = await apiFetch("orders", { headers: getAuthHeaders() });
+      if (!ordersResponse.ok) throw new Error("Could not load orders from NestJS.");
+      const ordersPayload = await ordersResponse.json();
+      const responseOrders = ordersPayload.data ?? ordersPayload;
+      if (!Array.isArray(responseOrders)) throw new Error("NestJS returned an invalid orders response.");
+      const normalizedOrders = responseOrders.map(normalizeOrder);
+      if (active) {
+        saveStoredOrders(normalizedOrders);
+        setOrders(normalizedOrders);
+        setMutationError(null);
+      }
+    };
+
+    loadProtectedData().catch((error: unknown) => {
+      if (active) {
+        setUsersList([]);
+        setOrders([]);
+        setMutationError(error instanceof Error ? error.message : "Could not load account data from NestJS.");
+      }
+    });
+
+    return () => { active = false; };
+  }, [user]);
+
+  const login = async (identifier: string, pass: string) => {
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await apiFetch("auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
-          emailOrUsername,
+          identifier,
           password: pass,
         }),
       });
 
-      const data = await res.json();
+      const response = await res.json();
+      const data = response.data ?? response;
+      const token = data.access_token ?? data.token;
 
-      if (!res.ok || !data.success) {
+      if (!res.ok || !token || !data.user) {
         return {
           success: false,
-          error: data.error || "Authentication failed. Please verify your credentials.",
+          error: response.message || data.error || "Authentication failed. Please verify your credentials.",
         };
       }
 
-      if (data.token && typeof window !== "undefined") {
-        localStorage.setItem("yehagere_auth_token", data.token);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("yehagere_auth_token", token);
       }
 
-      setActiveUser(data.user);
-      setUser(data.user);
-      return { success: true, user: data.user };
+      const authUser = normalizeUser(data.user);
+      setUsersList([]);
+      setOrders([]);
+      setActiveUser(authUser);
+      setUser(authUser);
+      return { success: true, user: authUser };
     } catch {
       return {
         success: false,
@@ -218,36 +246,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string, pass: string) => {
     try {
-      const res = await fetch("/api/auth/register", {
+      const [firstName, ...lastNameParts] = name.trim().split(/\s+/);
+      const res = await apiFetch("auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({
-          name,
+          firstName,
+          lastName: lastNameParts.join(" ") || firstName,
           email,
           password: pass,
         }),
       });
 
-      const data = await res.json();
+      const response = await res.json();
+      const data = response.data ?? response;
+      const token = data.access_token ?? data.token;
 
-      if (!res.ok || !data.success) {
+      if (!res.ok || !token || !data.user) {
         return {
           success: false,
           error: data.error || "Registration failed.",
         };
       }
 
-      if (data.token && typeof window !== "undefined") {
-        localStorage.setItem("yehagere_auth_token", data.token);
+      if (typeof window !== "undefined") {
+        localStorage.setItem("yehagere_auth_token", token);
       }
 
-      const updated = [data.user, ...usersList];
+      const authUser = normalizeUser(data.user);
+      setUsersList([]);
+      setOrders([]);
+      const updated = [authUser, ...usersList];
       saveStoredUsers(updated);
       setUsersList(updated);
-      setActiveUser(data.user);
-      setUser(data.user);
-      return { success: true, user: data.user };
+      setActiveUser(authUser);
+      setUser(authUser);
+      return { success: true, user: authUser };
     } catch {
       return {
         success: false,
@@ -261,27 +294,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: "Please log in to change your password." };
     }
     try {
-      const res = await fetch("/api/auth/change-password", {
+      const res = await apiFetch("auth/change-password", {
         method: "POST",
         headers: getAuthHeaders(),
-        credentials: "include",
         body: JSON.stringify({
-          userId: user.id,
           currentPassword: currentPass,
           newPassword: newPass,
         }),
       });
 
-      const data = await res.json();
+      const response = await res.json();
+      const data = response.data ?? response;
 
-      if (!res.ok || !data.success) {
+      if (!res.ok || !response.success) {
         return {
           success: false,
-          error: data.error || "Failed to update password.",
+          error: response.message || data.error || "Failed to update password.",
         };
       }
 
-      return { success: true, message: data.message };
+      return { success: true, message: response.message || "Password updated successfully." };
     } catch {
       return { success: false, error: "Network error while updating password." };
     }
@@ -289,13 +321,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      await apiFetch("auth/logout", { method: "POST" });
     } catch {
       // Safe ignore
     }
     if (typeof window !== "undefined") {
       localStorage.removeItem("yehagere_auth_token");
     }
+    setUsersList([]);
+    setOrders([]);
+    saveStoredUsers([]);
+    saveStoredOrders([]);
+    setMutationError(null);
     setActiveUser(null);
     setUser(null);
   };
@@ -313,168 +350,217 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       trackingNumber,
     };
 
-    const updatedOrders = [newOrder, ...orders];
-    saveStoredOrders(updatedOrders);
-    setOrders(updatedOrders);
-
-    // Sync order to Firestore API route
+    setMutationError(null);
     try {
-      fetch("/api/orders", {
+      const response = await apiFetch("orders", {
         method: "POST",
         headers: getAuthHeaders(),
-        credentials: "include",
-        body: JSON.stringify(newOrder),
-      }).catch(() => {
-        // Safe ignore
+        body: JSON.stringify({
+          ...newOrder,
+          total: newOrder.totalUSD,
+          orderStatus: "CONFIRMED",
+        }),
       });
-    } catch {
-      // Safe ignore
-    }
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "Order could not be saved.");
+      const persistedOrder = normalizeOrder(payload.data ?? payload);
+      const updatedOrders = [persistedOrder, ...orders];
+      saveStoredOrders(updatedOrders);
+      setOrders(updatedOrders);
 
-    // Update user stats if matched
-    if (user || newOrder.customerEmail) {
-      const targetEmail = (user?.email || newOrder.customerEmail).toLowerCase();
-      const updatedUsers = usersList.map((u) => {
-        if (u.email.toLowerCase() === targetEmail) {
-          return {
-            ...u,
-            totalOrders: (u.totalOrders || 0) + 1,
-            totalSpentUSD: (u.totalSpentUSD || 0) + newOrder.totalUSD,
-          };
-        }
-        return u;
+      if (user && user.email.toLowerCase() === persistedOrder.customerEmail.toLowerCase()) {
+        const updatedUser = {
+          ...user,
+          totalOrders: (user.totalOrders || 0) + 1,
+          totalSpentUSD: (user.totalSpentUSD || 0) + persistedOrder.totalUSD,
+        };
+        const updatedUsers = usersList.map((item) => item.id === user.id ? updatedUser : item);
+        saveStoredUsers(updatedUsers);
+        setUsersList(updatedUsers);
+        setUser(updatedUser);
+        setActiveUser(updatedUser);
+      }
+      return persistedOrder;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Order could not be saved.";
+      setMutationError(message);
+      throw error;
+    }
+  };
+
+  const updateOrderStatus = async (orderId: string, status: CustomerOrder["status"]): Promise<boolean> => {
+    setMutationError(null);
+    try {
+      const response = await apiFetch(`orders/${encodeURIComponent(orderId)}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ orderStatus: status === "preparing" ? "PROCESSING" : status.toUpperCase() }),
       });
-      saveStoredUsers(updatedUsers);
-      setUsersList(updatedUsers);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "Order status could not be updated.");
+      const updated = orders.map((order) => order.id === orderId ? { ...order, status } : order);
+      saveStoredOrders(updated);
+      setOrders(updated);
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "Order status could not be updated.");
+      return false;
     }
-
-    return newOrder;
   };
 
-  const updateOrderStatus = (orderId: string, status: CustomerOrder["status"]) => {
-    const updated = orders.map((o) => (o.id === orderId ? { ...o, status } : o));
-    saveStoredOrders(updated);
-    setOrders(updated);
-
-    fetch("/api/orders", {
-      method: "PATCH",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify({ orderId, updates: { status } }),
-    }).catch(() => {});
-  };
-
-  const updateOrderDetails = (orderId: string, updates: Partial<CustomerOrder>) => {
-    const updated = orders.map((o) => (o.id === orderId ? { ...o, ...updates } : o));
-    saveStoredOrders(updated);
-    setOrders(updated);
-
-    fetch("/api/orders", {
-      method: "PATCH",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify({ orderId, updates }),
-    }).catch(() => {});
-  };
-
-  const deleteOrder = (orderId: string) => {
-    const updated = orders.filter((o) => o.id !== orderId);
-    saveStoredOrders(updated);
-    setOrders(updated);
-
-    fetch(`/api/orders?orderId=${encodeURIComponent(orderId)}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    }).catch(() => {});
-  };
-
-  const addUser = (userData: Omit<AppUser, "id" | "memberSince" | "totalOrders" | "totalSpentUSD">) => {
-    const newUser: AppUser = {
-      ...userData,
-      id: `usr_${Date.now()}`,
-      memberSince: new Date().toISOString().split("T")[0],
-      totalOrders: 0,
-      totalSpentUSD: 0,
-    };
-    const updated = [newUser, ...usersList];
-    saveStoredUsers(updated);
-    setUsersList(updated);
-
-    // Persist to Firestore via authenticated admin route
-    fetch("/api/users", {
-      method: "POST",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify(userData),
-    }).catch(() => {});
-  };
-
-  const updateUserRole = (userId: string, role: AppUser["role"]) => {
-    const updated = usersList.map((u) => (u.id === userId ? { ...u, role } : u));
-    saveStoredUsers(updated);
-    setUsersList(updated);
-    if (user?.id === userId) {
-      const active = { ...user, role };
-      setActiveUser(active);
-      setUser(active);
+  const updateOrderDetails = async (orderId: string, updates: Partial<CustomerOrder>): Promise<boolean> => {
+    const { status, totalUSD, ...otherUpdates } = updates;
+    const { internalNotes, ...persistedUpdates } = otherUpdates;
+    setMutationError(null);
+    try {
+      const response = await apiFetch(`orders/${encodeURIComponent(orderId)}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          ...persistedUpdates,
+          ...(internalNotes !== undefined ? { notes: internalNotes } : {}),
+          ...(status !== undefined ? { orderStatus: status === "preparing" ? "PROCESSING" : status.toUpperCase() } : {}),
+          ...(totalUSD !== undefined ? { total: totalUSD } : {}),
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "Order details could not be updated.");
+      const updated = orders.map((order) => order.id === orderId ? { ...order, ...updates } : order);
+      saveStoredOrders(updated);
+      setOrders(updated);
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "Order details could not be updated.");
+      return false;
     }
-
-    // Persist to Firestore
-    fetch("/api/users", {
-      method: "PATCH",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify({ userId, updates: { role } }),
-    }).catch(() => {});
   };
 
-  const toggleUserStatus = (userId: string) => {
+  const deleteOrder = async (orderId: string): Promise<boolean> => {
+    setMutationError(null);
+    try {
+      const response = await apiFetch(`orders/${encodeURIComponent(orderId)}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "Order could not be deleted.");
+      const updated = orders.filter((order) => order.id !== orderId);
+      saveStoredOrders(updated);
+      setOrders(updated);
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "Order could not be deleted.");
+      return false;
+    }
+  };
+
+  const addUser = async (userData: Omit<AppUser, "id" | "memberSince" | "totalOrders" | "totalSpentUSD"> & { password: string }): Promise<boolean> => {
+    const { password, ...profileData } = userData;
+    setMutationError(null);
+    try {
+      const [firstName, ...lastNameParts] = profileData.name.trim().split(/\s+/);
+      const response = await apiFetch("users", {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          firstName,
+          lastName: lastNameParts.join(" ") || firstName,
+          email: profileData.email,
+          phone: profileData.phone,
+          role: profileData.role,
+          password,
+          shippingAddress: profileData.shippingAddress ? JSON.stringify(profileData.shippingAddress) : undefined,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "User could not be created.");
+      const created = normalizeUser(payload.data ?? payload);
+      const updated = [created, ...usersList];
+      saveStoredUsers(updated);
+      setUsersList(updated);
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "User could not be created.");
+      return false;
+    }
+  };
+
+  const updateUserRole = async (userId: string, role: AppUser["role"]): Promise<boolean> => {
+    setMutationError(null);
+    try {
+      const response = await apiFetch(`users/${encodeURIComponent(userId)}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ role }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "User role could not be updated.");
+      const updated = usersList.map((item) => item.id === userId ? { ...item, role } : item);
+      saveStoredUsers(updated);
+      setUsersList(updated);
+      if (user?.id === userId) {
+        const active = { ...user, role };
+        setActiveUser(active);
+        setUser(active);
+      }
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "User role could not be updated.");
+      return false;
+    }
+  };
+
+  const toggleUserStatus = async (userId: string): Promise<boolean> => {
     const targetUser = usersList.find((u) => u.id === userId);
     const newStatus = targetUser?.status === "active" ? ("suspended" as const) : ("active" as const);
-
-    const updated = usersList.map((u) =>
-      u.id === userId ? { ...u, status: newStatus } : u
-    );
-    saveStoredUsers(updated);
-    setUsersList(updated);
-
-    // Persist to Firestore
-    fetch("/api/users", {
-      method: "PATCH",
-      headers: getAuthHeaders(),
-      credentials: "include",
-      body: JSON.stringify({ userId, updates: { status: newStatus } }),
-    }).catch(() => {});
+    if (!targetUser) return false;
+    setMutationError(null);
+    try {
+      const response = await apiFetch(`users/${encodeURIComponent(userId)}`, {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ status: newStatus }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "User status could not be updated.");
+      const updated = usersList.map((item) => item.id === userId ? { ...item, status: newStatus } : item);
+      saveStoredUsers(updated);
+      setUsersList(updated);
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "User status could not be updated.");
+      return false;
+    }
   };
 
-  const deleteUser = (userId: string) => {
-    const updated = usersList.filter((u) => u.id !== userId);
-    saveStoredUsers(updated);
-    setUsersList(updated);
-
-    // Persist to Firestore
-    fetch(`/api/users?userId=${encodeURIComponent(userId)}`, {
-      method: "DELETE",
-      headers: getAuthHeaders(),
-      credentials: "include",
-    }).catch(() => {});
+  const deleteUser = async (userId: string): Promise<boolean> => {
+    setMutationError(null);
+    try {
+      const response = await apiFetch(`users/${encodeURIComponent(userId)}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "User could not be deleted.");
+      const updated = usersList.filter((item) => item.id !== userId);
+      saveStoredUsers(updated);
+      setUsersList(updated);
+      return true;
+    } catch (error) {
+      setMutationError(error instanceof Error ? error.message : "User could not be deleted.");
+      return false;
+    }
   };
 
   const syncWithDatabase = async (): Promise<{ success: boolean; message: string }> => {
     try {
-      const res = await fetch("/api/migrate", {
+      const res = await apiFetch("products/seed", {
         method: "POST",
         headers: getAuthHeaders(),
-        credentials: "include",
-        body: JSON.stringify({
-          users: usersList,
-          orders: orders,
-        }),
       });
       const data = await res.json();
-      if (data.success) {
-        return { success: true, message: data.message || "Data successfully verified with PostgreSQL backend." };
+      if (res.ok) {
+        return { success: true, message: data.message || "NestJS catalog seed completed." };
       }
       return { success: false, message: data.error || "Sync encountered an issue." };
     } catch {
@@ -508,6 +594,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     updateOrderDetails,
     deleteOrder,
     usersList,
+    mutationError,
     addUser,
     updateUserRole,
     toggleUserStatus,

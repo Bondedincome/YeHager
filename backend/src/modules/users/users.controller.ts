@@ -19,7 +19,7 @@ import { Role } from './entities/user.entity';
 @ApiTags('Users')
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   @Post()
   @Roles(Role.ADMIN)
@@ -63,6 +63,10 @@ export class UsersController {
       delete (updateUserDto as any).role;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (updateUserDto as any).status;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (updateUserDto as any).totalOrders;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      delete (updateUserDto as any).totalSpentUSD;
     }
 
     return this.usersService.update(id, updateUserDto);

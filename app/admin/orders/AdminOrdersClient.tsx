@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -30,7 +30,8 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../components/AuthProvider";
 import { CustomerOrder, OrderStatus } from "../../lib/auth-store";
-import { getAllProducts, Product } from "../../lib/products-store";
+import { Product } from "../../lib/products-store";
+import { apiFetch } from "../../lib/api";
 import { getStoreSettings } from "../../lib/settings-store";
 
 export default function AdminOrdersClient() {
@@ -84,8 +85,18 @@ export default function AdminOrdersClient() {
     internalNotes: "Manual VIP boutique walk-in order",
   });
 
-  const catalogProducts = useMemo(() => getAllProducts(), []);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
   const settings = useMemo(() => getStoreSettings(), []);
+
+  useEffect(() => {
+    apiFetch("products")
+      .then((response) => response.ok ? response.json() : [])
+      .then((payload) => {
+        const items = Array.isArray(payload) ? payload : payload?.data;
+        setCatalogProducts(Array.isArray(items) ? items : []);
+      })
+      .catch(() => setCatalogProducts([]));
+  }, []);
 
   const filteredOrders = useMemo(() => {
     return orders.filter((o) => {
@@ -129,35 +140,36 @@ export default function AdminOrdersClient() {
     }
   };
 
-  const handleSaveTracking = (orderId: string) => {
-    updateOrderDetails(orderId, {
+  const handleSaveTracking = async (orderId: string) => {
+    const saved = await updateOrderDetails(orderId, {
       trackingNumber: trackingInput.trim(),
       carrier: carrierInput,
       status: "shipped", // Auto promote to shipped when tracking is entered
     });
-    setEditingTrackingId(null);
+    if (saved) setEditingTrackingId(null);
   };
 
-  const handleSaveNotes = (orderId: string) => {
-    updateOrderDetails(orderId, { internalNotes: notesInput.trim() });
-    setEditingNotesId(null);
+  const handleSaveNotes = async (orderId: string) => {
+    const saved = await updateOrderDetails(orderId, { internalNotes: notesInput.trim() });
+    if (saved) setEditingNotesId(null);
   };
 
-  const handleDeleteOrder = (order: CustomerOrder) => {
+  const handleDeleteOrder = async (order: CustomerOrder) => {
     if (confirm(`Remove order #${order.orderNumber} for ${order.customerName}?`)) {
-      deleteOrder(order.id);
+      await deleteOrder(order.id);
     }
   };
 
   const handleCreateManualOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    const product = catalogProducts.find((p) => p.id === Number(manualForm.selectedProductId)) || catalogProducts[0];
+    const product = catalogProducts.find((p) => String(p.id) === manualForm.selectedProductId) || catalogProducts[0];
     if (!product) return;
 
     const totalUSD = product.price * manualForm.quantity;
     const totalETB = totalUSD * settings.exchangeRateUSDToETB;
 
-    await placeOrder({
+    try {
+      await placeOrder({
       customerEmail: manualForm.customerEmail.trim(),
       customerName: manualForm.customerName.trim(),
       items: [
@@ -184,7 +196,10 @@ export default function AdminOrdersClient() {
       },
       carrier: "Atelier Courier",
       internalNotes: manualForm.internalNotes,
-    });
+      });
+    } catch {
+      return;
+    }
 
     setShowManualModal(false);
     setManualForm({

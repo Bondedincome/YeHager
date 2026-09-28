@@ -20,7 +20,7 @@ import { Role } from '../users/entities/user.entity';
 @ApiTags('Orders')
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(private readonly ordersService: OrdersService) { }
 
   @Post()
   @OptionalAuth()
@@ -29,6 +29,8 @@ export class OrdersController {
     // If authenticated, automatically bind user ID to the order
     if (req.user?.id) {
       dto.userId = req.user.id;
+    } else {
+      delete dto.userId;
     }
     return this.ordersService.create(dto);
   }

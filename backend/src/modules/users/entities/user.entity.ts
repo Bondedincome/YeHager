@@ -29,6 +29,10 @@ export class User extends BaseModel {
   @Column()
   email: string;
 
+  @Index('IDX_user_username', { unique: true })
+  @Column({ nullable: true })
+  username: string;
+
   @Column({ select: false, nullable: true })
   password: string;
 

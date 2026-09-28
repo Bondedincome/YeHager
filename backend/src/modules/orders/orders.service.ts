@@ -3,13 +3,15 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Order, OrderStatus, PaymentStatus } from './entities/order.entity';
 import { OrderItem } from './entities/order-item.entity';
+import { User } from '../users/entities/user.entity';
 
 @Injectable()
 export class OrdersService {
   constructor(
     @InjectRepository(Order) private readonly orderRepo: Repository<Order>,
     @InjectRepository(OrderItem) private readonly orderItemRepo: Repository<OrderItem>,
-  ) {}
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+  ) { }
 
   async create(dto: any): Promise<Order> {
     const orderNumber =
@@ -38,7 +40,12 @@ export class OrdersService {
       notes: dto.notes || null,
     });
 
-    return this.orderRepo.save(order);
+    const savedOrder = await this.orderRepo.save(order);
+    if (dto.userId) {
+      await this.userRepo.increment({ id: dto.userId }, 'totalOrders', 1);
+      await this.userRepo.increment({ id: dto.userId }, 'totalSpentUSD', Number(savedOrder.total));
+    }
+    return savedOrder;
   }
 
   async findAll(): Promise<Order[]> {

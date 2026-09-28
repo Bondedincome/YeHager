@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Heart, ChevronDown, Check, X } from "lucide-react";
-import { Product, getAllProducts } from "../lib/products-store";
+import { Product } from "../lib/products-store";
+import { apiFetch } from "../lib/api";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "./WishlistProvider";
 
@@ -15,8 +16,17 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const { addItem } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
 
-  const allProducts = getAllProducts();
-  const relatedProducts = allProducts.filter((p) => p.id !== product.id).slice(0, 4);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    apiFetch("products")
+      .then((response) => response.ok ? response.json() : [])
+      .then((payload) => {
+        const items = Array.isArray(payload) ? payload : payload?.data;
+        setRelatedProducts(Array.isArray(items) ? items.filter((item) => item.id !== product.id).slice(0, 4) : []);
+      })
+      .catch(() => setRelatedProducts([]));
+  }, [product.id]);
 
   const isFav = isInWishlist(product.id);
 

@@ -16,7 +16,7 @@ import { useCart } from "../components/CartProvider";
 import { useAuth } from "../components/AuthProvider";
 
 export default function CartPage() {
-  const { items, removeItem, clear, count } = useCart();
+  const { items, removeItem, clear, count, syncError } = useCart();
   const { user, isAuthenticated, placeOrder } = useAuth();
 
   const [orderConfirmation, setOrderConfirmation] = useState<{
@@ -27,6 +27,7 @@ export default function CartPage() {
   } | null>(null);
 
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [checkoutStep, setCheckoutStep] = useState<"bag" | "payment">("bag");
 
   // Shipping & Payment Form State
@@ -52,6 +53,7 @@ export default function CartPage() {
   const handleStripePayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsCheckingOut(true);
+    setCheckoutError(null);
 
     try {
       // Simulate real Stripe payment intent lifecycle
@@ -92,10 +94,10 @@ export default function CartPage() {
         itemsCount: items.length,
       });
 
-      clear();
+      await clear();
       setCheckoutStep("bag");
-    } catch {
-      // Handle graceful error
+    } catch (error) {
+      setCheckoutError(error instanceof Error ? error.message : "Checkout could not be completed.");
     } finally {
       setIsCheckingOut(false);
     }
@@ -137,6 +139,9 @@ export default function CartPage() {
             )}
           </div>
         </div>
+
+        {syncError && <p className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{syncError}</p>}
+        {checkoutError && <p className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{checkoutError}</p>}
 
         {/* Auth prompt if not signed in */}
         {!isAuthenticated && !orderConfirmation && items.length > 0 && (

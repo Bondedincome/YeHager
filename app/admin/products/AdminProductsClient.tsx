@@ -18,44 +18,21 @@ import {
 import {
   Product,
   ProductColor,
-  getAllProducts,
-  addProduct,
-  updateProduct,
-  deleteProduct,
-  duplicateProduct,
-  setActiveProductColor,
 } from "../../lib/products-store";
-import {
-  Category,
-  getAllCategories,
-  addCategory,
-  deleteCategory,
-  updateCategory,
-} from "../../lib/categories-store";
+import { Category } from "../../lib/categories-store";
 import { getStoreSettings } from "../../lib/settings-store";
 import ProductColorManager from "../../components/ProductColorManager";
+import { apiFetch } from "../../lib/api";
 
 export default function AdminProductsClient() {
-  const [products, setProducts] = useState<Product[]>(() => {
-    try {
-      return getAllProducts();
-    } catch {
-      return [];
-    }
-  });
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [toastMsg, setToastMsg] = useState("");
 
   // Categories State
-  const [categories, setCategories] = useState<Category[]>(() => {
-    try {
-      return getAllCategories();
-    } catch {
-      return [];
-    }
-  });
+  const [categories, setCategories] = useState<Category[]>([]);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [quickCategoryTarget, setQuickCategoryTarget] = useState<"add" | "edit" | null>(null);
 
@@ -129,8 +106,7 @@ export default function AdminProductsClient() {
   };
   const [formData, setFormData] = useState(initialForm);
 
-  const base = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/$/, "");
-  const productsApi = base ? `${base}/products` : "/api/products";
+  const productsApi = "products";
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -139,32 +115,16 @@ export default function AdminProductsClient() {
 
   const loadProducts = useCallback(async () => {
     setLoading(true);
-    let loadedFromApi = false;
     try {
-      const res = await fetch(productsApi);
-      if (res.ok) {
-        const json = await res.json();
-        const items = Array.isArray(json) ? json : json?.data;
-        if (Array.isArray(items) && items.length > 0) {
-          setProducts(items);
-          loadedFromApi = true;
-        }
-      }
+      const res = await apiFetch(productsApi);
+      if (!res.ok) throw new Error(`Product request failed (${res.status})`);
+      const json = await res.json();
+      const items = Array.isArray(json) ? json : json?.data;
+      setProducts(Array.isArray(items) ? items : []);
     } catch {
-      // Chrome extension, adblocker, or network issue - fallback seamlessly to local store
+      setProducts([]);
     } finally {
       setLoading(false);
-    }
-
-    if (!loadedFromApi) {
-      try {
-        const localItems = getAllProducts();
-        if (Array.isArray(localItems) && localItems.length > 0) {
-          setProducts(localItems);
-        }
-      } catch {
-        // Safe fallback
-      }
     }
   }, [productsApi]);
 
@@ -172,11 +132,11 @@ export default function AdminProductsClient() {
     let active = true;
     const fetchCatalog = async () => {
       try {
-        const res = await fetch(productsApi);
+        const res = await apiFetch(productsApi);
         if (res.ok) {
           const json = await res.json();
           const items = Array.isArray(json) ? json : json?.data;
-          if (active && Array.isArray(items) && items.length > 0) {
+          if (active && Array.isArray(items)) {
             setProducts(items);
             return;
           }
@@ -184,16 +144,7 @@ export default function AdminProductsClient() {
       } catch {
         // Fallback silently without throwing unhandled rejection
       }
-      if (active) {
-        try {
-          const localItems = getAllProducts();
-          if (Array.isArray(localItems) && localItems.length > 0) {
-            setProducts(localItems);
-          }
-        } catch {
-          // Safe fallback
-        }
-      }
+      if (active) setProducts([]);
     };
 
     fetchCatalog();
@@ -202,22 +153,20 @@ export default function AdminProductsClient() {
     };
   }, [productsApi]);
 
-  // Category Synchronization & Handlers
   useEffect(() => {
-    const handleSync = () => {
-      setCategories(getAllCategories());
-    };
-    window.addEventListener("yehagere_categories_updated", handleSync);
-    return () => window.removeEventListener("yehagere_categories_updated", handleSync);
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/categories")
-      .then((res) => res.json())
+    apiFetch("categories")
+      .then((res) => {
+        if (!res.ok) throw new Error(`Category request failed (${res.status})`);
+        return res.json();
+      })
       .then((json) => {
         const items = Array.isArray(json) ? json : json?.data;
-        if (Array.isArray(items) && items.length > 0) {
-          setCategories(items);
+        if (Array.isArray(items)) {
+          setCategories(items.map((category) => ({
+            ...category,
+            id: category.slug || category.id,
+            apiId: category.id,
+          })));
         }
       })
       .catch(() => {});
@@ -236,20 +185,27 @@ export default function AdminProductsClient() {
     [categories]
   );
 
-  const handleCreateCategory = (target?: "add" | "edit" | "modal") => {
+  const handleCreateCategory = async (target?: "add" | "edit" | "modal") => {
     if (!newCatName.trim()) {
       setCatError("Please enter a category title");
       return;
     }
     setCatError("");
     try {
-      const created = addCategory({
+      const categoryPayload = {
         name: newCatName.trim(),
-        id: newCatSlug.trim() || undefined,
+        slug: newCatSlug.trim() || undefined,
         description: newCatDesc.trim(),
+      };
+      const response = await apiFetch("categories", {
+        method: "POST",
+        body: JSON.stringify(categoryPayload),
       });
-      const updatedList = getAllCategories();
-      setCategories(updatedList);
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || payload.error || "Failed to create category");
+      const value = payload.data ?? payload;
+      const created = { ...value, id: value.slug || value.id, apiId: value.id } as Category;
+      setCategories((prev) => [created, ...prev]);
 
       if (target === "add") {
         setFormData((prev) => ({ ...prev, category: created.id }));
@@ -264,18 +220,12 @@ export default function AdminProductsClient() {
       }
 
       showToast(`Category "${created.name}" created successfully`);
-
-      fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(created),
-      }).catch(() => {});
     } catch (err) {
       setCatError(err instanceof Error ? err.message : "Failed to create category");
     }
   };
 
-  const handleDeleteCategory = (cat: Category) => {
+  const handleDeleteCategory = async (cat: Category) => {
     const assignedCount = products.filter(
       (p) => (p.category || "").toLowerCase() === cat.id.toLowerCase()
     ).length;
@@ -287,60 +237,62 @@ export default function AdminProductsClient() {
 
     if (!confirm(confirmMsg)) return;
 
-    if (assignedCount > 0) {
-      products.forEach((p) => {
-        if ((p.category || "").toLowerCase() === cat.id.toLowerCase()) {
-          updateProduct(p.id, { category: "sets" });
-        }
-      });
-      setProducts(getAllProducts());
+    try {
+      const reassigned = products.filter((product) => (product.category || "").toLowerCase() === cat.id.toLowerCase());
+      const updates = await Promise.all(reassigned.map((product) => apiFetch(`products/${product.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ category: "sets" }),
+      })));
+      if (updates.some((response) => !response.ok)) throw new Error("Failed to reassign products from this category");
+      const response = await apiFetch(`categories/${encodeURIComponent(cat.apiId || cat.id)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to delete category");
+      setProducts((prev) => prev.map((product) => reassigned.some((item) => item.id === product.id) ? { ...product, category: "sets" } : product));
+      setCategories((prev) => prev.filter((category) => category.id !== cat.id));
+      showToast(`Category "${cat.name}" deleted.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to delete category");
     }
-
-    deleteCategory(cat.id);
-    setCategories(getAllCategories());
-    showToast(`Category "${cat.name}" deleted.`);
-
-    fetch(`/api/categories/${cat.id}`, { method: "DELETE" }).catch(() => {});
   };
 
-  const handleUpdateCategory = (catId: string) => {
+  const handleUpdateCategory = async (catId: string) => {
     if (!editingCatName.trim()) return;
-    updateCategory(catId, {
-      name: editingCatName.trim(),
-      description: editingCatDesc.trim(),
-    });
-    setCategories(getAllCategories());
-    setEditingCatId(null);
-    showToast("Category updated.");
-
-    fetch(`/api/categories/${catId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: editingCatName.trim(), description: editingCatDesc.trim() }),
-    }).catch(() => {});
+    const category = categories.find((item) => item.id === catId);
+    try {
+      const response = await apiFetch(`categories/${encodeURIComponent(category?.apiId || catId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: editingCatName.trim(), description: editingCatDesc.trim() }),
+      });
+      if (!response.ok) throw new Error("Failed to update category");
+      setCategories((prev) => prev.map((item) => item.id === catId ? {
+        ...item,
+        name: editingCatName.trim(),
+        description: editingCatDesc.trim(),
+      } : item));
+      setEditingCatId(null);
+      showToast("Category updated.");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to update category");
+    }
   };
 
   // Quick Active Color Switcher
   const handleQuickSetActiveColor = async (product: Product, colorIndex: number) => {
-    const updated = setActiveProductColor(product.id, colorIndex);
-    if (updated) {
-      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      const colorName = updated.colors?.[colorIndex]?.name || `Color #${colorIndex + 1}`;
-      showToast(`"${product.title}": Active default color set to ${colorName}`);
-    }
-
     try {
-      await fetch(`${productsApi}/${product.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+      const response = await apiFetch(`${productsApi}/${product.id}`, {
+        method: "PUT",
         body: JSON.stringify({
           activeColorIndex: colorIndex,
           activeColorName: product.colors?.[colorIndex]?.name,
           imageUrl: product.colors?.[colorIndex]?.image || product.imageUrl,
         }),
       });
-    } catch {
-      // Safe fallback
+      if (!response.ok) throw new Error("Failed to update product color");
+      const updated = { ...product, activeColorIndex: colorIndex, activeColorName: product.colors?.[colorIndex]?.name };
+      setProducts((prev) => prev.map((item) => item.id === product.id ? updated : item));
+      const colorName = updated.activeColorName || `Color #${colorIndex + 1}`;
+      showToast(`"${product.title}": Active default color set to ${colorName}`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to update product color");
     }
   };
 
@@ -379,20 +331,20 @@ export default function AdminProductsClient() {
       },
     };
 
-    const createdLocal = addProduct(payload);
-    setProducts((prev) => [createdLocal, ...prev]);
-    setFormData(initialForm);
-    setShowAddModal(false);
-    showToast(`Garment "${formData.title}" with ${formData.colors.length} colorways added to atelier catalog!`);
-
     try {
-      await fetch(productsApi, {
+      const response = await apiFetch(productsApi, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-    } catch {
-      // Safe fallback - item is already in local catalog
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || result.error || "Failed to create product");
+      const created = result.data ?? result;
+      setProducts((prev) => [created, ...prev]);
+      setFormData(initialForm);
+      setShowAddModal(false);
+      showToast(`Garment "${created.title || formData.title}" added to atelier catalog.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to create product");
     }
   };
 
@@ -404,7 +356,7 @@ export default function AdminProductsClient() {
     const activeIdx = editingProduct.activeColorIndex ?? 0;
     const activeColor = editingProduct.colors?.[activeIdx];
 
-    const updated = updateProduct(editingProduct.id, {
+    const updates = {
       ...editingProduct,
       price: Number(editingProduct.price),
       priceETB: Number(editingProduct.priceETB || editingProduct.price * settings.exchangeRateUSDToETB),
@@ -412,48 +364,34 @@ export default function AdminProductsClient() {
       activeColorIndex: activeIdx,
       activeColorName: activeColor?.name,
       imageUrl: activeColor?.image || editingProduct.imageUrl,
-    });
-    if (updated) {
-      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    }
-    showToast(`Garment #${editingProduct.id} "${editingProduct.title}" updated successfully.`);
-    setEditingProduct(null);
+    };
 
     try {
-      await fetch(`${productsApi}/${editingProduct.id}`, {
+      const response = await apiFetch(`${productsApi}/${editingProduct.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...editingProduct,
-          price: Number(editingProduct.price),
-          priceETB: Number(editingProduct.priceETB || editingProduct.price * settings.exchangeRateUSDToETB),
-          stock: Number(editingProduct.stock),
-          activeColorIndex: activeIdx,
-          activeColorName: activeColor?.name,
-          imageUrl: activeColor?.image || editingProduct.imageUrl,
-        }),
+        body: JSON.stringify(updates),
       });
-    } catch {
-      // Safe fallback
+      if (!response.ok) throw new Error("Failed to update product");
+      setProducts((prev) => prev.map((product) => product.id === editingProduct.id ? updates : product));
+      showToast(`Garment #${editingProduct.id} "${editingProduct.title}" updated successfully.`);
+      setEditingProduct(null);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to update product");
     }
   };
 
   // Quick Stock Adjustment (+ / -)
   const handleAdjustStock = async (product: Product, delta: number) => {
     const newStock = Math.max(0, (product.stock ?? 0) + delta);
-    updateProduct(product.id, { stock: newStock });
-    setProducts((prev) =>
-      prev.map((p) => (p.id === product.id ? { ...p, stock: newStock } : p))
-    );
-
     try {
-      await fetch(`${productsApi}/${product.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+      const response = await apiFetch(`${productsApi}/${product.id}`, {
+        method: "PUT",
         body: JSON.stringify({ stock: newStock }),
       });
-    } catch {
-      // Safe fallback
+      if (!response.ok) throw new Error("Failed to update stock");
+      setProducts((prev) => prev.map((item) => item.id === product.id ? { ...item, stock: newStock } : item));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to update stock");
     }
   };
 
@@ -476,34 +414,30 @@ export default function AdminProductsClient() {
       details: product.details,
     };
 
-    const duplicated = duplicateProduct(product.id);
-    if (duplicated) {
-      setProducts((prev) => [duplicated, ...prev]);
-      showToast(`Duplicated "${product.title}"`);
-    }
-
     try {
-      await fetch(productsApi, {
+      const response = await apiFetch(productsApi, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-    } catch {
-      // Safe fallback
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.message || result.error || "Failed to duplicate product");
+      setProducts((prev) => [result.data ?? result, ...prev]);
+      showToast(`Duplicated "${product.title}"`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to duplicate product");
     }
   };
 
   // Delete Product
-  const handleDelete = async (id: number, title: string) => {
+  const handleDelete = async (id: Product["id"], title: string) => {
     if (!confirm(`Are you sure you want to remove "${title}" from the atelier catalog?`)) return;
-    deleteProduct(id);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    showToast(`Item #${id} removed.`);
-
     try {
-      await fetch(`${productsApi}/${id}`, { method: "DELETE" });
-    } catch {
-      // Safe fallback
+      const response = await apiFetch(`${productsApi}/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Failed to remove product");
+      setProducts((prev) => prev.filter((product) => product.id !== id));
+      showToast(`Item #${id} removed.`);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to remove product");
     }
   };
 
@@ -511,21 +445,15 @@ export default function AdminProductsClient() {
   const handleToggleNew = async (product: Product) => {
     const isCurrentlyNew = product.tag === "New" || product.isNew;
     const nextTag = isCurrentlyNew ? "Heritage" : "New";
-    updateProduct(product.id, { tag: nextTag, isNew: !isCurrentlyNew });
-    setProducts((prev) =>
-      prev.map((p) =>
-        p.id === product.id ? { ...p, tag: nextTag, isNew: !isCurrentlyNew } : p
-      )
-    );
-
     try {
-      await fetch(`${productsApi}/${product.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+      const response = await apiFetch(`${productsApi}/${product.id}`, {
+        method: "PUT",
         body: JSON.stringify({ tag: nextTag, isNew: !isCurrentlyNew }),
       });
-    } catch {
-      // Safe fallback
+      if (!response.ok) throw new Error("Failed to update product tag");
+      setProducts((prev) => prev.map((item) => item.id === product.id ? { ...item, tag: nextTag, isNew: !isCurrentlyNew } : item));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Failed to update product tag");
     }
   };
 

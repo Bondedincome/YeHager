@@ -168,7 +168,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="client@yehagere.com or admin"
+                placeholder="client@yehagere.com or staff ID"
                 className="w-full bg-[#f4f4f4] px-4 py-3 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
                 autoComplete="username"
               />

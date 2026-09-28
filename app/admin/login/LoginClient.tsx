@@ -65,7 +65,7 @@ export default function LoginClient() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="staff@yehagere.com"
+                placeholder="staff@yehagere.com or staff ID"
                 className="w-full bg-[#f4f4f4] border-none px-4 py-3.5 text-sm text-black placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black transition-all"
                 required
                 autoComplete="username"

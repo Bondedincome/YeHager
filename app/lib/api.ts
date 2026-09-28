@@ -7,14 +7,46 @@
  *   NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
  */
 
-export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "/api";
+function resolveNestApiBase(): string {
+  const configuredBase = process.env.NEXT_PUBLIC_API_URL?.trim();
+  if (configuredBase) return configuredBase.replace(/\/$/, "");
 
-export const NESTJS_API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
-  (typeof window !== "undefined" && window.location.hostname !== "localhost"
-    ? `${window.location.protocol}//api.${window.location.hostname.replace(/^www\./, "")}/api/v1`
-    : "http://localhost:3001/api/v1");
+  if (typeof window !== "undefined") {
+    const { hostname, protocol } = window.location;
+    const apiHost = hostname === "localhost" || hostname === "127.0.0.1"
+      ? `${hostname}:3001`
+      : `api.${hostname.replace(/^www\./, "")}`;
+    return `${protocol}//${apiHost}/api/v1`;
+  }
+
+  return "http://localhost:3001/api/v1";
+}
+
+export const NESTJS_API_BASE = resolveNestApiBase();
+export const API_BASE_URL = NESTJS_API_BASE;
+
+export function apiUrl(endpoint: string): string {
+  if (/^https?:\/\//i.test(endpoint)) return endpoint;
+  return `${API_BASE_URL}/${endpoint.replace(/^\/+/, "")}`;
+}
+
+export function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers);
+  if (options.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (typeof window !== "undefined" && !headers.has("Authorization")) {
+    const token = localStorage.getItem("yehagere_auth_token");
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  return fetch(apiUrl(endpoint), {
+    ...options,
+    credentials: options.credentials ?? "include",
+    headers,
+  });
+}
 
 interface RequestOptions extends RequestInit {
   token?: string;
@@ -27,9 +59,7 @@ export async function apiClient<T = unknown>(
 ): Promise<{ data: T; error?: never } | { data?: never; error: string; status?: number }> {
   const { token, params, headers, ...customConfig } = options;
 
-  let url = endpoint.startsWith("http")
-    ? endpoint
-    : `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  let url = apiUrl(endpoint);
 
   if (params) {
     const searchParams = new URLSearchParams();
@@ -59,8 +89,7 @@ export async function apiClient<T = unknown>(
   }
 
   try {
-    const response = await fetch(url, {
-      credentials: "include",
+    const response = await apiFetch(url, {
       headers: {
         ...defaultHeaders,
         ...headers,
@@ -79,8 +108,8 @@ export async function apiClient<T = unknown>(
             ? payload.message[0]
             : payload.message
           : typeof payload === "object" && payload && "error" in payload
-          ? payload.error
-          : `Request failed with status ${response.status}`;
+            ? payload.error
+            : `Request failed with status ${response.status}`;
       return { error: String(errorMsg), status: response.status };
     }
 

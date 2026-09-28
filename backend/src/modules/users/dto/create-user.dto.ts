@@ -38,6 +38,13 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 
+  @ApiPropertyOptional({ example: 'atelier.staff' })
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  username?: string;
+
   @ApiProperty({
     example: 'StrongPassword123!',
     description: 'User password',
@@ -66,6 +73,11 @@ export class CreateUserDto {
   @IsOptional()
   @IsUrl()
   profileImage?: string;
+
+  @ApiPropertyOptional({ description: 'Serialized shipping address' })
+  @IsOptional()
+  @IsString()
+  shippingAddress?: string;
 }
 
 export class AdminCreateUserDto extends CreateUserDto {

@@ -7,7 +7,7 @@ export type ProductColor = {
 };
 
 export type Product = {
-  id: number;
+  id: number | string;
   title: string;
   name?: string;
   subtitle?: string;
@@ -476,7 +476,7 @@ function loadFromStorage(): Product[] | null {
         return parsed;
       }
     }
-  } catch {}
+  } catch { }
   return null;
 }
 
@@ -485,7 +485,7 @@ function saveToStorage(products: Product[]) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
     window.dispatchEvent(new CustomEvent("yehagere_products_sync", { detail: products }));
-  } catch {}
+  } catch { }
 }
 
 // Initialize in-memory store with storage priority or defaults
@@ -506,9 +506,8 @@ export function getAllProducts(): Product[] {
 }
 
 export function getProductById(id: number | string): Product | undefined {
-  const numId = Number(id);
   const products = getAllProducts();
-  return products.find((p) => p.id === numId);
+  return products.find((product) => String(product.id) === String(id));
 }
 
 export type CreateProductInput = {
@@ -535,21 +534,22 @@ export type CreateProductInput = {
     fabric: string;
     care: string;
   };
-  id?: number;
+  id?: number | string;
 };
 
 export function addProduct(product: CreateProductInput): Product {
   const products = getAllProducts();
-  const nextId = product.id ?? (products.length > 0 ? Math.max(...products.map((p) => p.id)) + 1 : 1);
+  const numericIds = products.map((item) => item.id).filter((id): id is number => typeof id === "number");
+  const nextId = product.id ?? (numericIds.length > 0 ? Math.max(...numericIds) + 1 : 1);
   const etbValue = product.priceETB ?? (product.price ? product.price * 125 : 26100);
 
   const colors = product.colors && product.colors.length > 0
     ? product.colors
     : [
-        { name: "Violet", hex: "#7071e8", active: true },
-        { name: "Off White", hex: "#f3f4f6", active: true },
-        { name: "Charcoal", hex: "#27272a", active: true },
-      ];
+      { name: "Violet", hex: "#7071e8", active: true },
+      { name: "Off White", hex: "#f3f4f6", active: true },
+      { name: "Charcoal", hex: "#27272a", active: true },
+    ];
 
   const activeIdx = typeof product.activeColorIndex === "number" && product.activeColorIndex >= 0 && product.activeColorIndex < colors.length
     ? product.activeColorIndex
@@ -594,9 +594,8 @@ export function addProduct(product: CreateProductInput): Product {
 }
 
 export function updateProduct(id: number | string, updates: Partial<Product>): Product | undefined {
-  const numId = Number(id);
   const products = getAllProducts();
-  const index = products.findIndex((p) => p.id === numId);
+  const index = products.findIndex((product) => String(product.id) === String(id));
   if (index === -1) return undefined;
 
   const existing = products[index];
@@ -605,7 +604,7 @@ export function updateProduct(id: number | string, updates: Partial<Product>): P
 
   const colors = updates.colors !== undefined ? updates.colors : existing.colors;
   let activeColorIndex = updates.activeColorIndex !== undefined ? updates.activeColorIndex : existing.activeColorIndex;
-  
+
   if (colors && colors.length > 0) {
     if (activeColorIndex === undefined || activeColorIndex < 0 || activeColorIndex >= colors.length) {
       activeColorIndex = 0;
@@ -613,11 +612,11 @@ export function updateProduct(id: number | string, updates: Partial<Product>): P
   }
 
   const activeColorName = updates.activeColorName || (colors && colors[activeColorIndex ?? 0]?.name) || existing.activeColorName;
-  
+
   const updated: Product = {
     ...existing,
     ...updates,
-    id: numId,
+    id: existing.id,
     price: updatedPrice,
     priceETB: updatedETB,
     formattedPriceETB: updates.formattedPriceETB || `Br${updatedETB.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB`,
@@ -645,9 +644,8 @@ export function updateProduct(id: number | string, updates: Partial<Product>): P
  * Quick helper to set the active/default color for a product in admin
  */
 export function setActiveProductColor(productId: number | string, colorIndexOrName: number | string): Product | undefined {
-  const numId = Number(productId);
   const products = getAllProducts();
-  const product = products.find((p) => p.id === numId);
+  const product = products.find((item) => String(item.id) === String(productId));
   if (!product || !product.colors || product.colors.length === 0) return undefined;
 
   let targetIndex = 0;
@@ -659,7 +657,7 @@ export function setActiveProductColor(productId: number | string, colorIndexOrNa
   }
 
   const activeColor = product.colors[targetIndex];
-  return updateProduct(numId, {
+  return updateProduct(productId, {
     activeColorIndex: targetIndex,
     activeColorName: activeColor?.name,
     // When changing the active default color, also sync the hero imageUrl if color has its own image
@@ -681,11 +679,10 @@ export function duplicateProduct(id: number | string): Product | undefined {
 }
 
 export function deleteProduct(id: number | string): boolean {
-  const numId = Number(id);
   const products = getAllProducts();
-  const exists = products.some((p) => p.id === numId);
+  const exists = products.some((product) => String(product.id) === String(id));
   if (exists) {
-    const remaining = products.filter((p) => p.id !== numId);
+    const remaining = products.filter((product) => String(product.id) !== String(id));
     globalThis.__YEHAGERE_PRODUCTS__ = remaining;
     saveToStorage(remaining);
     return true;

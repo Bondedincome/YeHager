@@ -2,10 +2,12 @@
 
 import React, { useState } from "react";
 import LogoMark from "../components/LogoMark";
+import { apiFetch } from "../lib/api";
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -16,17 +18,21 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      await fetch("/api/inquiries", {
+      const response = await apiFetch("inquiries", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.message || payload?.error || "Inquiry could not be submitted");
+      }
+      setSubmitted(true);
     } catch {
-      // Fallback gracefully to client acknowledgment
+      setSubmitError("Your inquiry could not be sent. Please try again.");
     } finally {
       setIsSubmitting(false);
-      setSubmitted(true);
     }
   };
 
@@ -62,6 +68,7 @@ export default function ContactPage() {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
+            {submitError && <p className="text-sm text-red-700" role="alert">{submitError}</p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-black uppercase tracking-wider">

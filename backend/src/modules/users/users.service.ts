@@ -50,6 +50,7 @@ export class UsersService implements OnModuleInit {
           lastName: 'Mihrete',
           name: 'Daniot Mihrete',
           email: 'daniot.mihrete-ug@aau.edu.et',
+          username: 'daniot.mihrete-ug',
           password: passwordHash,
           passwordHash,
           role: Role.ADMIN,
@@ -71,8 +72,10 @@ export class UsersService implements OnModuleInit {
     const existing = await this.repo.findOne({ where: { email: createUserDto.email } });
     if (existing) throw new ConflictException('Email is already registered');
     const passwordHash = await bcrypt.hash(createUserDto.password, 12);
+    const username = await this.resolveUsername(createUserDto.username || createUserDto.email.split('@')[0]);
     const user = this.repo.create({
       ...createUserDto,
+      username,
       role: Role.CUSTOMER, // Always strictly assign customer for patron self-registration
       password: passwordHash,
       passwordHash,
@@ -87,8 +90,10 @@ export class UsersService implements OnModuleInit {
     const existing = await this.repo.findOne({ where: { email: adminCreateUserDto.email } });
     if (existing) throw new ConflictException('Email is already registered');
     const passwordHash = await bcrypt.hash(adminCreateUserDto.password, 12);
+    const username = await this.resolveUsername(adminCreateUserDto.username || adminCreateUserDto.email.split('@')[0]);
     const user = this.repo.create({
       ...adminCreateUserDto,
+      username,
       role: adminCreateUserDto.role || Role.CUSTOMER,
       password: passwordHash,
       passwordHash,
@@ -135,13 +140,40 @@ export class UsersService implements OnModuleInit {
       select: includePassword
         ? undefined
         : {
-            id: true,
-            email: true,
-            name: true,
-            role: true,
-            status: true,
-            requiresPasswordChange: true,
-          },
+          id: true,
+          email: true,
+          name: true,
+          role: true,
+          status: true,
+          requiresPasswordChange: true,
+        },
+    });
+  }
+
+  async findByIdentifier(identifier: string) {
+    if (!this.repo) return undefined;
+    const normalized = identifier.trim().toLowerCase();
+    return this.repo.findOne({
+      where: [{ email: normalized }, { username: normalized }],
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        name: true,
+        password: true,
+        passwordHash: true,
+        status: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        profileImage: true,
+        memberSince: true,
+        totalOrders: true,
+        totalSpentUSD: true,
+        phone: true,
+        shippingAddress: true,
+        requiresPasswordChange: true,
+      },
     });
   }
 
@@ -168,8 +200,8 @@ export class UsersService implements OnModuleInit {
     }
   }
 
-  async validatePassword(email: string, password: string) {
-    const user = await this.findByEmail(email, true);
+  async validatePassword(identifier: string, password: string) {
+    const user = await this.findByIdentifier(identifier);
     if (!user || user.status === UserStatus.SUSPENDED) return null;
     const ok = await bcrypt.compare(password, user.passwordHash ?? user.password);
     return ok ? this.sanitize(user) : null;
@@ -178,5 +210,16 @@ export class UsersService implements OnModuleInit {
   sanitize(user: User) {
     const { password, passwordHash, passwordSalt, ...safeUser } = user;
     return safeUser;
+  }
+
+  private async resolveUsername(value: string): Promise<string> {
+    const base = value.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 40) || 'patron';
+    let username = base;
+    let suffix = 2;
+    while (await this.repo?.findOneBy({ username })) {
+      const suffixText = String(suffix++);
+      username = `${base.slice(0, 50 - suffixText.length)}${suffixText}`;
+    }
+    return username;
   }
 }

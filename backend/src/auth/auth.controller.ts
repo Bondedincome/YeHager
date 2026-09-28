@@ -9,13 +9,13 @@ type AuthenticatedRequest = Request & {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   @Public()
   @Post('login')
-  async login(@Body() body: { email: string; password: string }, @Res({ passthrough: true }) response: Response) {
+  async login(@Body() body: { identifier?: string; email?: string; password: string }, @Res({ passthrough: true }) response: Response) {
     const user = await this.authService.validateUser(
-      body.email,
+      body.identifier || body.email || '',
       body.password,
     );
     if (!user) throw new UnauthorizedException('Invalid credentials');

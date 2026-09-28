@@ -9,7 +9,7 @@ import AdminFooter from "./AdminFooter";
 import { useAuth } from "./AuthProvider";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, authLoading } = useAuth();
+  const { user, isAdmin, authLoading, mutationError } = useAuth();
 
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window !== "undefined") {
@@ -116,7 +116,14 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
           onOpenMobile={() => setMobileOpen(true)}
         />
 
-        <main className="flex-1 min-w-0 bg-[#f8f8f8]">{children}</main>
+        <main className="flex-1 min-w-0 bg-[#f8f8f8]">
+          {mutationError && (
+            <div className="mx-4 mt-4 border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+              {mutationError}
+            </div>
+          )}
+          {children}
+        </main>
 
         <AdminFooter />
       </div>

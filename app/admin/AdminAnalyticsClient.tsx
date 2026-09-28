@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -33,8 +33,9 @@ import {
 } from "recharts";
 import { useAuth } from "../components/AuthProvider";
 import { useAppearance } from "../components/AppearanceProvider";
-import { getAllProducts, updateProduct } from "../lib/products-store";
-import { getAllCategories } from "../lib/categories-store";
+import { Product } from "../lib/products-store";
+import { Category } from "../lib/categories-store";
+import { apiFetch } from "../lib/api";
 import { getStoreSettings, updateStoreSettings } from "../lib/settings-store";
 
 export default function AdminAnalyticsClient() {
@@ -45,9 +46,32 @@ export default function AdminAnalyticsClient() {
   const [announcementText, setAnnouncementText] = useState(cms.announcement.text);
   const [announcementSaved, setAnnouncementSaved] = useState(false);
   const [rateSaved, setRateSaved] = useState(false);
-  const [productsList, setProductsList] = useState(() => getAllProducts());
+  const [productsList, setProductsList] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
 
   const [timeRange, setTimeRange] = useState<"7d" | "30d" | "all">("30d");
+
+  useEffect(() => {
+    Promise.all([apiFetch("products"), apiFetch("categories")])
+      .then(async ([productsResponse, categoriesResponse]) => {
+        const [productsPayload, categoriesPayload] = await Promise.all([
+          productsResponse.ok ? productsResponse.json() : [],
+          categoriesResponse.ok ? categoriesResponse.json() : [],
+        ]);
+        const products = productsPayload?.data ?? productsPayload;
+        const categoryItems = categoriesPayload?.data ?? categoriesPayload;
+        setProductsList(Array.isArray(products) ? products : []);
+        setCategories(Array.isArray(categoryItems) ? categoryItems.map((category) => ({
+          ...category,
+          id: category.slug || category.id,
+          apiId: category.id,
+        })) : []);
+      })
+      .catch(() => {
+        setProductsList([]);
+        setCategories([]);
+      });
+  }, []);
 
   // Key KPI calculations
   const totalRevenueUSD = useMemo(() => {
@@ -64,13 +88,17 @@ export default function AdminAnalyticsClient() {
     return productsList.filter((p) => (p.stock ?? 10) <= (storeSettings.lowStockThreshold || 5));
   }, [productsList, storeSettings.lowStockThreshold]);
 
-  const handleQuickRestock = (productId: number) => {
+  const handleQuickRestock = async (productId: Product["id"]) => {
     const p = productsList.find((x) => x.id === productId);
     if (!p) return;
     const current = p.stock ?? 10;
-    const updated = updateProduct(productId, { stock: current + 10 });
-    if (updated) {
-      setProductsList(getAllProducts());
+    const newStock = current + 10;
+    const response = await apiFetch(`products/${productId}`, {
+      method: "PUT",
+      body: JSON.stringify({ stock: newStock }),
+    });
+    if (response.ok) {
+      setProductsList((prev) => prev.map((product) => product.id === productId ? { ...product, stock: newStock } : product));
     }
   };
 
@@ -137,13 +165,12 @@ export default function AdminAnalyticsClient() {
       "#0d9488",
     ];
 
-    const allCats = getAllCategories();
-    return allCats.map((cat, idx) => ({
+    return categories.map((cat, idx) => ({
       name: cat.name,
       value: counts[cat.id.toLowerCase()] || 0,
       color: palette[idx % palette.length],
     }));
-  }, [productsList]);
+  }, [productsList, categories]);
 
   // Order status counts
   const pendingOrders = orders.filter((o) => o.status === "confirmed" || o.status === "preparing").length;

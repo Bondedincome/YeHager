@@ -1,17 +1,21 @@
 import Link from "next/link";
-import { getProductById, getAllProducts } from "../../lib/products-store";
+import { NESTJS_API_BASE } from "../../lib/api";
 import ProductDetailClient from "../../components/ProductDetailClient";
-
-export async function generateStaticParams() {
-  const products = getAllProducts();
-  return products.map((p) => ({
-    id: String(p.id),
-  }));
-}
 
 export default async function ProductPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const product = getProductById(id);
+  let product = null;
+  try {
+    const response = await fetch(`${NESTJS_API_BASE}/products/${encodeURIComponent(id)}`, {
+      cache: "no-store",
+    });
+    if (response.ok) {
+      const payload = await response.json();
+      product = payload.data ?? payload;
+    }
+  } catch {
+    product = null;
+  }
 
   if (!product) {
     return (

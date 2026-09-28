@@ -8,7 +8,7 @@ import { GENDER, Product, STATUS } from './entities/product.entity';
 export class ProductsService implements OnModuleInit {
   constructor(
     @InjectRepository(Product) private readonly repo: Repository<Product>,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     try {
@@ -164,6 +164,7 @@ export class ProductsService implements OnModuleInit {
 
   create(dto: CreateProductDto | any): Promise<Product> {
     const title = dto.title || dto.name || 'Untitled';
+    const { category, ...productData } = dto;
     const slug =
       dto.slug ||
       title
@@ -172,10 +173,11 @@ export class ProductsService implements OnModuleInit {
         .replace(/(^-|-$)+/g, '');
 
     const product = this.repo.create({
-      ...dto,
+      ...productData,
       title,
       name: title,
       slug,
+      categoryName: category ?? dto.categoryName,
       gender: dto.gender ?? GENDER.UNISEX,
       status: dto.status ?? STATUS.ACTIVE,
       brand: dto.brand ?? 'YeHagere',
@@ -186,7 +188,9 @@ export class ProductsService implements OnModuleInit {
 
   async update(id: string, dto: Partial<CreateProductDto> | any): Promise<Product> {
     const product = await this.findOne(id);
-    Object.assign(product, dto);
+    const { category, ...productData } = dto;
+    Object.assign(product, productData);
+    if (category !== undefined) product.categoryName = category;
     if (dto.title && !dto.name) {
       product.name = dto.title;
     }

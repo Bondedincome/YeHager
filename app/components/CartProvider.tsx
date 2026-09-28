@@ -1,9 +1,11 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useAuth } from "./AuthProvider";
+import { apiFetch } from "../lib/api";
 
 export type CartItem = {
-  id: number;
+  id: number | string;
   title: string;
   price: number;
   quantity: number;
@@ -15,9 +17,10 @@ export type CartItem = {
 type CartContextValue = {
   items: CartItem[];
   addItem: (item: Omit<CartItem, "quantity">, qty?: number) => void;
-  removeItem: (id: number) => void;
+  removeItem: (id: number | string) => void;
   clear: () => void;
   count: number;
+  syncError: string | null;
 };
 
 const CartContext = createContext<CartContextValue | undefined>(undefined);
@@ -63,29 +66,135 @@ function setCartSnapshot(items: CartItem[]) {
   window.dispatchEvent(new Event(CART_UPDATED_EVENT));
 }
 
-export function CartProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const items = useSyncExternalStore(subscribeToCart, getCartSnapshot, () => emptyCart);
+function lineKey(item: Pick<CartItem, "id" | "size" | "color">) {
+  return `${item.id}:${item.size ?? ""}:${item.color ?? ""}`;
+}
 
-  const addItem = useCallback((item: Omit<CartItem, "quantity">, qty = 1) => {
-    const itemExists = items.some((cartItem) => cartItem.id === item.id);
+function normalizeCartItems(items: unknown): CartItem[] {
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => ({
+    id: item.productId ?? item.id,
+    title: item.title,
+    price: Number(item.price) || 0,
+    quantity: Number(item.quantity) || 1,
+    imageUrl: item.imageUrl,
+    size: item.size,
+    color: item.color,
+  }));
+}
+
+export function CartProvider({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { user, authLoading } = useAuth();
+  const items = useSyncExternalStore(subscribeToCart, getCartSnapshot, () => emptyCart);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const previousUserId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (authLoading) return;
+    const userId = user?.id ?? null;
+    const changedAccount = previousUserId.current !== null && previousUserId.current !== userId;
+    if (changedAccount) setCartSnapshot([]);
+    previousUserId.current = userId;
+    if (!userId) return;
+
+    let active = true;
+    const guestItems = changedAccount
+      ? []
+      : getCartSnapshot().filter((item) => typeof item.id === "string" && /^[0-9a-f-]{36}$/i.test(item.id));
+    apiFetch("cart")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not load your saved cart.");
+        const payload = await response.json();
+        const remoteItems = normalizeCartItems((payload.data ?? payload).items);
+        const merged = new Map(remoteItems.map((item) => [lineKey(item), item]));
+        for (const item of guestItems) {
+          const key = lineKey(item);
+          const existing = merged.get(key);
+          merged.set(key, { ...item, quantity: item.quantity + (existing?.quantity ?? 0) });
+        }
+
+        const nextItems = [...merged.values()];
+        const saveResponse = await apiFetch("cart", {
+          method: "PUT",
+          body: JSON.stringify({ items: nextItems.map((item) => ({
+            productId: String(item.id),
+            quantity: item.quantity,
+            size: item.size,
+            color: item.color,
+          })) }),
+        });
+        const savedPayload = await saveResponse.json();
+        if (!saveResponse.ok) throw new Error(savedPayload.message || "Could not sync your cart.");
+        if (active) {
+          setCartSnapshot(normalizeCartItems((savedPayload.data ?? savedPayload).items));
+          setSyncError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) setSyncError(error instanceof Error ? error.message : "Could not sync your cart.");
+      });
+
+    return () => { active = false; };
+  }, [authLoading, user?.id]);
+
+  const persistIfSignedIn = useCallback(async (nextItems: CartItem[], previousItems: CartItem[]) => {
+    if (!user) return;
+    setSyncError(null);
+    try {
+      const response = await apiFetch("cart", {
+        method: "PUT",
+        body: JSON.stringify({ items: nextItems.map((item) => ({
+          productId: String(item.id),
+          quantity: item.quantity,
+          size: item.size,
+          color: item.color,
+        })) }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message || "Could not save your cart.");
+      setCartSnapshot(normalizeCartItems((payload.data ?? payload).items));
+    } catch (error) {
+      setCartSnapshot(previousItems);
+      setSyncError(error instanceof Error ? error.message : "Could not save your cart.");
+    }
+  }, [user]);
+
+  const addItem = useCallback(async (item: Omit<CartItem, "quantity">, qty = 1) => {
+    const previousItems = items;
+    const itemExists = items.some((cartItem) => lineKey(cartItem) === lineKey(item));
     const nextItems = itemExists
-      ? items.map((cartItem) =>
-          cartItem.id === item.id ? { ...cartItem, quantity: cartItem.quantity + qty } : cartItem,
-        )
+      ? items.map((cartItem) => lineKey(cartItem) === lineKey(item)
+          ? { ...cartItem, quantity: cartItem.quantity + qty }
+          : cartItem)
       : [...items, { ...item, quantity: qty }];
     setCartSnapshot(nextItems);
-  }, [items]);
+    await persistIfSignedIn(nextItems, previousItems);
+  }, [items, persistIfSignedIn]);
 
-  const removeItem = useCallback((id: number) => {
-    setCartSnapshot(items.filter((item) => item.id !== id));
-  }, [items]);
+  const removeItem = useCallback(async (id: number | string) => {
+    const previousItems = items;
+    const nextItems = items.filter((item) => item.id !== id);
+    setCartSnapshot(nextItems);
+    await persistIfSignedIn(nextItems, previousItems);
+  }, [items, persistIfSignedIn]);
 
-  const clear = useCallback(() => {
+  const clear = useCallback(async () => {
+    const previousItems = items;
     setCartSnapshot(emptyCart);
-  }, []);
+    if (user) {
+      try {
+        const response = await apiFetch("cart", { method: "DELETE" });
+        if (!response.ok) throw new Error("Could not clear your saved cart.");
+        setSyncError(null);
+      } catch (error) {
+        setCartSnapshot(previousItems);
+        setSyncError(error instanceof Error ? error.message : "Could not clear your saved cart.");
+      }
+    }
+  }, [items, user]);
 
   const count = items.reduce((total, item) => total + item.quantity, 0);
-  const value = useMemo(() => ({ items, addItem, removeItem, clear, count }), [items, addItem, removeItem, clear, count]);
+  const value = useMemo(() => ({ items, addItem, removeItem, clear, count, syncError }), [items, addItem, removeItem, clear, count, syncError]);
 
   return (
     <CartContext.Provider value={value}>

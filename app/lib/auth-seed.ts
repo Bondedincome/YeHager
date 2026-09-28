@@ -24,7 +24,7 @@ export type AppUser = {
 };
 
 export type OrderItem = {
-  id: number;
+  id: number | string;
   title: string;
   price: number;
   priceETB?: number;

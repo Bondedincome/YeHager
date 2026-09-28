@@ -9,8 +9,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) { }
 
-  async validateUser(username: string, password: string) {
-    return this.usersService.validatePassword(username, password);
+  async validateUser(identifier: string, password: string) {
+    return this.usersService.validatePassword(identifier, password);
   }
 
   async login(user: any) {

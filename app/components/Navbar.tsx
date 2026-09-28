@@ -19,7 +19,8 @@ import LogoMark from "./LogoMark";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "./WishlistProvider";
 import { useAuth } from "./AuthProvider";
-import { getAllProducts, Product } from "../lib/products-store";
+import { Product } from "../lib/products-store";
+import { apiFetch } from "../lib/api";
 
 export default function Navbar() {
   const router = useRouter();
@@ -30,13 +31,14 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const searchResults =
     searchQuery.trim().length > 1
-      ? getAllProducts()
+      ? catalogProducts
           .filter(
             (p: Product) =>
               p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -45,6 +47,16 @@ export default function Navbar() {
           )
           .slice(0, 5)
       : [];
+
+  useEffect(() => {
+    apiFetch("products")
+      .then((response) => response.ok ? response.json() : [])
+      .then((payload) => {
+        const items = Array.isArray(payload) ? payload : payload?.data;
+        setCatalogProducts(Array.isArray(items) ? items : []);
+      })
+      .catch(() => setCatalogProducts([]));
+  }, []);
 
   // Lock background scroll when mobile menu is open
   useEffect(() => {

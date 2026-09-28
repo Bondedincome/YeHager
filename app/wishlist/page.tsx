@@ -1,15 +1,26 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { useWishlist } from "../components/WishlistProvider";
-import { getAllProducts } from "../lib/products-store";
+import { Product } from "../lib/products-store";
 import MicroProductCard from "../components/MicroProductCard";
+import { apiFetch } from "../lib/api";
 
 export default function WishlistPage() {
-  const { wishlistIds, toggleWishlist } = useWishlist();
-  const allProducts = getAllProducts();
+  const { wishlistIds, toggleWishlist, syncError } = useWishlist();
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    apiFetch("products")
+      .then((response) => response.ok ? response.json() : [])
+      .then((payload) => {
+        const items = Array.isArray(payload) ? payload : payload?.data;
+        setAllProducts(Array.isArray(items) ? items : []);
+      })
+      .catch(() => setAllProducts([]));
+  }, []);
 
   const savedProducts = allProducts.filter((p) => wishlistIds.includes(p.id));
 
@@ -34,6 +45,8 @@ export default function WishlistPage() {
             Return to Store
           </Link>
         </div>
+
+        {syncError && <p className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{syncError}</p>}
 
         {savedProducts.length === 0 ? (
           <div className="py-24 text-center space-y-4 max-w-md mx-auto">

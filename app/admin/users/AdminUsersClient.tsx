@@ -30,6 +30,7 @@ export default function AdminUsersClient() {
   // New User Form State
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [newRole, setNewRole] = useState<UserRole>("customer");
   const [newPhone, setNewPhone] = useState("");
   const [newStreet, setNewStreet] = useState("");
@@ -44,13 +45,14 @@ export default function AdminUsersClient() {
     return matchesSearch && matchesRole;
   });
 
-  const handleCreateUser = (e: React.FormEvent) => {
+  const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName || !newEmail) return;
+    if (!newName || !newEmail || !newPassword) return;
 
-    addUser({
+    const created = await addUser({
       name: newName.trim(),
       email: newEmail.trim().toLowerCase(),
+      password: newPassword,
       role: newRole,
       status: "active",
       phone: newPhone || undefined,
@@ -64,10 +66,12 @@ export default function AdminUsersClient() {
           }
         : undefined,
     });
+      if (!created) return;
 
     setIsAddModalOpen(false);
     setNewName("");
     setNewEmail("");
+    setNewPassword("");
     setNewRole("customer");
     setNewPhone("");
     setNewStreet("");
@@ -435,6 +439,19 @@ export default function AdminUsersClient() {
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
                   placeholder="e.g. liya@atelier.com"
+                  className="w-full bg-[#f4f4f4] px-3.5 py-2.5 text-sm text-black focus:outline-none focus:ring-1 focus:ring-black"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold uppercase tracking-wider text-black">Initial Password</label>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,}"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                   className="w-full bg-[#f4f4f4] px-3.5 py-2.5 text-sm text-black focus:outline-none focus:ring-1 focus:ring-black"
                 />
               </div>

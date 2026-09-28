@@ -32,6 +32,18 @@ export class Cart extends BaseModel {
   })
   total: number;
 
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  itemsData: Array<{
+    id: string;
+    productId: string;
+    title: string;
+    price: number;
+    quantity: number;
+    imageUrl?: string;
+    size?: string;
+    color?: string;
+  }>;
+
   @OneToMany(() => CartItem, (item) => item.cart)
   items: CartItem[];
 }

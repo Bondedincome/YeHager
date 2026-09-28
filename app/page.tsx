@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
-import { getAllProducts, Product } from "./lib/products-store";
+import { Product } from "./lib/products-store";
+import { apiFetch } from "./lib/api";
 import FallLookbookCard from "./components/FallLookbookCard";
 import MicroProductCard from "./components/MicroProductCard";
 import { useAppearance } from "./components/AppearanceProvider";
@@ -12,18 +13,19 @@ export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    fetch("/api/products")
-      .then((r) => r.json())
+    apiFetch("products")
+      .then((r) => {
+        if (!r.ok) throw new Error(`Product request failed (${r.status})`);
+        return r.json();
+      })
       .then((res) => {
         const items = Array.isArray(res) ? res : res?.data ?? [];
-        setProducts(items.length > 0 ? items : getAllProducts());
+        setProducts(items);
       })
-      .catch(() => {
-        setProducts(getAllProducts());
-      });
+      .catch(() => setProducts([]));
   }, []);
 
-  const catalog = useMemo(() => (products.length > 0 ? products : getAllProducts()), [products]);
+  const catalog = useMemo(() => products, [products]);
 
   // Lookbook items dynamically filtered by CMS categoryFilter and limited by itemLimit
   const lookbookProducts = useMemo(() => {

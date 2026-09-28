@@ -1,95 +1,73 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cart, CartStatus } from './entities/cart.entity';
-import { CreateCartDto } from './dto/create-cart.dto';
-import { UpdateCartDto } from './dto/update-cart.dto';
+import { CartLineDto } from './dto/create-cart.dto';
+import { Product } from '../products/entities/product.entity';
 
 @Injectable()
 export class CartService {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private readonly inMemoryCarts = new Map<string, any>();
-
   constructor(
-    @Optional()
-    @InjectRepository(Cart)
-    private readonly repo?: Repository<Cart>,
-  ) {}
+    @InjectRepository(Cart) private readonly repo: Repository<Cart>,
+    @InjectRepository(Product) private readonly productRepo: Repository<Product>,
+  ) { }
 
-  async create(userId: string, createCartDto: CreateCartDto) {
-    if (this.repo) {
-      const cart = this.repo.create({
-        ...createCartDto,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        user: { id: userId } as any,
-        status: CartStatus.ACTIVE,
-        total: 0,
-      });
-      return this.repo.save(cart);
-    }
-
-    const id = `cart_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const cart = {
-      id,
-      userId,
-      ...createCartDto,
-      status: CartStatus.ACTIVE,
-      total: 0,
-      items: [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    this.inMemoryCarts.set(id, cart);
-    return cart;
+  async getForUser(userId: string) {
+    const cart = await this.repo.findOne({
+      where: { user: { id: userId }, status: CartStatus.ACTIVE },
+      order: { updatedAt: 'DESC' },
+    });
+    return cart ? this.toResponse(cart) : { items: [], total: 0 };
   }
 
-  async findAll(userId?: string) {
-    if (this.repo) {
-      if (userId) {
-        return this.repo.find({
-          where: { user: { id: userId } },
-          relations: { user: true, items: true },
-        });
+  async replaceForUser(userId: string, lines: CartLineDto[]) {
+    let cart = await this.repo.findOne({
+      where: { user: { id: userId }, status: CartStatus.ACTIVE },
+      order: { updatedAt: 'DESC' },
+    });
+
+    const itemsData = await Promise.all(lines.map(async (line) => {
+      const product = await this.productRepo.findOneBy({ id: line.productId });
+      if (!product) throw new NotFoundException(`Product ${line.productId} was not found`);
+      if (product.stock < line.quantity) {
+        throw new BadRequestException(`Only ${product.stock} units of ${product.name} are available`);
       }
-      return this.repo.find({ relations: { user: true, items: true } });
-    }
+      return {
+        id: product.id,
+        productId: product.id,
+        title: product.name || product.title,
+        price: Number(product.price),
+        quantity: line.quantity,
+        imageUrl: product.imageUrl || undefined,
+        size: line.size,
+        color: line.color,
+      };
+    }));
 
-    const all = Array.from(this.inMemoryCarts.values());
-    if (userId) {
-      return all.filter((c) => c.userId === userId);
-    }
-    return all;
-  }
-
-  async findOne(id: string) {
-    if (this.repo) {
-      return this.repo.findOne({
-        where: { id },
-        relations: { user: true, items: true },
+    if (!cart) {
+      cart = this.repo.create({
+        user: { id: userId },
+        status: CartStatus.ACTIVE,
+        itemsData,
+        total: itemsData.reduce((sum, item) => sum + item.price * item.quantity, 0),
       });
+    } else {
+      cart.itemsData = itemsData;
+      cart.total = itemsData.reduce((sum, item) => sum + item.price * item.quantity, 0);
     }
-    return this.inMemoryCarts.get(id);
+
+    return this.toResponse(await this.repo.save(cart));
   }
 
-  async update(id: string, updateCartDto: UpdateCartDto) {
-    if (this.repo) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await this.repo.update(id, updateCartDto as any);
-      return this.findOne(id);
-    }
-    const existing = this.inMemoryCarts.get(id);
-    if (!existing) return null;
-    const updated = { ...existing, ...updateCartDto, updatedAt: new Date() };
-    this.inMemoryCarts.set(id, updated);
-    return updated;
+  async clearForUser(userId: string) {
+    await this.repo.update(
+      { user: { id: userId }, status: CartStatus.ACTIVE },
+      { itemsData: [], total: 0 },
+    );
+    return { items: [], total: 0 };
   }
 
-  async remove(id: string) {
-    if (this.repo) {
-      const result = await this.repo.delete(id);
-      return { deleted: (result.affected ?? 0) > 0 };
-    }
-    const existed = this.inMemoryCarts.delete(id);
-    return { deleted: existed };
+  private toResponse(cart: Cart) {
+    return { id: cart.id, items: cart.itemsData || [], total: Number(cart.total) };
   }
 }

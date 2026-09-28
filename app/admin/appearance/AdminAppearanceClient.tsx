@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -32,8 +32,9 @@ import {
   StorySection,
   FooterCMS,
 } from "../../components/AppearanceProvider";
-import { getAllProducts, Product } from "../../lib/products-store";
-import { getAllCategories } from "../../lib/categories-store";
+import { Product } from "../../lib/products-store";
+import { Category } from "../../lib/categories-store";
+import { apiFetch } from "../../lib/api";
 
 export default function AdminAppearanceClient() {
   const { cms, updateCMS, resetCMS } = useAppearance();
@@ -41,6 +42,8 @@ export default function AdminAppearanceClient() {
     "hero" | "lookbook" | "splits" | "story" | "announcement" | "footer" | "presets"
   >("hero");
   const [saved, setSaved] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const router = useRouter();
 
   // Local form drafts initialized from CMS snapshot
@@ -76,7 +79,27 @@ export default function AdminAppearanceClient() {
     cms.footerNotice || DEFAULT_CMS_CONTENT.footerNotice
   );
 
-  const products = getAllProducts();
+  useEffect(() => {
+    Promise.all([apiFetch("products"), apiFetch("categories")])
+      .then(async ([productsResponse, categoriesResponse]) => {
+        const [productsPayload, categoriesPayload] = await Promise.all([
+          productsResponse.ok ? productsResponse.json() : [],
+          categoriesResponse.ok ? categoriesResponse.json() : [],
+        ]);
+        const productItems = productsPayload?.data ?? productsPayload;
+        const categoryItems = categoriesPayload?.data ?? categoriesPayload;
+        setProducts(Array.isArray(productItems) ? productItems : []);
+        setCategories(Array.isArray(categoryItems) ? categoryItems.map((category) => ({
+          ...category,
+          id: category.slug || category.id,
+          apiId: category.id,
+        })) : []);
+      })
+      .catch(() => {
+        setProducts([]);
+        setCategories([]);
+      });
+  }, []);
 
   const handleSave = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -684,7 +707,7 @@ export default function AdminAppearanceClient() {
                       className="w-full bg-[#f4f4f4] px-4 py-3 text-sm text-black focus:outline-none focus:ring-1 focus:ring-black"
                     >
                       <option value="all">All Products (Full Collection)</option>
-                      {getAllCategories().map((cat) => (
+                      {categories.map((cat) => (
                         <option key={cat.id} value={cat.id}>
                           {cat.name}
                         </option>
