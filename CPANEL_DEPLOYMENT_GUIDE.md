@@ -6,8 +6,8 @@ This guide provides end-to-end instructions for deploying the decoupled architec
 
 ## 1. Architecture Overview
 
-- **Frontend (`/`)**: Next.js App Router (React 19 / Tailwind CSS) with centralized `apiClient` (`/app/lib/api.ts`).
-  - Communicates with the NestJS backend via `NESTJS_BACKEND_URL` (or proxy fallback).
+- **Frontend (`/`)**: Next.js App Router (React 19 / Tailwind CSS) with browser requests sent directly to the NestJS REST API.
+   - Configure the public API base with `NEXT_PUBLIC_API_URL`; the frontend does not proxy API requests through Next.js.
   - Can be hosted on your primary domain (e.g., `yehagere.com` or `www.yehagere.com`).
 - **Backend (`/backend`)**: NestJS + TypeORM + Passport JWT + PostgreSQL.
   - Exposes REST API with Swagger documentation at `/api/docs`.
@@ -115,10 +115,11 @@ Upload the project files (excluding `/backend`, `.git`, and `node_modules`) to y
 ```env
 NODE_ENV=production
 PORT=3000
-NESTJS_BACKEND_URL=https://api.yehagere.com/api/v1
+NEXT_PUBLIC_API_URL=https://api.yehagere.com/api/v1
 NEXT_PUBLIC_SITE_URL=https://yehagere.com
-JWT_SECRET=super_secret_jwt_key_yehagere_luxury_2026_at_least_32_chars
 ```
+
+`NEXT_PUBLIC_API_URL` is embedded in the frontend bundle at build time. Set it before running `npm run build` for each environment.
 
 ### 4.3 Set Up Node.js App in cPanel
 1. In cPanel > **Setup Node.js App**, click **Create Application**:
