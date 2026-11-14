@@ -13,5 +13,7 @@ export const validationSchema = Joi.object({
   JWT_EXPIRES_IN: Joi.string().required(),
   CHAPA_SECRET_KEY: Joi.string().required(),
   CHAPA_CALLBACK_URL: Joi.string().uri().required(),
+  STRIPE_SECRET_KEY: Joi.string().allow('').default(''),
+  STRIPE_WEBHOOK_SECRET: Joi.string().allow('').default(''),
   FRONTEND_URL: Joi.string().uri().required(),
 }).required();

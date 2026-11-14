@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Trash2,
@@ -14,10 +14,11 @@ import {
 } from "lucide-react";
 import { useCart } from "../components/CartProvider";
 import { useAuth } from "../components/AuthProvider";
+import { apiFetch } from "../lib/api";
 
 export default function CartPage() {
   const { items, removeItem, clear, count, syncError } = useCart();
-  const { user, isAuthenticated, placeOrder } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
   const [orderConfirmation, setOrderConfirmation] = useState<{
     orderNumber: string;
@@ -31,17 +32,48 @@ export default function CartPage() {
   const [checkoutStep, setCheckoutStep] = useState<"bag" | "payment">("bag");
 
   // Shipping & Payment Form State
-  const [customerName, setCustomerName] = useState(user?.name || "Daniot Mihrete");
-  const [customerEmail, setCustomerEmail] = useState(user?.email || "daniot.mihrete-ug@aau.edu.et");
+  const [customerName, setCustomerName] = useState(user?.name || "");
+  const [customerEmail, setCustomerEmail] = useState(user?.email || "");
   const [street, setStreet] = useState(user?.shippingAddress?.street || "Kazanchis Heritage Quarter, No. 12");
   const [city, setCity] = useState(user?.shippingAddress?.city || "Addis Ababa");
   const [postalCode, setPostalCode] = useState(user?.shippingAddress?.zip || "1000");
-  const [country, setCountry] = useState(user?.shippingAddress?.country || "Ethiopia");
+  const [country] = useState(user?.shippingAddress?.country || "Ethiopia");
 
-  // Stripe Card Details
-  const [cardNumber, setCardNumber] = useState("4242 •••• •••• 4242");
-  const [cardExpiry, setCardExpiry] = useState("12/28");
-  const [cardCvc, setCardCvc] = useState("888");
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    const sessionId = query.get("session_id");
+    if (query.get("checkout") === "cancelled") {
+      queueMicrotask(() => {
+        setCheckoutStep("payment");
+        setCheckoutError("Checkout was canceled. Your bag is still here when you are ready.");
+      });
+      return;
+    }
+    if (query.get("checkout") !== "success" || !sessionId) return;
+
+    let active = true;
+    apiFetch(`orders/checkout-session/${encodeURIComponent(sessionId)}`)
+      .then(async (response) => {
+        const payload = await response.json();
+        const data = payload.data ?? payload;
+        if (!response.ok) throw new Error(payload.message || "Payment is not confirmed yet.");
+        if (active) {
+          setOrderConfirmation({
+            orderNumber: data.orderNumber,
+            totalUSD: Number(data.total),
+            totalETB: Number(data.totalETB),
+            itemsCount: items.length,
+          });
+          await clear();
+          window.history.replaceState({}, "", "/cart");
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) setCheckoutError(error instanceof Error ? error.message : "Payment confirmation is pending.");
+      });
+
+    return () => { active = false; };
+  }, [clear, items.length]);
 
   // Price calculations in USD and ETB
   const totalUSD = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -56,46 +88,30 @@ export default function CartPage() {
     setCheckoutError(null);
 
     try {
-      // Simulate real Stripe payment intent lifecycle
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-
-      const newOrder = await placeOrder({
-        userId: user?.id,
-        customerEmail: customerEmail.trim(),
-        customerName: customerName.trim(),
-        items: items.map((i) => ({
-          id: i.id,
-          title: i.title,
-          price: i.price,
-          priceETB: i.price * 125,
-          quantity: i.quantity,
-          size: i.size || "M",
-          color: i.color || "Standard",
-          imageUrl: i.imageUrl,
-        })),
-        totalUSD: grandTotalUSD,
-        totalETB: grandTotalETB,
-        paymentMethod: "stripe",
-        paymentIntentId: `pi_stripe_${Date.now()}`,
-        last4: cardNumber.slice(-4).replace(/[^0-9]/g, "") || "4242",
-        status: "confirmed",
-        shippingAddress: {
+      const response = await apiFetch("orders/checkout-session", {
+        method: "POST",
+        body: JSON.stringify({
+          customerName: customerName.trim(),
+          customerEmail: customerEmail.trim(),
+          items: items.map((item) => ({
+            productId: String(item.id),
+            quantity: item.quantity,
+            size: item.size,
+            color: item.color,
+          })),
+          shippingAddress: {
           street,
           city,
           postalCode,
           country,
-        },
+          },
+        }),
       });
-
-      setOrderConfirmation({
-        orderNumber: newOrder.orderNumber,
-        totalUSD: grandTotalUSD,
-        totalETB: grandTotalETB,
-        itemsCount: items.length,
-      });
-
-      await clear();
-      setCheckoutStep("bag");
+      const payload = await response.json();
+      const data = payload.data ?? payload;
+      if (!response.ok) throw new Error(payload.message || "Could not start Stripe Checkout.");
+      if (!data.checkoutUrl) throw new Error("Stripe did not return a checkout URL.");
+      window.location.assign(data.checkoutUrl);
     } catch (error) {
       setCheckoutError(error instanceof Error ? error.message : "Checkout could not be completed.");
     } finally {
@@ -149,7 +165,7 @@ export default function CartPage() {
             <div className="flex items-center gap-2.5">
               <User className="w-4 h-4 text-black" />
               <span>
-                Have a Patron account? <strong className="text-black">Sign in</strong> to save this order to your transaction history.
+                Have an account? <strong className="text-black">Sign in</strong> to save this order to your transaction history.
               </span>
             </div>
             <Link
@@ -164,7 +180,7 @@ export default function CartPage() {
         {orderConfirmation && (
           <div className="bg-[#fafafa] border border-neutral-200 p-8 sm:p-12 text-center space-y-5 max-w-xl mx-auto shadow-sm">
             <div className="w-14 h-14 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8 stroke-[1.75]" />
+              <CheckCircle2 className="w-8 h-8" />
             </div>
 
             <div className="space-y-2">
@@ -410,59 +426,13 @@ export default function CartPage() {
                     </h2>
                   </div>
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-200">
-                    Stripe Live PCI-DSS
+                        Stripe-hosted
                   </span>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <label htmlFor="card-number" className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
-                      Card Number
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="card-number"
-                        type="text"
-                        required
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        placeholder="4242 4242 4242 4242"
-                        className="w-full bg-[#fbfbfb] border border-neutral-300 px-3.5 py-2.5 font-mono text-sm pr-10 focus:ring-1 focus:ring-black outline-none"
-                      />
-                      <CreditCard className="w-4 h-4 text-neutral-400 absolute right-3 top-1/2 -translate-y-1/2" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label htmlFor="card-expiry" className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
-                        Expires (MM/YY)
-                      </label>
-                      <input
-                        id="card-expiry"
-                        type="text"
-                        required
-                        value={cardExpiry}
-                        onChange={(e) => setCardExpiry(e.target.value)}
-                        placeholder="12/28"
-                        className="w-full bg-[#fbfbfb] border border-neutral-300 px-3.5 py-2.5 font-mono text-sm focus:ring-1 focus:ring-black outline-none"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label htmlFor="card-cvc" className="text-[11px] font-bold uppercase tracking-wider text-neutral-600">
-                        CVC Code
-                      </label>
-                      <input
-                        id="card-cvc"
-                        type="text"
-                        required
-                        value={cardCvc}
-                        onChange={(e) => setCardCvc(e.target.value)}
-                        placeholder="888"
-                        className="w-full bg-[#fbfbfb] border border-neutral-300 px-3.5 py-2.5 font-mono text-sm focus:ring-1 focus:ring-black outline-none"
-                      />
-                    </div>
-                  </div>
+                    <div className="flex items-start gap-3 py-3 text-sm text-neutral-600">
+                      <CreditCard className="w-5 h-5 text-neutral-700 mt-0.5" />
+                      <p>Card details are entered securely on Stripe. YeHageré never receives or stores your card number or security code.</p>
                 </div>
               </div>
             </div>
@@ -506,12 +476,12 @@ export default function CartPage() {
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span>
-                  {isCheckingOut ? "Authorizing Stripe Payment..." : `Pay $${grandTotalUSD} USD with Stripe`}
+                  {isCheckingOut ? "Connecting to Stripe..." : `Continue to Stripe for $${grandTotalUSD} USD`}
                 </span>
               </button>
 
               <p className="text-[10px] text-neutral-500 text-center leading-relaxed">
-                By placing this order, you authorize YeHageré to charge your card via Stripe. All orders are covered by our 14-day bespoke return policy.
+                Stripe will show the final amount and collect your payment details securely. All orders are covered by our 14-day bespoke return policy.
               </p>
             </div>
           </form>

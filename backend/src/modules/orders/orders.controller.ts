@@ -1,37 +1,71 @@
 import {
-  Controller,
-  Get,
-  Post,
   Body,
-  Patch,
-  Param,
+  Controller,
   Delete,
+  ForbiddenException,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
   Query,
   Req,
-  ForbiddenException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { OrdersService } from './orders.service';
+import { Request } from 'express';
+import type { RawBodyRequest } from '@nestjs/common';
+import { OptionalAuth, Public } from '../../auth/decorators/public.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
-import { OptionalAuth } from '../../auth/decorators/public.decorator';
 import { Role } from '../users/entities/user.entity';
+import { OrdersService } from './orders.service';
 
 @ApiTags('Orders')
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) { }
 
+  @Post('checkout-session')
+  @OptionalAuth()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createCheckoutSession(@Body() dto: any, @Req() req: any) {
+    return this.ordersService.createCheckoutSession(dto, req.user?.id);
+  }
+
+  @Get('checkout-session/:sessionId')
+  @Public()
+  getCheckoutOrder(@Param('sessionId') sessionId: string) {
+    return this.ordersService.getPaidCheckoutOrder(sessionId);
+  }
+
+  @Post('stripe-webhook')
+  @Public()
+  @HttpCode(200)
+  async stripeWebhook(
+    @Req() request: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string,
+  ) {
+    if (!request.rawBody || !signature) {
+      throw new UnauthorizedException('Missing Stripe webhook signature');
+    }
+    const event = this.ordersService.constructStripeEvent(request.rawBody, signature);
+    if (
+      event.type === 'checkout.session.completed' ||
+      event.type === 'checkout.session.async_payment_succeeded'
+    ) {
+      await this.ordersService.fulfillStripeSession(event.data.object);
+    }
+    return { received: true };
+  }
+
   @Post()
+  @Roles(Role.ADMIN)
   @OptionalAuth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   create(@Body() dto: any, @Req() req: any) {
-    // If authenticated, automatically bind user ID to the order
-    if (req.user?.id) {
-      dto.userId = req.user.id;
-    } else {
-      delete dto.userId;
-    }
+    if (req.user?.id) dto.userId = req.user.id;
+    else delete dto.userId;
     return this.ordersService.create(dto);
   }
 
@@ -44,32 +78,23 @@ export class OrdersController {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     @Req() req?: any,
   ) {
-    // 1. Guest order tracking look-up with both orderNumber and matching email
     if (orderNumber && email) {
       return this.ordersService.findByNumberAndEmail(orderNumber, email);
     }
 
     const user = req?.user;
-
-    // 2. Unauthenticated caller trying to list orders without guest verification
     if (!user) {
       throw new UnauthorizedException(
         'Authentication required: Please sign in or provide order number and email for guest tracking',
       );
     }
 
-    const userRole = String(user.role || '').toLowerCase();
-    const isAdmin = userRole === 'admin';
-
-    // 3. Admin user can view all orders or filter by arbitrary userId
+    const isAdmin = String(user.role || '').toLowerCase() === 'admin';
     if (isAdmin) {
-      if (queryUserId) {
-        return this.ordersService.findByUser(queryUserId);
-      }
-      return this.ordersService.findAll();
+      return queryUserId
+        ? this.ordersService.findByUser(queryUserId)
+        : this.ordersService.findAll();
     }
-
-    // 4. Patron users can ONLY view their own orders
     return this.ordersService.findByUser(user.id);
   }
 
@@ -79,15 +104,9 @@ export class OrdersController {
   async findOne(@Param('id') id: string, @Query('email') guestEmail: string, @Req() req: any) {
     const order = await this.ordersService.findOne(id);
     const user = req?.user;
-    const userRole = String(user?.role || '').toLowerCase();
-    const isAdmin = userRole === 'admin';
+    const isAdmin = String(user?.role || '').toLowerCase() === 'admin';
 
-    // Admin can view any order
-    if (isAdmin) {
-      return order;
-    }
-
-    // Authenticated patron owner can view their own order
+    if (isAdmin) return order;
     if (
       user &&
       ((order.userId && order.userId === user.id) ||
@@ -96,8 +115,6 @@ export class OrdersController {
     ) {
       return order;
     }
-
-    // Guest checkout tracking with verified email
     if (
       guestEmail &&
       order.customerEmail &&
@@ -105,7 +122,6 @@ export class OrdersController {
     ) {
       return order;
     }
-
     throw new ForbiddenException('Access denied: You do not have permission to view this order');
   }
 

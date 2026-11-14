@@ -80,8 +80,11 @@ JWT_EXPIRES_IN=7d
 
 # Payment Gateways (Optional)
 CHAPA_SECRET_KEY=
-STRIPE_SECRET_KEY=
+STRIPE_SECRET_KEY=sk_test_your_stripe_test_secret_key
+STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
 ```
+
+Keep both Stripe values on the backend only. Use `sk_live_...` and the production webhook secret for live payments; never add either secret to the frontend environment or source control. Configure a Stripe webhook destination pointing to `https://api.yehagere.com/api/v1/orders/stripe-webhook` and subscribe to `checkout.session.completed` and `checkout.session.async_payment_succeeded`. For local testing, run `stripe listen --forward-to localhost:3001/api/v1/orders/stripe-webhook` and set `STRIPE_WEBHOOK_SECRET` to the signing secret printed by Stripe CLI. Test card payments with `4242 4242 4242 4242`, any future expiry, and any CVC.
 
 ### 3.4 Set Up Node.js App in cPanel (Passenger)
 1. In cPanel, open **Software** > **Setup Node.js App**.
