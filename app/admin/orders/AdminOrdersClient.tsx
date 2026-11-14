@@ -219,24 +219,12 @@ export default function AdminOrdersClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f8f8] py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto text-black">
+    <div className="min-h-screen bg-white py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto text-black">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200 pb-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-neutral-500">
-              Fulfillment &amp; Transactions
-            </span>
-            <span className="inline-block px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black text-white">
-              Logistics Dispatch
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
-            Customer Orders &amp; Dispatch Governance
-          </h1>
-          <p className="text-xs text-neutral-500 mt-1">
-            Track Stripe settlements, assign DHL/FedEx tracking codes, append internal concierge memos, and generate printable commercial packing slips.
-          </p>
+          <h1 className="text-2xl font-semibold text-black">Orders</h1>
+          <p className="text-sm text-neutral-600 mt-1">Track payments, add tracking numbers and print packing slips.</p>
         </div>
 
         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full sm:w-auto">
@@ -261,7 +249,7 @@ export default function AdminOrdersClient() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white border border-neutral-200 p-4">
           <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 block">
-            Gross Settlements
+            Revenue
           </span>
           <div className="text-xl sm:text-2xl font-extrabold text-black mt-1">
             ${totalRevenueUSD.toLocaleString()}
@@ -365,7 +353,7 @@ export default function AdminOrdersClient() {
 
                     <div>
                       <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                        Client / Patron
+                        Client / Customer
                       </span>
                       <span className="text-xs font-bold text-black block truncate max-w-[140px] sm:max-w-none">{order.customerName}</span>
                       <span className="text-[11px] text-neutral-500 truncate block max-w-[140px] sm:max-w-none">{order.customerEmail}</span>
@@ -463,7 +451,7 @@ export default function AdminOrdersClient() {
                 {isExpanded && (
                   <div className="border-t border-neutral-200 bg-[#fafafa] p-6 space-y-6">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      {/* Col 1: Purchased Garments */}
+                      {/* Col 1: Purchased Products */}
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-black border-b border-neutral-200 pb-2 flex items-center justify-between">
                           <span>Purchased Items ({order.items.length})</span>
@@ -553,7 +541,7 @@ export default function AdminOrdersClient() {
                                 >
                                   <option value="DHL Express">DHL Express Worldwide</option>
                                   <option value="FedEx">FedEx Priority</option>
-                                  <option value="Atelier Courier">YeHageré Local Courier</option>
+                                  <option value="Atelier Courier">YeHagere Local Courier</option>
                                   <option value="Ethiopian Post">Ethiopian Postal Service</option>
                                 </select>
                                 <input
@@ -593,7 +581,7 @@ export default function AdminOrdersClient() {
                         </div>
                       </div>
 
-                      {/* Col 3: Internal Atelier Memos & Fast Actions */}
+                      {/* Col 3: Internal notes & quick actions */}
                       <div className="space-y-3">
                         <h4 className="text-xs font-bold uppercase tracking-wider text-black border-b border-neutral-200 pb-2 flex items-center justify-between">
                           <span>Staff Memos &amp; Quick Actions</span>
@@ -688,7 +676,7 @@ export default function AdminOrdersClient() {
             {/* Action buttons (hidden on print) */}
             <div className="flex items-center justify-between border-b border-neutral-200 pb-4 print:hidden">
               <span className="text-xs font-bold uppercase tracking-wider text-neutral-500">
-                Official Atelier Packing Slip &amp; Commercial Invoice
+                Packing slip & invoice
               </span>
               <div className="flex items-center gap-2">
                 <button
@@ -700,10 +688,9 @@ export default function AdminOrdersClient() {
                 </button>
                 <button
                   onClick={() => setInvoiceOrder(null)}
-                  className="p-1.5 text-neutral-400 hover:text-black font-bold text-sm"
-                >
-                  ✕
-                </button>
+                  className="p-1.5 text-neutral-400 hover:text-black font-bold text-sm" aria-label="Close">
+                <X className="size-5" />
+              </button>
               </div>
             </div>
 
@@ -712,7 +699,7 @@ export default function AdminOrdersClient() {
               {/* Header */}
               <div className="flex items-start justify-between border-b border-neutral-200 pb-4">
                 <div>
-                  <h2 className="text-xl font-extrabold tracking-tight">YEHAGERÉ ATELIER</h2>
+                  <h2 className="text-xl font-extrabold tracking-tight">YEHAGERE</h2>
                   <p className="text-xs text-neutral-500">{settings.atelierAddress}</p>
                   <p className="text-xs text-neutral-500">
                     {settings.supportEmail} • {settings.supportPhone}
@@ -759,7 +746,7 @@ export default function AdminOrdersClient() {
               <table className="w-full text-left text-xs border border-neutral-200">
                 <thead className="bg-neutral-100 font-bold uppercase tracking-wider text-neutral-700">
                   <tr>
-                    <th className="p-2.5">Garment Description</th>
+                    <th className="p-2.5">Product Description</th>
                     <th className="p-2.5 text-center">Size</th>
                     <th className="p-2.5 text-center">Qty</th>
                     <th className="p-2.5 text-right">Price (USD)</th>
@@ -797,7 +784,7 @@ export default function AdminOrdersClient() {
 
               {/* Footer Notice */}
               <div className="border-t border-neutral-200 pt-4 text-center text-[10px] text-neutral-400 uppercase tracking-wider">
-                Thank you for patronizing authentic Ethiopian artisanal craftsmanship • YeHageré Atelier
+                Thank you for shopping with YeHagere • Handmade in Ethiopia
               </div>
             </div>
           </div>
@@ -815,9 +802,8 @@ export default function AdminOrdersClient() {
               </h3>
               <button
                 onClick={() => setShowManualModal(false)}
-                className="text-neutral-400 hover:text-black font-bold text-sm"
-              >
-                ✕
+                className="text-neutral-400 hover:text-black font-bold text-sm" aria-label="Close">
+                <X className="size-5" />
               </button>
             </div>
 
@@ -853,7 +839,7 @@ export default function AdminOrdersClient() {
 
               <div>
                 <label className="block font-bold uppercase tracking-wider text-black mb-1">
-                  Select Garment Piece
+                  Select Product Piece
                 </label>
                 <select
                   required

@@ -1,24 +1,31 @@
 @import "tailwindcss";
 
+/*
+ * YeHagere design tokens
+ * Black & white, bold grotesque headlines, square corners, generous imagery.
+ */
 :root {
   --background: #ffffff;
   --foreground: #000000;
-  --card-bg: #f4f4f4;
-  --muted-text: #666666;
+  --card-bg: #f2f2f2;
+  --muted-text: #6b6b6b;
   --border-color: #e5e5e5;
-  --accent-blue: #2563eb;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  --color-surface: var(--card-bg);
+  --color-muted: var(--muted-text);
+  --color-line: var(--border-color);
+  --font-sans: var(--font-body), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-heading), var(--font-body), sans-serif;
 }
 
 body {
-  background-color: #ffffff;
-  color: #000000;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -36,6 +43,118 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+/*
+ * One icon style everywhere: every lucide icon (and our brand icons, which
+ * carry the same class) uses the same thin 1.5 stroke.
+ */
+svg.lucide {
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
+
+@layer components {
+  /* Big bold uppercase headline, used for hero and section titles */
+  .heading-display {
+    font-family: var(--font-display);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: -0.01em;
+    line-height: 0.95;
+  }
+
+  /* Small uppercase label above titles / nav items */
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* Primary solid button */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: #000;
+    color: #fff;
+    padding: 0.875rem 1.75rem;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: background-color 150ms;
+  }
+  .btn-primary:hover {
+    background: #262626;
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  /* White button used on top of imagery */
+  .btn-light {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: #fff;
+    color: #000;
+    padding: 0.875rem 1.75rem;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: background-color 150ms, color 150ms;
+  }
+  .btn-light:hover {
+    background: #000;
+    color: #fff;
+  }
+
+  /* Outline button */
+  .btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid #000;
+    color: #000;
+    padding: 0.8125rem 1.75rem;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: background-color 150ms, color 150ms;
+  }
+  .btn-outline:hover {
+    background: #000;
+    color: #fff;
+  }
+
+  /* Underlined text link */
+  .link-underline {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+  .link-underline:hover {
+    opacity: 0.7;
+  }
+}
+
+/* Hide scrollbars on horizontal product rails */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Custom subtle scrollbar */

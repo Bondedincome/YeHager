@@ -87,7 +87,7 @@ export const INITIAL_ORDERS: CustomerOrder[] = [
     id: "ord_103",
     orderNumber: "YH-772914",
     userId: "usr_cust_2",
-    customerEmail: "elena.vance@studio-atelier.com",
+    customerEmail: "elena.vance@example.com",
     customerName: "Elena Vance",
     items: [
       {

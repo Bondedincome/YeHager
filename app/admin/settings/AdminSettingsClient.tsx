@@ -19,7 +19,7 @@ import {
   Database,
   Cloud,
   Server,
-  RefreshCw,
+  RefreshCw, X
 } from "lucide-react";
 import {
   StoreSettings,
@@ -204,7 +204,7 @@ export default function AdminSettingsClient() {
       active: true,
       usageCount: 0,
       expiresAt: promoForm.expiresAt || "2026-12-31",
-      description: promoForm.description.trim() || `${cleanCode} Atelier Privilege`,
+      description: promoForm.description.trim() || `${cleanCode} discount`,
     };
 
     const updated = {
@@ -233,24 +233,12 @@ export default function AdminSettingsClient() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f8f8] py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto">
+    <div className="min-h-screen bg-white py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto">
       {/* Header Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200 pb-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-neutral-500">
-              Operations &amp; Governance
-            </span>
-            <span className="inline-block px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black text-white">
-              Global Rules
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
-            Atelier Settings &amp; Promotions Engine
-          </h1>
-          <p className="text-xs text-neutral-500 mt-1">
-            Configure currency exchange ratios, free shipping thresholds, logistics partners, boutique hours, and promotional discount codes.
-          </p>
+          <h1 className="text-2xl font-semibold text-black">Store settings</h1>
+          <p className="text-sm text-neutral-600 mt-1">Currency, shipping, contact details and discount codes.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -364,7 +352,7 @@ export default function AdminSettingsClient() {
             <div>
               <h2 className="text-base font-bold text-black uppercase tracking-wider flex items-center gap-2">
                 <Tag className="w-4 h-4 text-emerald-600" />
-                Active Atelier Discount Codes
+                Discount codes
               </h2>
               <p className="text-xs text-neutral-500 mt-0.5">
                 Customers can enter these codes at checkout to receive instant deductions in USD and Ethiopian Birr.
@@ -597,7 +585,7 @@ export default function AdminSettingsClient() {
                 Currency Ratios &amp; Tax Governance
               </h2>
               <p className="text-xs text-neutral-500 mt-1">
-                YeHageré operates primarily in Ethiopian Birr (ETB) and US Dollars (USD). Set the official atelier exchange conversion rate.
+                YeHageré operates primarily in Ethiopian Birr (ETB) and US Dollars (USD). Set the exchange rate used to show prices.
               </p>
             </div>
 
@@ -624,7 +612,7 @@ export default function AdminSettingsClient() {
                   <span className="text-xs font-bold text-neutral-700">ETB</span>
                 </div>
                 <p className="text-[11px] text-neutral-500">
-                  Example: A $210 garment converts to Br {(210 * settings.exchangeRateUSDToETB).toLocaleString()} ETB.
+                  Example: A $210 product converts to Br {(210 * settings.exchangeRateUSDToETB).toLocaleString()} ETB.
                 </p>
               </div>
 
@@ -740,7 +728,7 @@ export default function AdminSettingsClient() {
                 >
                   <option value="DHL Express">DHL Express Worldwide (Air Freight)</option>
                   <option value="FedEx">FedEx International Priority</option>
-                  <option value="Atelier Courier">YeHageré In-House Addis Courier</option>
+                  <option value="Atelier Courier">YeHagere Local Courier (Addis)</option>
                   <option value="Ethiopian Post">Ethiopian Postal Service (EMS)</option>
                 </select>
               </div>
@@ -868,7 +856,7 @@ export default function AdminSettingsClient() {
                     className="w-4 h-4 text-black border-neutral-300 rounded focus:ring-black"
                   />
                   <label htmlFor="allowBackorders" className="text-xs font-semibold text-neutral-800 cursor-pointer">
-                    Allow patrons to backorder made-to-measure pieces when inventory hits 0
+                    Allow customers to backorder made-to-measure pieces when inventory hits 0
                   </label>
                 </div>
               </div>
@@ -905,7 +893,7 @@ export default function AdminSettingsClient() {
             <div>
               <h2 className="text-base font-bold text-black uppercase tracking-wider flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-rose-600" />
-                Atelier Showroom &amp; Concierge Contacts
+                Store contact details
               </h2>
               <p className="text-xs text-neutral-500 mt-1">
                 Official contact details displayed on customer order receipts, packing slips, and footer pages.
@@ -1046,9 +1034,8 @@ export default function AdminSettingsClient() {
               <button
                 type="button"
                 onClick={() => setMigrationMessage(null)}
-                className="text-emerald-600 hover:text-emerald-900 font-bold ml-4"
-              >
-                ✕
+                className="text-emerald-600 hover:text-emerald-900 font-bold ml-4" aria-label="Close">
+                <X className="size-5" />
               </button>
             </div>
           )}
@@ -1076,13 +1063,13 @@ export default function AdminSettingsClient() {
                 {dbStatus ? dbStatus.postgresUsersCount ?? "Unavailable" : "..."}
               </div>
               <p className="text-[10px] text-neutral-500">
-                Encrypted patron &amp; admin profiles
+                Encrypted customer &amp; admin profiles
               </p>
             </div>
 
             <div className="bg-white p-5 border border-neutral-200 space-y-2">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400 block">
-                PostgreSQL Patron Orders
+                PostgreSQL Customer Orders
               </span>
               <div className="text-2xl font-black text-black">
                 {dbStatus ? dbStatus.postgresOrdersCount ?? "Unavailable" : "..."}
@@ -1158,9 +1145,8 @@ export default function AdminSettingsClient() {
               </h3>
               <button
                 onClick={() => setIsAddPromoOpen(false)}
-                className="text-neutral-400 hover:text-black text-sm font-bold"
-              >
-                ✕
+                className="text-neutral-400 hover:text-black text-sm font-bold" aria-label="Close">
+                <X className="size-5" />
               </button>
             </div>
 
@@ -1242,7 +1228,7 @@ export default function AdminSettingsClient() {
 
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-wider text-black mb-1">
-                  Description / Patron Note
+                  Description / Customer Note
                 </label>
                 <input
                   type="text"

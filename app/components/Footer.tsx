@@ -2,14 +2,40 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Send, Globe } from "lucide-react";
-import LogoMark from "./LogoMark";
+import { ArrowRight, Check, FacebookIcon, InstagramIcon, Mail, MapPin, Phone, TelegramIcon, TiktokIcon } from "./icons";
 import { useAppearance } from "./AppearanceProvider";
+
+const COLUMNS: { title: string; links: { label: string; href: string }[] }[] = [
+  {
+    title: "Shop",
+    links: [
+      { label: "New In", href: "/products" },
+      { label: "Shop All", href: "/products" },
+      { label: "Wishlist", href: "/wishlist" },
+    ],
+  },
+  {
+    title: "Help",
+    links: [
+      { label: "Contact Us", href: "/contact" },
+      { label: "Orders", href: "/orders" },
+      { label: "My Account", href: "/account" },
+    ],
+  },
+  {
+    title: "About",
+    links: [
+      { label: "Our Story", href: "/about" },
+      { label: "Contact", href: "/contact" },
+    ],
+  },
+];
 
 export default function Footer() {
   const [email, setEmail] = useState("");
   const [subscribed, setSubscribed] = useState(false);
   const { cms } = useAppearance();
+  const f = cms.footer;
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,201 +45,111 @@ export default function Footer() {
     setTimeout(() => setSubscribed(false), 5000);
   };
 
-  return (
-    <footer className="bg-white border-t border-neutral-100 pt-16 pb-12 text-black">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 pb-16">
-          {/* Newsletter Column */}
-          <div className="lg:col-span-5 max-w-md">
-            <p className="text-xs text-neutral-600 leading-relaxed mb-6 font-normal">
-              By signing up, I agree to receive emails and texts from YeHagere and accept the{" "}
-              <Link href="/terms" className="underline hover:text-black">Terms of Use</Link> (including arbitration) and{" "}
-              <Link href="/privacy" className="underline hover:text-black">Privacy Policy</Link>. Message and Data Rates may apply. Message frequency varies. Reply STOP to opt-out.
-            </p>
+  const socials = [
+    { href: f?.instagramUrl, label: "Instagram", Icon: InstagramIcon },
+    { href: f?.tiktokUrl, label: "TikTok", Icon: TiktokIcon },
+    { href: f?.facebookUrl, label: "Facebook", Icon: FacebookIcon },
+    { href: f?.telegramUrl, label: "Telegram", Icon: TelegramIcon },
+  ].filter((s) => s.href);
 
-            <form onSubmit={handleSubscribe} className="space-y-3">
+  return (
+    <footer className="bg-white text-black border-t border-line mt-16">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pt-16 pb-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          {/* Newsletter */}
+          <div className="lg:col-span-5 space-y-5">
+            <h2 className="heading-display text-3xl sm:text-4xl">Join the list</h2>
+            <p className="text-sm text-neutral-600 max-w-sm">
+              New drops, restocks and stories from the studio. No spam.
+            </p>
+            <form onSubmit={handleSubscribe} className="flex max-w-md border-b border-black">
+              <label htmlFor="footer-email" className="sr-only">
+                Email address
+              </label>
               <input
+                id="footer-email"
                 type="email"
-                placeholder="Email Address"
+                placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-[#f4f4f4] border-none px-4 py-3.5 text-sm text-black placeholder:text-neutral-500 focus:outline-none focus:ring-1 focus:ring-black"
+                className="flex-1 bg-transparent py-3 text-sm placeholder:text-neutral-500 outline-none"
               />
-              <button
-                type="submit"
-                className="w-full bg-black text-white py-3.5 text-sm font-semibold hover:bg-neutral-800 transition-colors"
-              >
-                {subscribed ? "Thank you for subscribing" : "Sign up"}
+              <button type="submit" className="w-10 flex items-center justify-center" aria-label="Sign up">
+                {subscribed ? <Check className="size-5" /> : <ArrowRight className="size-5" />}
               </button>
             </form>
+            {subscribed && <p className="text-xs text-neutral-600">Thanks for signing up.</p>}
           </div>
 
-          {/* Spacer */}
-          <div className="hidden lg:block lg:col-span-1" />
+          {/* Link columns */}
+          <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-4 gap-8">
+            {COLUMNS.map((col) => (
+              <div key={col.title} className="space-y-4">
+                <h3 className="eyebrow">{col.title}</h3>
+                <ul className="space-y-3">
+                  {col.links.map((l) => (
+                    <li key={l.label}>
+                      <Link href={l.href} className="text-sm text-neutral-600 hover:text-black transition-colors">
+                        {l.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
 
-          {/* Navigation Links Columns */}
-          <div className="lg:col-span-6 grid grid-cols-2 sm:grid-cols-2 gap-8 text-sm">
-            {/* Column 1 */}
-            <div className="space-y-3.5">
-              <div>
-                <Link href="/about" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  About Us
-                </Link>
-              </div>
-              <div>
-                <Link href="/contact" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  Contact Us
-                </Link>
-              </div>
-              <div>
-                <Link href="/press" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  Press Inquiries
-                </Link>
-              </div>
-              <div>
-                <Link href="/careers" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  We&apos;re Hiring
-                </Link>
-              </div>
-            </div>
-
-            {/* Column 2 */}
-            <div className="space-y-3.5">
-              <div>
-                <Link href="/faq" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  FAQ
-                </Link>
-              </div>
-              <div>
-                <Link href="/shipping" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  Shipping
-                </Link>
-              </div>
-              <div>
-                <Link href="/orders" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  Account Orders
-                </Link>
-              </div>
-              <div>
-                <Link href="/returns" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  Returns
-                </Link>
-              </div>
-              <div>
-                <Link href="/international" className="text-black hover:text-neutral-500 transition-colors font-normal">
-                  International
-                </Link>
-              </div>
-              <div>
-                <span className="text-neutral-600 font-normal">Klarna</span>
-              </div>
-              <div>
-                <span className="text-neutral-600 font-normal">After Pay</span>
-              </div>
+            <div className="space-y-4 col-span-2 sm:col-span-1">
+              <h3 className="eyebrow">Visit</h3>
+              <ul className="space-y-3 text-sm text-neutral-600">
+                {f?.boutiqueAddress && (
+                  <li className="flex gap-2">
+                    <MapPin className="size-4 mt-0.5" />
+                    <span>{f.boutiqueAddress}</span>
+                  </li>
+                )}
+                {f?.conciergePhone && (
+                  <li className="flex gap-2">
+                    <Phone className="size-4 mt-0.5" />
+                    <a href={`tel:${f.conciergePhone.replace(/\s+/g, "")}`} className="hover:text-black">
+                      {f.conciergePhone}
+                    </a>
+                  </li>
+                )}
+                {f?.conciergeEmail && (
+                  <li className="flex gap-2">
+                    <Mail className="size-4 mt-0.5" />
+                    <a href={`mailto:${f.conciergeEmail}`} className="hover:text-black break-all">
+                      {f.conciergeEmail}
+                    </a>
+                  </li>
+                )}
+                {f?.openingHours && <li className="text-xs">{f.openingHours}</li>}
+              </ul>
             </div>
           </div>
         </div>
 
-        {/* Social Icons & Concierge Row */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-6 border-t border-neutral-100 text-black">
-          {/* Atelier Concierge Details */}
-          <div className="text-xs text-neutral-600 space-y-0.5 text-center sm:text-left">
-            {cms.footer?.boutiqueAddress && (
-              <p className="font-medium text-black">{cms.footer.boutiqueAddress}</p>
-            )}
-            <div className="flex items-center gap-3 text-[11px] justify-center sm:justify-start">
-              {cms.footer?.conciergePhone && (
-                <span>Tel: {cms.footer.conciergePhone}</span>
-              )}
-              {cms.footer?.conciergeEmail && (
-                <>
-                  <span>•</span>
-                  <span>{cms.footer.conciergeEmail}</span>
-                </>
-              )}
-              {cms.footer?.openingHours && (
-                <>
-                  <span className="hidden md:inline">•</span>
-                  <span className="hidden md:inline text-neutral-500">{cms.footer.openingHours}</span>
-                </>
-              )}
-            </div>
+        <div className="mt-16 pt-6 border-t border-line flex flex-col sm:flex-row items-center justify-between gap-5">
+          <div className="flex items-center gap-1">
+            {socials.map(({ href, label, Icon }) => (
+              <a
+                key={label}
+                href={href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={label}
+                className="w-10 h-10 flex items-center justify-center hover:opacity-60 transition-opacity"
+              >
+                <Icon className="size-5" />
+              </a>
+            ))}
           </div>
-
-          <div className="flex items-center justify-center sm:justify-end gap-5 sm:gap-6 flex-wrap">
-            <a
-              href={cms.footer?.instagramUrl || "https://instagram.com"}
-              target="_blank"
-              rel="noreferrer"
-              className="p-1 hover:text-neutral-500 transition-colors"
-              aria-label="Instagram"
-            >
-              <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-                <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
-                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-                <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
-              </svg>
-            </a>
-            <a
-              href={cms.footer?.tiktokUrl || "https://tiktok.com"}
-              target="_blank"
-              rel="noreferrer"
-              className="p-1 hover:text-neutral-500 transition-colors"
-              aria-label="TikTok"
-            >
-              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.298-.002.595.042.88.13V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.81 4.48 6.27 6.27 0 0 0 1.87-4.47V8.69a8.28 8.28 0 0 0 4.91 1.6v-3.6z" />
-              </svg>
-            </a>
-            <a
-              href={cms.footer?.facebookUrl || "https://facebook.com"}
-              target="_blank"
-              rel="noreferrer"
-              className="p-1 hover:text-neutral-500 transition-colors"
-              aria-label="Facebook"
-            >
-              <svg className="w-5 h-5 fill-none stroke-current stroke-2" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
-              </svg>
-            </a>
-            <a
-              href={cms.footer?.telegramUrl || "https://t.me"}
-              target="_blank"
-              rel="noreferrer"
-              className="p-1 hover:text-neutral-500 transition-colors"
-              aria-label="Telegram"
-            >
-              <Send className="w-5 h-5 stroke-[1.75]" />
-            </a>
-            <a
-              href="https://yehagere.com"
-              target="_blank"
-              rel="noreferrer"
-              className="p-1 hover:text-neutral-500 transition-colors"
-              aria-label="Global"
-            >
-              <Globe className="w-5 h-5 stroke-[1.75]" />
-            </a>
-          </div>
-        </div>
-
-        {/* Bottom Bar: Logo Mark on Left, Copyright on Right */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-neutral-100 text-center sm:text-left">
-          <div className="flex items-center gap-3">
-            <LogoMark size="sm" />
-            {cms?.footerNotice && (
-              <span className="text-[10px] uppercase tracking-widest text-neutral-400 border-l border-neutral-200 pl-3 hidden md:inline-block">
-                {cms.footerNotice}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-neutral-600">
-            ©2026 YeHagere. All rights reserved
+          <p className="text-xs text-neutral-500 text-center">
+            © {new Date().getFullYear()} YeHagere{cms.footerNotice ? ` · ${cms.footerNotice}` : ""}
           </p>
         </div>
       </div>
     </footer>
   );
 }
-

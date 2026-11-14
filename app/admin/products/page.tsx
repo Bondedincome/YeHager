@@ -2,7 +2,7 @@ import AdminProductsClient from "./AdminProductsClient";
 
 export default function AdminProductsPage() {
   return (
-    <div className="min-h-screen bg-[#fafafa] text-black">
+    <div className="min-h-screen bg-white text-black">
       <AdminProductsClient />
     </div>
   );

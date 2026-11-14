@@ -91,23 +91,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[85vh] flex flex-col justify-center py-12 px-4 sm:px-8 bg-[#fafafa]">
+    <div className="min-h-[85vh] flex flex-col justify-center py-12 px-4 sm:px-8 bg-white">
       <div className="max-w-md w-full mx-auto space-y-8">
         {/* Brand & Subtitle */}
         <div className="text-center space-y-2">
           <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
             <LogoMark size="lg" className="mx-auto" />
           </Link>
-          <span className="block text-[10px] font-bold uppercase tracking-[0.25em] text-neutral-400">
-            Atelier Client Portal
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
-            {mode === "login" ? "Sign In to Your Account" : "Create Patron Account"}
+          <h1 className="heading-display text-4xl sm:text-5xl pt-4">
+            {mode === "login" ? "Sign in" : "Create account"}
           </h1>
           <p className="text-xs text-neutral-500 max-w-sm mx-auto leading-relaxed">
             {mode === "login"
-              ? "Access your saved wardrobe, order tracking, order history, and expedited bespoke checkout."
-              : "Join our private patron roster with encrypted biometric-grade security and private atelier previews."}
+              ? "Track orders, see your order history and check out faster."
+              : "Save your wishlist, track orders and check out faster."}
           </p>
         </div>
 
@@ -335,7 +332,7 @@ export default function LoginPage() {
                 disabled={loading || (mode === "register" && (!passwordsMatch || !strength.hasMinLength || !strength.hasLetter || !strength.hasNumber))}
                 className="w-full bg-black text-white py-3.5 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <span>{loading ? "Verifying..." : mode === "login" ? "Sign In to Atelier" : "Create Secure Account"}</span>
+                <span>{loading ? "Verifying..." : mode === "login" ? "Sign in" : "Create account"}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>

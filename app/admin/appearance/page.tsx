@@ -1,10 +1,9 @@
 import AdminAppearanceClient from "./AdminAppearanceClient";
 
-export default function AdminAppearancePage() {
-  return (
-    <main className="min-h-screen bg-[#fafafa] text-black">
-      <AdminAppearanceClient />
-    </main>
-  );
-}
+export const metadata = {
+  title: "Homepage | YeHagere Admin",
+};
 
+export default function AdminAppearancePage() {
+  return <AdminAppearanceClient />;
+}

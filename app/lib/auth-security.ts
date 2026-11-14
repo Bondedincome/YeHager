@@ -239,7 +239,7 @@ export function authenticateRequest(request: Request): AuthResult {
     return {
       authenticated: false,
       authorized: false,
-      error: "Authentication required. Please sign in with your atelier account.",
+      error: "Authentication required. Please sign in.",
       status: 401,
     };
   }

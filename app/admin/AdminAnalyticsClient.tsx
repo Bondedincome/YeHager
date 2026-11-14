@@ -17,7 +17,7 @@ import {
   Tag,
   AlertTriangle,
   Check,
-  Sparkles,
+  Sparkles, ArrowRight
 } from "lucide-react";
 import {
   AreaChart,
@@ -40,7 +40,7 @@ import { getStoreSettings, updateStoreSettings } from "../lib/settings-store";
 
 export default function AdminAnalyticsClient() {
   const { orders, usersList, updateOrderStatus } = useAuth();
-  const { cms, updateCMS } = useAppearance();
+  const { cms, saveCMS } = useAppearance();
   const [storeSettings, setStoreSettings] = useState(() => getStoreSettings());
   const [exchangeRateInput, setExchangeRateInput] = useState(storeSettings.exchangeRateUSDToETB);
   const [announcementText, setAnnouncementText] = useState(cms.announcement.text);
@@ -102,25 +102,23 @@ export default function AdminAnalyticsClient() {
     }
   };
 
-  const handleSaveAnnouncement = (e: React.FormEvent) => {
+  const handleSaveAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateCMS({
-      announcement: {
-        ...cms.announcement,
-        text: announcementText,
-      },
-    });
-    setAnnouncementSaved(true);
-    setTimeout(() => setAnnouncementSaved(false), 2500);
+    try {
+      await saveCMS({ ...cms, announcement: { ...cms.announcement, text: announcementText } });
+      setAnnouncementSaved(true);
+      setTimeout(() => setAnnouncementSaved(false), 2500);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not save.");
+    }
   };
 
-  const handleToggleAnnouncement = () => {
-    updateCMS({
-      announcement: {
-        ...cms.announcement,
-        enabled: !cms.announcement.enabled,
-      },
-    });
+  const handleToggleAnnouncement = async () => {
+    try {
+      await saveCMS({ ...cms, announcement: { ...cms.announcement, enabled: !cms.announcement.enabled } });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not save.");
+    }
   };
 
   const handleSaveRate = () => {
@@ -176,24 +174,12 @@ export default function AdminAnalyticsClient() {
   const pendingOrders = orders.filter((o) => o.status === "confirmed" || o.status === "preparing").length;
 
   return (
-    <div className="min-h-screen bg-[#f8f8f8] py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto">
+    <div className="min-h-screen bg-white py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto">
       {/* Top Banner / Headline */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200 pb-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-neutral-500">
-              YeHageré Atelier Executive
-            </span>
-            <span className="inline-block px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">
-              Live Operations
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
-            Store Performance &amp; Analytics
-          </h1>
-          <p className="text-xs text-neutral-500 mt-1">
-            Real-time telemetry across revenue, Stripe transactions, client acquisition, and catalog fulfillment.
-          </p>
+          <h1 className="text-2xl font-semibold text-black">Overview</h1>
+          <p className="text-sm text-neutral-600 mt-1">Sales, orders, customers and stock at a glance.</p>
         </div>
 
         {/* Executive Action Controls (Time Range & Live Storefront Preview) */}
@@ -291,11 +277,11 @@ export default function AdminAnalyticsClient() {
           </div>
         </div>
 
-        {/* Metric 3: Active Patrons */}
+        {/* Metric 3: Active Customers */}
         <div className="bg-white border border-neutral-200 p-6 shadow-2xs space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-              Patrons &amp; Clients
+              Customers &amp; Clients
             </span>
             <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center">
               <Users className="w-4 h-4 text-black" />
@@ -306,7 +292,7 @@ export default function AdminAnalyticsClient() {
               {totalCustomersCount}
             </p>
             <p className="text-xs text-neutral-500">
-              {usersList.filter((u) => u.role === "vip").length} VIP Tier Patrons
+              {usersList.filter((u) => u.role === "vip").length} VIP Tier Customers
             </p>
           </div>
           <div className="pt-2 border-t border-neutral-100 flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold">
@@ -334,7 +320,7 @@ export default function AdminAnalyticsClient() {
             </p>
           </div>
           <div className="pt-2 border-t border-neutral-100 flex items-center gap-1.5 text-[11px] text-neutral-600 font-medium">
-            <span>{activeProductsCount} Live Active Garments</span>
+            <span>{activeProductsCount} Live Active Products</span>
           </div>
         </div>
       </div>
@@ -345,7 +331,7 @@ export default function AdminAnalyticsClient() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
-                Atelier Master Controls
+                Quick settings
               </span>
               <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black text-white">
                 Live Storefront Governance
@@ -465,14 +451,14 @@ export default function AdminAnalyticsClient() {
                 href="/admin/products"
                 className="text-[10px] font-bold uppercase tracking-wider text-blue-700 hover:underline"
               >
-                All SKUs →
+                All products <ArrowRight className="size-3.5 inline" />
               </Link>
             </div>
 
             {lowStockProducts.length === 0 ? (
               <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>All atelier garments are well-stocked above {storeSettings.lowStockThreshold} units.</span>
+                <span>All products have more than {storeSettings.lowStockThreshold} units.</span>
               </div>
             ) : (
               <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
@@ -570,7 +556,7 @@ export default function AdminAnalyticsClient() {
         <div className="lg:col-span-4 bg-white border border-neutral-200 p-6 shadow-2xs space-y-6">
           <div className="border-b border-neutral-100 pb-4">
             <h2 className="text-base font-bold text-black">Inventory by Silhouette</h2>
-            <p className="text-xs text-neutral-500">Live garment distribution across atelier lines.</p>
+            <p className="text-xs text-neutral-500">Products per category.</p>
           </div>
 
           <div className="h-[180px] w-full flex items-center justify-center">
@@ -631,7 +617,7 @@ export default function AdminAnalyticsClient() {
             href="/admin/appearance"
             className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-black underline underline-offset-4 hover:opacity-75"
           >
-            <span>Open CMS Studio</span>
+            <span>Open Homepage</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -651,7 +637,7 @@ export default function AdminAnalyticsClient() {
             href="/admin/products"
             className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-black underline underline-offset-4 hover:opacity-75"
           >
-            <span>Manage Garment Catalog</span>
+            <span>Manage Product Catalog</span>
             <ArrowUpRight className="w-3.5 h-3.5" />
           </Link>
         </div>
@@ -662,7 +648,7 @@ export default function AdminAnalyticsClient() {
             <Users className="w-5 h-5 text-black" />
           </div>
           <div className="space-y-1">
-            <h3 className="text-base font-bold text-black">Patron &amp; Staff Users</h3>
+            <h3 className="text-base font-bold text-black">Customer &amp; Staff Users</h3>
             <p className="text-xs text-neutral-500 leading-relaxed">
               Control registered client accounts, assign Admin and VIP roles, inspect order histories, or manage access.
             </p>
@@ -690,7 +676,7 @@ export default function AdminAnalyticsClient() {
             href="/admin/orders"
             className="px-3.5 py-1.5 border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider text-black bg-white transition-colors self-start sm:self-auto"
           >
-            View All Orders ({orders.length}) →
+            View all orders ({orders.length}) <ArrowRight className="size-3.5 inline" />
           </Link>
         </div>
 
@@ -719,7 +705,7 @@ export default function AdminAnalyticsClient() {
                     <span className="text-[11px] text-neutral-500">{order.customerEmail}</span>
                   </td>
                   <td className="py-4 px-6 text-neutral-700">
-                    {order.items.reduce((s, i) => s + i.quantity, 0)} garments
+                    {order.items.reduce((s, i) => s + i.quantity, 0)} products
                   </td>
                   <td className="py-4 px-6">
                     <span className="font-bold text-black block">${order.totalUSD} USD</span>
@@ -755,7 +741,7 @@ export default function AdminAnalyticsClient() {
                       href={`/admin/orders?highlight=${order.orderNumber}`}
                       className="text-[11px] font-bold uppercase tracking-wider text-black underline underline-offset-2 hover:opacity-75"
                     >
-                      Details →
+                      Details <ArrowRight className="size-3.5 inline" />
                     </Link>
                   </td>
                 </tr>
@@ -813,9 +799,8 @@ export default function AdminAnalyticsClient() {
 
                   <Link
                     href={`/admin/orders?highlight=${order.orderNumber}`}
-                    className="text-[11px] font-bold uppercase tracking-wider text-black underline underline-offset-2 p-1"
-                  >
-                    →
+                    className="text-[11px] font-bold uppercase tracking-wider text-black underline underline-offset-2 p-1" aria-label="View order">
+                    <ArrowRight className="size-4" />
                   </Link>
                 </div>
               </div>

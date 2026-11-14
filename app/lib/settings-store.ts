@@ -33,7 +33,7 @@ export type StoreSettings = {
   allowBackorders: boolean;
   orderAutoConfirm: boolean;
 
-  // Atelier Contact & Showroom
+  // Store contact details
   supportEmail: string;
   supportPhone: string;
   atelierAddress: string;
@@ -66,7 +66,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   supportPhone: "+251 91 123 4567",
   atelierAddress: "Bole Medhanialem St., Suite 400, Addis Ababa, Ethiopia",
   boutiqueHours: "Monday - Saturday: 9:00 AM - 7:00 PM EAT",
-  conciergeContact: "@yehagere_atelier",
+  conciergeContact: "@yehagere",
 
   promoCodes: [
     {
@@ -78,7 +78,7 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
       active: true,
       usageCount: 42,
       expiresAt: "2026-12-31",
-      description: "10% off for first-time atelier patrons",
+      description: "10% off your first order",
     },
     {
       id: "promo_2",
@@ -93,14 +93,14 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
     },
     {
       id: "promo_3",
-      code: "VIPATELIER",
+      code: "VIP20",
       discountType: "percentage",
       value: 20,
       minSpendUSD: 200,
       active: true,
       usageCount: 64,
       expiresAt: "2027-01-01",
-      description: "Exclusive 20% privilege for VIP patrons",
+      description: "Exclusive 20% privilege for VIP customers",
     },
     {
       id: "promo_4",

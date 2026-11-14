@@ -82,21 +82,12 @@ export default function AdminUsersClient() {
   const customerCount = usersList.filter((u) => u.role === "customer").length;
 
   return (
-    <div className="min-h-screen bg-[#f8f8f8] py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto">
+    <div className="min-h-screen bg-white py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto">
       {/* Top Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200 pb-6">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-neutral-500">
-              User &amp; Patron Governance
-            </span>
-          </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
-            Registered Users &amp; Atelier Clients
-          </h1>
-          <p className="text-xs text-neutral-500 mt-1">
-            Manage customer accounts, assign administrative privileges, track customer lifetime spent, and handle patron access.
-          </p>
+          <h1 className="text-2xl font-semibold text-black">Customers</h1>
+          <p className="text-sm text-neutral-600 mt-1">Customer accounts and admin access.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -105,7 +96,7 @@ export default function AdminUsersClient() {
             className="px-4 py-2.5 bg-black text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors shadow-2xs"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Add New User / Patron</span>
+            <span>Add customer</span>
           </button>
         </div>
       </div>
@@ -122,7 +113,7 @@ export default function AdminUsersClient() {
 
         <div className="bg-white border border-neutral-200 p-4 sm:p-5 space-y-1 shadow-2xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-            VIP Patron Tier
+            VIP customers
           </span>
           <p className="text-xl sm:text-2xl font-extrabold text-black">{vipCount}</p>
           <span className="text-[10px] text-emerald-600 font-semibold">Priority preview</span>
@@ -130,7 +121,7 @@ export default function AdminUsersClient() {
 
         <div className="bg-white border border-neutral-200 p-4 sm:p-5 space-y-1 shadow-2xs">
           <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-            Standard Patrons
+            Standard Customers
           </span>
           <p className="text-xl sm:text-2xl font-extrabold text-black">{customerCount}</p>
           <span className="text-[10px] text-neutral-400">Verified shoppers</span>
@@ -151,7 +142,7 @@ export default function AdminUsersClient() {
           <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search by patron name or email..."
+            placeholder="Search by customer name or email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-[#f4f4f4] text-xs text-black placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
@@ -178,7 +169,7 @@ export default function AdminUsersClient() {
       <div className="md:hidden space-y-3">
         {filteredUsers.length === 0 ? (
           <div className="bg-white border border-neutral-200 p-8 text-center text-xs text-neutral-400">
-            No patrons found matching query.
+            No customers found matching query.
           </div>
         ) : (
           filteredUsers.map((user) => {
@@ -227,7 +218,7 @@ export default function AdminUsersClient() {
                       className="text-[11px] font-bold uppercase tracking-wider py-1 px-2 border bg-neutral-50 mt-1 w-full"
                     >
                       <option value="customer">Customer</option>
-                      <option value="vip">VIP Patron</option>
+                      <option value="vip">VIP Customer</option>
                       <option value="admin">Staff Admin</option>
                     </select>
                   </div>
@@ -273,7 +264,7 @@ export default function AdminUsersClient() {
           <table className="w-full text-left text-xs">
             <thead className="bg-[#fafafa] border-b border-neutral-200 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
               <tr>
-                <th className="py-3.5 px-6">Patron / User</th>
+                <th className="py-3.5 px-6">Customer / User</th>
                 <th className="py-3.5 px-6">Role</th>
                 <th className="py-3.5 px-6">Total Orders</th>
                 <th className="py-3.5 px-6">Total Spent</th>
@@ -294,7 +285,7 @@ export default function AdminUsersClient() {
                   const isCurrent = currentUser?.id === user.id;
                   return (
                     <tr key={user.id} className="hover:bg-neutral-50 transition-colors">
-                      {/* Patron Info */}
+                      {/* Customer Info */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-neutral-900 text-white text-xs font-bold flex items-center justify-center uppercase flex-shrink-0">
@@ -328,7 +319,7 @@ export default function AdminUsersClient() {
                           }`}
                         >
                           <option value="customer">Customer</option>
-                          <option value="vip">VIP Patron</option>
+                          <option value="vip">VIP Customer</option>
                           <option value="admin">Staff Admin</option>
                         </select>
                       </td>
@@ -407,7 +398,7 @@ export default function AdminUsersClient() {
           <div className="bg-white border border-neutral-200 max-w-lg w-full p-4 sm:p-8 space-y-5 shadow-xl animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
               <div>
-                <h3 className="text-base font-bold text-black">Create Atelier User / Patron</h3>
+                <h3 className="text-base font-bold text-black">Add customer</h3>
                 <p className="text-xs text-neutral-500">Register a new client or grant staff privileges.</p>
               </div>
               <button
@@ -438,7 +429,7 @@ export default function AdminUsersClient() {
                   required
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="e.g. liya@atelier.com"
+                  placeholder="e.g. liya@example.com"
                   className="w-full bg-[#f4f4f4] px-3.5 py-2.5 text-sm text-black focus:outline-none focus:ring-1 focus:ring-black"
                 />
               </div>
@@ -465,7 +456,7 @@ export default function AdminUsersClient() {
                     className="w-full bg-[#f4f4f4] px-3.5 py-2.5 text-sm text-black font-semibold focus:outline-none focus:ring-1 focus:ring-black"
                   >
                     <option value="customer">Standard Customer</option>
-                    <option value="vip">VIP Patron</option>
+                    <option value="vip">VIP Customer</option>
                     <option value="admin">Staff Administrator</option>
                   </select>
                 </div>

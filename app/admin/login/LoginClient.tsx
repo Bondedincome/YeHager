@@ -41,13 +41,13 @@ export default function LoginClient() {
           <LogoMark size="lg" className="mx-auto" />
         </Link>
         <span className="block text-[11px] font-bold uppercase tracking-[0.2em] text-neutral-400 mb-1">
-          Atelier &amp; Administration
+          YeHagere
         </span>
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
           Staff Portal
         </h1>
         <p className="text-xs text-neutral-600 mt-2 max-w-xs mx-auto leading-relaxed">
-          Sign in to manage the garment collections, inventory, and storefront curation.
+          Sign in to manage the product collections, inventory, and storefront curation.
         </p>
       </div>
 
@@ -117,7 +117,7 @@ export default function LoginClient() {
                 disabled={submitting}
                 className="w-full bg-black text-white py-3.5 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors disabled:opacity-50"
               >
-                {submitting ? "Authenticating..." : "Sign In to Atelier"}
+                {submitting ? "Authenticating..." : "Sign in"}
               </button>
             </div>
           </form>
@@ -137,7 +137,7 @@ export default function LoginClient() {
 
       {/* Subtle Bottom Footer */}
       <div className="text-center text-[11px] text-neutral-400 uppercase tracking-widest pb-4">
-        YeHageré™ Atelier • Addis Ababa
+        YeHagere • Addis Ababa
       </div>
     </div>
   );

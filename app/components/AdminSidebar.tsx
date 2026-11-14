@@ -4,21 +4,18 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  ArrowUpRight,
   BarChart3,
-  Sliders,
+  LayoutTemplate,
+  LogOut,
+  PanelLeftClose,
+  PanelLeft,
+  Receipt,
+  Settings,
   ShoppingBag,
   Users,
-  Receipt,
-  ArrowUpRight,
-  LogOut,
-  Shield,
-  Settings,
   X,
-  PanelLeftClose,
-  Database,
-  ShieldCheck,
-  Store,
-} from "lucide-react";
+} from "./icons";
 import LogoMark from "./LogoMark";
 import { useAuth } from "./AuthProvider";
 
@@ -29,548 +26,158 @@ interface AdminSidebarProps {
   onCloseMobile: () => void;
 }
 
-export default function AdminSidebar({
-  collapsed,
-  onToggleCollapse,
-  mobileOpen,
-  onCloseMobile,
-}: AdminSidebarProps) {
+export const ADMIN_NAV = [
+  { label: "Dashboard", href: "/admin", icon: BarChart3, exact: true },
+  { label: "Orders", href: "/admin/orders", icon: Receipt },
+  { label: "Products", href: "/admin/products", icon: ShoppingBag },
+  { label: "Homepage", href: "/admin/appearance", icon: LayoutTemplate },
+  { label: "Customers", href: "/admin/users", icon: Users },
+  { label: "Settings", href: "/admin/settings", icon: Settings },
+] as const;
+
+export function isAdminLinkActive(pathname: string | null, href: string, exact?: boolean) {
+  if (!pathname) return false;
+  const path = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  return exact ? path === href : path === href || path.startsWith(href + "/");
+}
+
+export default function AdminSidebar({ collapsed, onToggleCollapse, mobileOpen, onCloseMobile }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, orders } = useAuth();
+
+  const pending = orders.filter((o) => o.status === "preparing" || o.status === "confirmed").length;
 
   const handleLogout = () => {
     logout();
     router.push("/admin/login");
   };
 
-  const pendingOrdersCount = orders.filter(
-    (o) => o.status === "preparing" || o.status === "confirmed"
-  ).length;
+  const renderNav = (compact: boolean, onNavigate?: () => void) => (
+    <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+      {ADMIN_NAV.map((item) => {
+        const active = isAdminLinkActive(pathname, item.href, "exact" in item ? item.exact : false);
+        const Icon = item.icon;
+        const badge = item.href === "/admin/orders" ? pending : 0;
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            title={compact ? item.label : undefined}
+            className={`relative flex items-center gap-3 h-10 rounded-md text-sm transition-colors ${
+              compact ? "justify-center" : "px-3"
+            } ${active ? "bg-black text-white font-semibold" : "text-neutral-700 hover:bg-neutral-100"}`}
+          >
+            <Icon className="size-5" />
+            {!compact && <span className="flex-1">{item.label}</span>}
+            {badge > 0 &&
+              (compact ? (
+                <span className="absolute top-1.5 right-1.5 size-2 rounded-full bg-amber-500" />
+              ) : (
+                <span
+                  className={`min-w-5 h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center ${
+                    active ? "bg-white text-black" : "bg-amber-100 text-amber-900"
+                  }`}
+                >
+                  {badge}
+                </span>
+              ))}
+          </Link>
+        );
+      })}
 
-  const navGroups = [
-    {
-      title: "Core Operations",
-      items: [
-        {
-          label: "Analytics & KPIs",
-          shortLabel: "Analytics",
-          href: "/admin",
-          icon: BarChart3,
-          exact: true,
-          description: "Telemetry, revenue & trends",
-        },
-        {
-          label: "Products & Stock",
-          shortLabel: "Products",
-          href: "/admin/products",
-          icon: ShoppingBag,
-          description: "Catalog & inventory control",
-        },
-        {
-          label: "Orders & Dispatch",
-          shortLabel: "Orders",
-          href: "/admin/orders",
-          icon: Receipt,
-          badge: pendingOrdersCount,
-          description: "Fulfillment & tracking",
-        },
-      ],
-    },
-    {
-      title: "Studio & Governance",
-      items: [
-        {
-          label: "Storefront CMS",
-          shortLabel: "CMS",
-          href: "/admin/appearance",
-          icon: Sliders,
-          description: "Hero, lookbook & editorial",
-        },
-        {
-          label: "Users & Clients",
-          shortLabel: "Users",
-          href: "/admin/users",
-          icon: Users,
-          description: "Customer accounts & roles",
-        },
-        {
-          label: "Settings & Promos",
-          shortLabel: "Settings",
-          href: "/admin/settings",
-          icon: Settings,
-          description: "Rates, promos & cloud DB",
-        },
-      ],
-    },
-  ];
+      <div className="pt-3 mt-3 border-t border-neutral-200">
+        <Link
+          href="/"
+          target="_blank"
+          title={compact ? "View store" : undefined}
+          className={`flex items-center gap-3 h-10 rounded-md text-sm text-neutral-700 hover:bg-neutral-100 ${
+            compact ? "justify-center" : "px-3"
+          }`}
+        >
+          <ArrowUpRight className="size-5" />
+          {!compact && <span>View store</span>}
+        </Link>
+      </div>
+    </nav>
+  );
 
-  const isLinkActive = (item: { href: string; exact?: boolean }) => {
-    if (!pathname) return false;
-    const cleanPath = pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
-    const cleanHref = item.href.length > 1 && item.href.endsWith("/") ? item.href.slice(0, -1) : item.href;
-
-    if (item.exact) {
-      return cleanPath === cleanHref;
-    }
-    return cleanPath === cleanHref || cleanPath.startsWith(cleanHref + "/");
-  };
+  const renderUser = (compact: boolean) => (
+    <div className={`border-t border-neutral-200 p-3 flex items-center gap-3 ${compact ? "flex-col" : ""}`}>
+      <div className="size-9 rounded-full bg-neutral-100 flex items-center justify-center text-xs font-bold shrink-0">
+        {(user?.name || "A").slice(0, 1).toUpperCase()}
+      </div>
+      {!compact && (
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold truncate">{user?.name || "Admin"}</p>
+          <p className="text-xs text-neutral-500 truncate">{user?.email}</p>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="size-9 flex items-center justify-center rounded-md text-neutral-500 hover:text-black hover:bg-neutral-100"
+        title="Sign out"
+        aria-label="Sign out"
+      >
+        <LogOut className="size-4" />
+      </button>
+    </div>
+  );
 
   return (
     <>
-      {/* ------------------------------------------------------------- */}
-      {/* MOBILE SIDE NAVIGATION DRAWER (OFF-CANVAS SLIDE-IN)           */}
-      {/* ------------------------------------------------------------- */}
+      {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-xs transition-opacity"
-            onClick={onCloseMobile}
-            aria-hidden="true"
-          />
-
-          {/* Drawer Sidebar */}
-          <aside className="relative w-80 max-w-[85vw] bg-[#111111] text-white flex flex-col h-full shadow-2xl border-r border-neutral-800 z-10 animate-in slide-in-from-left duration-200">
-            {/* Drawer Header */}
-            <div className="p-4 border-b border-neutral-800 flex items-center justify-between">
-              <Link
-                href="/admin"
-                onClick={onCloseMobile}
-                className="flex items-center gap-3 group"
-                title="YeHageré Atelier Admin Console"
-              >
-                <div className="bg-white p-1.5 rounded-xs group-hover:scale-105 transition-transform shadow-2xs">
-                  <LogoMark size="sm" />
-                </div>
-                <div>
-                  <span className="block text-[9px] font-extrabold uppercase tracking-[0.25em] text-[#d4af37] group-hover:text-amber-300 transition-colors">
-                    YeHageré Atelier
-                  </span>
-                  <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                    Admin Console
-                  </span>
-                </div>
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/40" onClick={onCloseMobile} aria-hidden="true" />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white flex flex-col">
+            <div className="h-16 px-4 flex items-center justify-between border-b border-neutral-200">
+              <Link href="/admin" onClick={onCloseMobile} className="flex items-center gap-2">
+                <LogoMark size="sm" />
+                <span className="text-xs font-semibold text-neutral-500">Admin</span>
               </Link>
-
-              <div className="flex items-center gap-1.5">
-                <Link
-                  href="/"
-                  target="_blank"
-                  className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider bg-neutral-800 hover:bg-neutral-700 text-neutral-200 rounded border border-neutral-700 transition-colors flex items-center gap-1"
-                  title="View Storefront"
-                >
-                  <Store className="w-3 h-3" />
-                  <span>Store</span>
-                </Link>
-                <button
-                  type="button"
-                  onClick={onCloseMobile}
-                  className="p-2 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
-                  aria-label="Close navigation"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={onCloseMobile}
+                className="size-10 flex items-center justify-center rounded-md hover:bg-neutral-100"
+                aria-label="Close menu"
+              >
+                <X className="size-5" />
+              </button>
             </div>
-
-            {/* Navigation List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {navGroups.map((group) => (
-                <div key={group.title} className="space-y-1.5">
-                  <div className="px-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-neutral-400">
-                    {group.title}
-                  </div>
-                  <div className="space-y-1">
-                    {group.items.map((item) => {
-                      const active = isLinkActive(item);
-                      const Icon = item.icon;
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={onCloseMobile}
-                          className={`w-full flex items-center justify-between px-3.5 py-3 rounded text-xs font-bold uppercase tracking-wider transition-all min-h-[44px] ${
-                            active
-                              ? "bg-white text-black font-extrabold shadow-sm"
-                              : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
-                          }`}
-                          style={{
-                            color: active ? "#000000" : undefined,
-                            backgroundColor: active ? "#ffffff" : undefined,
-                          }}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Icon
-                              className={`w-4 h-4 flex-shrink-0 ${active ? "text-black" : "text-neutral-400"}`}
-                              style={{ color: active ? "#000000" : undefined }}
-                            />
-                            <div className="text-left">
-                              <div
-                                className={active ? "text-black font-extrabold" : "text-neutral-200"}
-                                style={{ color: active ? "#000000" : undefined }}
-                              >
-                                {item.label}
-                              </div>
-                              <div
-                                className={`text-[10px] font-normal tracking-normal lowercase first-letter:uppercase ${
-                                  active ? "text-neutral-800" : "text-neutral-400"
-                                }`}
-                                style={{ color: active ? "#262626" : undefined }}
-                              >
-                                {item.description}
-                              </div>
-                            </div>
-                          </div>
-
-                          {item.badge !== undefined && item.badge > 0 && (
-                            <span
-                              className="text-[10px] px-2 py-0.5 rounded-full font-extrabold"
-                              style={{
-                                backgroundColor: active ? "#000000" : "#fbbf24",
-                                color: active ? "#ffffff" : "#000000",
-                              }}
-                            >
-                              {item.badge}
-                            </span>
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-
-              {/* Storefront Link in Drawer */}
-              <div className="pt-2 border-t border-neutral-800 space-y-2">
-                <Link
-                  href="/"
-                  target="_blank"
-                  className="w-full flex items-center justify-between px-3.5 py-3 rounded text-xs font-bold uppercase tracking-wider text-neutral-300 hover:text-white hover:bg-neutral-800/80 border border-neutral-800 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Store className="w-4 h-4 text-neutral-400" />
-                    <span>Live Storefront</span>
-                  </div>
-                  <ArrowUpRight className="w-4 h-4 text-neutral-400" />
-                </Link>
-              </div>
-            </div>
-
-            {/* Mobile Drawer Footer with User & Sign Out */}
-            <div className="p-4 border-t border-neutral-800 bg-[#0c0c0c] space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-white truncate">
-                    {user?.name || "Admin Staff"}
-                  </div>
-                  <div className="text-[10px] text-neutral-400 flex items-center gap-1.5">
-                    <Shield className="w-3 h-3 text-emerald-400" />
-                    <span>Super Admin</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-rose-400 bg-rose-950/40 border border-rose-900/60 hover:bg-rose-900/60 rounded transition-colors flex items-center gap-1.5"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out</span>
-                </button>
-              </div>
-
-              <div className="text-[10px] text-neutral-400 pt-2 border-t border-neutral-800/60 flex items-center justify-between">
-                <span>Atelier OS v2.4</span>
-                <span className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                  Firestore Live
-                </span>
-              </div>
-            </div>
+            {renderNav(false, onCloseMobile)}
+            {renderUser(false)}
           </aside>
         </div>
       )}
 
-      {/* ------------------------------------------------------------- */}
-      {/* DESKTOP PERMANENT SIDEBAR (VISIBLE ON LG+ SCREENS)            */}
-      {/* ------------------------------------------------------------- */}
+      {/* Desktop sidebar */}
       <aside
-        className={`hidden lg:flex flex-col h-screen sticky top-0 bg-[#111111] text-white border-r border-neutral-800 z-40 transition-[width] duration-200 flex-shrink-0 select-none ${
-          collapsed ? "w-20" : "w-64"
+        className={`hidden lg:flex flex-col h-screen sticky top-0 bg-white border-r border-neutral-200 shrink-0 transition-[width] duration-200 ${
+          collapsed ? "w-[72px]" : "w-60"
         }`}
       >
-        {/* Sidebar Header / Brand */}
-        {collapsed ? (
-          <div className="h-16 px-2 border-b border-neutral-800 flex items-center justify-center relative group flex-shrink-0">
-            <Link
-              href="/admin"
-              title="YeHageré Atelier - Admin Console"
-              className="w-10 h-10 bg-white rounded-xs p-1 flex items-center justify-center hover:scale-105 transition-all shadow-sm group-hover:ring-2 group-hover:ring-white/40"
-            >
-              <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                <LogoMark size="sm" />
-              </div>
+        <div className={`h-16 flex items-center border-b border-neutral-200 ${collapsed ? "justify-center" : "justify-between px-4"}`}>
+          {!collapsed && (
+            <Link href="/admin" className="flex items-center gap-2 min-w-0">
+              <LogoMark size="sm" />
+              <span className="text-xs font-semibold text-neutral-500">Admin</span>
             </Link>
-
-            {/* Hover Tooltip for Collapsed Sidebar */}
-            <div className="absolute left-full ml-3 px-3 py-1.5 bg-neutral-950 text-white text-xs font-bold uppercase tracking-wider rounded shadow-2xl border border-neutral-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Admin Console
-            </div>
-          </div>
-        ) : (
-          <div className="h-16 px-3.5 border-b border-neutral-800 flex items-center justify-between flex-shrink-0">
-            <Link
-              href="/admin"
-              title="YeHageré Atelier - Admin Console"
-              className="flex items-center gap-2.5 min-w-0 group p-1 -ml-1 rounded hover:bg-neutral-800/60 transition-colors"
-            >
-              <div className="bg-white p-1 rounded-xs flex-shrink-0 group-hover:scale-105 transition-transform shadow-2xs">
-                <LogoMark size="sm" />
-              </div>
-              <div className="min-w-0 text-left">
-                <span className="block text-[9px] font-extrabold uppercase tracking-[0.22em] text-[#d4af37] truncate group-hover:text-amber-300 transition-colors">
-                  YeHageré Atelier
-                </span>
-                <span className="text-xs font-bold text-white flex items-center gap-1.5 truncate">
-                  Admin Console
-                </span>
-              </div>
-            </Link>
-
-            {/* Quick Header Actions: Store in new tab & Collapse sidebar */}
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <Link
-                href="/"
-                target="_blank"
-                className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors"
-                title="Preview Live Storefront in new tab"
-                aria-label="Preview Live Storefront in new tab"
-              >
-                <Store className="w-4 h-4" />
-              </Link>
-              <button
-                type="button"
-                onClick={onToggleCollapse}
-                className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded transition-colors cursor-pointer"
-                title="Collapse side navigation"
-                aria-label="Collapse side navigation"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Sidebar Navigation Body */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-none">
-          {navGroups.map((group) => (
-            <div key={group.title} className="space-y-1">
-              {!collapsed && (
-                <div className="px-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-neutral-400 mb-1.5">
-                  {group.title}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                {group.items.map((item) => {
-                  const active = isLinkActive(item);
-                  const Icon = item.icon;
-
-                  if (collapsed) {
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        className={`group relative flex items-center justify-center w-full h-11 rounded transition-colors ${
-                          active
-                            ? "bg-white text-black font-extrabold shadow-sm"
-                            : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
-                        }`}
-                        style={{
-                          color: active ? "#000000" : undefined,
-                          backgroundColor: active ? "#ffffff" : undefined,
-                        }}
-                        title={item.label}
-                      >
-                        <Icon
-                          className={`w-5 h-5 flex-shrink-0 ${active ? "text-black" : ""}`}
-                          style={{ color: active ? "#000000" : undefined }}
-                        />
-
-                        {item.badge !== undefined && item.badge > 0 && (
-                          <span
-                            className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full"
-                            style={{
-                              backgroundColor: active ? "#000000" : "#fbbf24",
-                            }}
-                          />
-                        )}
-
-                        {/* Hover Floating Tooltip */}
-                        <div className="absolute left-full ml-3 px-3 py-2 bg-neutral-950 text-white text-xs font-bold uppercase tracking-wider rounded shadow-2xl border border-neutral-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-                          <div className="flex items-center gap-2">
-                            <span>{item.label}</span>
-                            {item.badge !== undefined && item.badge > 0 && (
-                              <span className="px-1.5 py-0.2 bg-amber-400 text-black text-[10px] font-extrabold rounded-full">
-                                {item.badge}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] font-normal text-neutral-400 lowercase first-letter:uppercase tracking-normal">
-                            {item.description}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  }
-
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded text-xs font-bold uppercase tracking-wider transition-all ${
-                        active
-                          ? "bg-white text-black font-extrabold shadow-sm"
-                          : "text-neutral-300 hover:text-white hover:bg-neutral-800/80"
-                      }`}
-                      style={{
-                        color: active ? "#000000" : undefined,
-                        backgroundColor: active ? "#ffffff" : undefined,
-                      }}
-                    >
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <Icon
-                          className={`w-4 h-4 flex-shrink-0 ${active ? "text-black" : "text-neutral-400"}`}
-                          style={{ color: active ? "#000000" : undefined }}
-                        />
-                        <span
-                          className={`truncate ${active ? "text-black font-extrabold" : "text-neutral-300"}`}
-                          style={{ color: active ? "#000000" : undefined }}
-                        >
-                          {item.label}
-                        </span>
-                      </div>
-
-                      {item.badge !== undefined && item.badge > 0 && (
-                        <span
-                          className="text-[10px] px-1.5 py-0.5 rounded-full font-extrabold flex-shrink-0"
-                          style={{
-                            backgroundColor: active ? "#000000" : "#fbbf24",
-                            color: active ? "#ffffff" : "#000000",
-                          }}
-                        >
-                          {item.badge}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-
-          {/* Quick Storefront Link */}
-          <div className="pt-2 border-t border-neutral-800/80">
-            {collapsed ? (
-              <Link
-                href="/"
-                target="_blank"
-                className="group relative flex items-center justify-center w-full h-11 rounded text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition-colors"
-                title="Preview Live Storefront"
-              >
-                <Store className="w-5 h-5 flex-shrink-0" />
-                <div className="absolute left-full ml-3 px-3 py-1.5 bg-neutral-950 text-white text-xs font-bold uppercase tracking-wider rounded shadow-xl border border-neutral-700 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-                  Preview Storefront
-                </div>
-              </Link>
-            ) : (
-              <Link
-                href="/"
-                target="_blank"
-                className="flex items-center justify-between px-3 py-2 rounded text-xs font-semibold text-neutral-400 hover:text-white hover:bg-neutral-800/80 transition-colors"
-              >
-                <div className="flex items-center gap-2.5">
-                  <Store className="w-4 h-4 text-neutral-400" />
-                  <span className="uppercase tracking-wider text-[11px] font-bold">Storefront</span>
-                </div>
-                <ArrowUpRight className="w-3.5 h-3.5 text-neutral-400" />
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {/* System Diagnostics Indicator */}
-        {!collapsed && (
-          <div className="p-3 mx-3 mb-3 bg-neutral-900/90 border border-neutral-800 rounded text-[11px] space-y-1 text-neutral-400">
-            <div className="flex items-center justify-between font-bold text-neutral-300">
-              <span className="flex items-center gap-1.5">
-                <Database className="w-3 h-3 text-emerald-400" />
-                Firestore DB
-              </span>
-              <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-extrabold">
-                Live
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-3 h-3 text-neutral-400" />
-                Stripe Payments
-              </span>
-              <span className="text-[10px] text-neutral-400">Ready</span>
-            </div>
-          </div>
-        )}
-
-        {/* Admin Profile & Logout Footer */}
-        <div className="p-3 border-t border-neutral-800 bg-[#0c0c0c] flex-shrink-0">
-          {collapsed ? (
-            <div className="flex flex-col items-center gap-2">
-              <div
-                className="w-9 h-9 rounded bg-neutral-800 flex items-center justify-center text-xs font-extrabold text-white border border-neutral-700"
-                title={user?.name || "Admin Staff"}
-              >
-                {(user?.name || "AD").slice(0, 2).toUpperCase()}
-              </div>
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="p-2 text-neutral-400 hover:text-rose-400 hover:bg-neutral-800 rounded transition-colors"
-                title="Sign Out"
-                aria-label="Sign Out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded bg-neutral-800 flex items-center justify-center text-xs font-extrabold text-white border border-neutral-700 flex-shrink-0">
-                  {(user?.name || "AD").slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-white truncate leading-tight">
-                    {user?.name || "Admin Staff"}
-                  </div>
-                  <div className="text-[10px] text-neutral-400 truncate flex items-center gap-1">
-                    <Shield className="w-2.5 h-2.5 text-emerald-400" />
-                    <span>Super Admin</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="p-1.5 text-neutral-400 hover:text-rose-400 hover:bg-neutral-800 rounded transition-colors flex-shrink-0"
-                title="Sign Out"
-                aria-label="Sign Out"
-              >
-                <LogOut className="w-4 h-4" />
-              </button>
-            </div>
           )}
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="size-9 flex items-center justify-center rounded-md text-neutral-500 hover:text-black hover:bg-neutral-100"
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {collapsed ? <PanelLeft className="size-5" /> : <PanelLeftClose className="size-5" />}
+          </button>
         </div>
+        {renderNav(collapsed)}
+        {renderUser(collapsed)}
       </aside>
     </>
   );

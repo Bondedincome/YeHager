@@ -1,8 +1,8 @@
 import AdminAnalyticsClient from "./AdminAnalyticsClient";
 
 export const metadata = {
-  title: "Atelier Analytics & Performance | YeHageré Admin",
-  description: "Executive store performance metrics, gross revenue, user acquisition, and live orders.",
+  title: "Dashboard | YeHagere Admin",
+  description: "Store overview",
 };
 
 export default function AdminPage() {

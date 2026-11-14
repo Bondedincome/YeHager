@@ -86,7 +86,7 @@ export const INITIAL_USERS: AppUser[] = [
   {
     id: "usr_cust_1",
     name: "Selamawit Bekele",
-    email: "selamawit.bekele@atelier-client.et",
+    email: "selamawit.bekele@example.com",
     role: "vip",
     // Salted PBKDF2 hash (100,000 rounds)
     passwordSalt: "b2c3d4e5f60718293a4b5c6d7e8f90a1",
@@ -107,7 +107,7 @@ export const INITIAL_USERS: AppUser[] = [
   {
     id: "usr_cust_2",
     name: "Elena Vance",
-    email: "elena.vance@studio-atelier.com",
+    email: "elena.vance@example.com",
     role: "customer",
     passwordSalt: "b2c3d4e5f60718293a4b5c6d7e8f90a1",
     passwordHash: "b78dd5d51f1a243bc86c9f37606bcdb6a552ba059bd2ecd5f9623dcf857b4084c883164031b8310f42edc7a869170bd4def8dbcd54d141e2e586583e2c5bc398",

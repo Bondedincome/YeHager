@@ -1,51 +1,59 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import Link from "next/link";
-import { Heart, ChevronDown, Check, X } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Check, ChevronDown, Heart, X } from "./icons";
 import { Product } from "../lib/products-store";
 import { apiFetch } from "../lib/api";
+import { formatProductPrice, toList } from "../lib/format";
 import { useCart } from "./CartProvider";
 import { useWishlist } from "./WishlistProvider";
+import ProductCard from "./ProductCard";
 
-interface ProductDetailClientProps {
-  product: Product;
+const SIZE_GUIDE: [string, string, string, string][] = [
+  ["XS (0-2)", "32 - 33\"", "24 - 25\"", "34 - 35\""],
+  ["S (4-6)", "34 - 35\"", "26 - 27\"", "36 - 37\""],
+  ["M (8-10)", "36 - 37\"", "28 - 29\"", "38 - 39\""],
+  ["L (12-14)", "38 - 40\"", "30 - 32\"", "40 - 42\""],
+  ["XL (16)", "41 - 43\"", "33 - 35\"", "43 - 45\""],
+];
+
+function Accordion({ title, defaultOpen = false, children }: { title: string; defaultOpen?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border-t border-line">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between py-4 text-left"
+        aria-expanded={open}
+      >
+        <span className="eyebrow text-xs">{title}</span>
+        <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && <div className="pb-5 text-sm text-neutral-700 leading-relaxed space-y-3">{children}</div>}
+    </div>
+  );
 }
 
-export default function ProductDetailClient({ product }: ProductDetailClientProps) {
+export default function ProductDetailClient({ product }: { product: Product }) {
   const { addItem } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
-
-  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [related, setRelated] = useState<Product[]>([]);
 
   useEffect(() => {
     apiFetch("products")
-      .then((response) => response.ok ? response.json() : [])
-      .then((payload) => {
-        const items = Array.isArray(payload) ? payload : payload?.data;
-        setRelatedProducts(Array.isArray(items) ? items.filter((item) => item.id !== product.id).slice(0, 4) : []);
-      })
-      .catch(() => setRelatedProducts([]));
+      .then((r) => (r.ok ? r.json() : []))
+      .then((payload) =>
+        setRelated(toList<Product>(payload).filter((p) => String(p.id) !== String(product.id)).slice(0, 4))
+      )
+      .catch(() => setRelated([]));
   }, [product.id]);
 
-  const isFav = isInWishlist(product.id);
+  const colors = useMemo(() => (product.colors ?? []).filter((c) => c.active !== false), [product.colors]);
 
-  const colors = React.useMemo(() => {
-    const list = product.colors && product.colors.length > 0
-      ? product.colors.filter((c) => c.active !== false)
-      : [
-          { name: "Violet", hex: "#7071e8", active: true },
-          { name: "Off White", hex: "#f3f4f6", active: true },
-          { name: "Charcoal", hex: "#27272a", active: true },
-        ];
-    return list.length > 0 ? list : product.colors || [];
-  }, [product.colors]);
-
-  // Resolve initial color index from admin-set active color
-  const defaultColorIndex = React.useMemo(() => {
-    if (typeof product.activeColorIndex === "number" && product.activeColorIndex >= 0 && product.activeColorIndex < colors.length) {
-      return product.activeColorIndex;
-    }
+  const defaultColorIndex = useMemo(() => {
+    const i = product.activeColorIndex;
+    if (typeof i === "number" && i >= 0 && i < colors.length) return i;
     if (product.activeColorName) {
       const idx = colors.findIndex((c) => c.name.toLowerCase() === product.activeColorName?.toLowerCase());
       if (idx !== -1) return idx;
@@ -53,467 +61,239 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
     return 0;
   }, [product.activeColorIndex, product.activeColorName, colors]);
 
-  const [selectedColorOverride, setSelectedColorOverride] = useState<number | null>(null);
-  const [selectedSize, setSelectedSize] = useState<string>("Select Size");
-  const [isSizeDropdownOpen, setIsSizeDropdownOpen] = useState(false);
-  const [isDetailsExpanded, setIsDetailsExpanded] = useState(true);
-  const [isShippingExpanded, setIsShippingExpanded] = useState(false);
+  const [colorOverride, setColorOverride] = useState<number | null>(null);
+  const [selectedSize, setSelectedSize] = useState<string | null>(null);
   const [showSizeGuide, setShowSizeGuide] = useState(false);
-  const [addedNotice, setAddedNotice] = useState(false);
-  const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [added, setAdded] = useState(false);
+  const [sizeError, setSizeError] = useState(false);
 
-  const selectedColorIndex =
-    selectedColorOverride !== null && selectedColorOverride < colors.length
-      ? selectedColorOverride
-      : defaultColorIndex;
+  const colorIdx = colorOverride !== null && colorOverride < colors.length ? colorOverride : defaultColorIndex;
+  const currentColor = colors[colorIdx];
+  const sizes = product.sizes && product.sizes.length > 0 ? product.sizes : ["One Size"];
+  const isFav = isInWishlist(product.id);
+  const price = formatProductPrice(product);
 
-  const sizes = product.sizes || ["XS", "S", "M", "L", "XL"];
-  const currentColor = colors[selectedColorIndex] || colors[0];
-
-  // Dynamically update garment photos to match the selected color!
-  const gallery = React.useMemo(() => {
-    if (currentColor?.image) {
-      const remaining = (product.galleryImages || [product.imageUrl]).filter((img) => img !== currentColor.image);
-      return [currentColor.image, ...remaining];
-    }
-    return product.galleryImages && product.galleryImages.length >= 2
-      ? product.galleryImages
-      : [
-          product.imageUrl,
-          product.galleryImages?.[0] || product.imageUrl,
-        ];
+  const gallery = useMemo(() => {
+    const base = (product.galleryImages ?? []).filter(Boolean);
+    const list = base.length > 0 ? base : [product.imageUrl];
+    if (currentColor?.image) return [currentColor.image, ...list.filter((img) => img !== currentColor.image)];
+    return list;
   }, [currentColor, product.galleryImages, product.imageUrl]);
 
   const handleAddToBag = () => {
-    if (selectedSize === "Select Size") {
-      setErrorNotice("Please select a size");
-      setIsSizeDropdownOpen(true);
+    const size = sizes.length === 1 ? sizes[0] : selectedSize;
+    if (!size) {
+      setSizeError(true);
       return;
     }
-    setErrorNotice(null);
+    setSizeError(false);
+    const colorLabel = currentColor ? `, ${currentColor.name}` : "";
     addItem({
       id: product.id,
-      title: `${product.title} (${selectedSize}, ${currentColor.name})`,
+      title: `${product.title} (${size}${colorLabel})`,
       price: product.price,
-      imageUrl: currentColor?.image || gallery[0] || product.imageUrl,
+      imageUrl: gallery[0] || product.imageUrl,
     });
-    setAddedNotice(true);
-    setTimeout(() => setAddedNotice(false), 2500);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2500);
   };
 
+  const details = product.details;
+  const hasDetails = Boolean(details?.overview || product.description || details?.measurements?.length || details?.fabric || details?.care);
+
   return (
-    <div className="w-full bg-white text-black min-h-screen">
-      <div className="max-w-[1440px] mx-auto px-4 sm:px-8 py-8 lg:py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-start">
-          {/* LEFT: 2-Column Side-by-Side Gallery Images */}
-          <div className="lg:col-span-8 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-              {gallery.map((imgUrl, idx) => (
-                <div
-                  key={idx}
-                  id={`gallery-img-${idx}`}
-                  className={`relative aspect-[3/4] w-full bg-[#f4f4f4] overflow-hidden ${
-                    idx > 1 ? "hidden sm:block" : ""
-                  }`}
-                >
+    <div className="w-full pb-24 lg:pb-0">
+      <div className="max-w-[1600px] mx-auto px-0 sm:px-6 sm:pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+          {/* Gallery: horizontal swipe on mobile, two-up grid on desktop */}
+          <div className="lg:col-span-7 xl:col-span-8">
+            <div className="flex sm:grid sm:grid-cols-2 gap-1 sm:gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-none">
+              {gallery.map((src, idx) => (
+                <div key={`${src}-${idx}`} className="relative aspect-[2/3] w-[85vw] sm:w-auto shrink-0 snap-start bg-surface">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imgUrl}
-                    alt={`${product.title} - View ${idx + 1}`}
-                    className="w-full h-full object-cover object-center"
-                  />
+                  <img src={src} alt={`${product.title}, view ${idx + 1}`} className="absolute inset-0 w-full h-full object-cover" />
                 </div>
               ))}
             </div>
-
-            {/* Mobile Horizontal Thumbnail Slider */}
-            {gallery.length > 1 && (
-              <div className="flex sm:hidden items-center gap-2 overflow-x-auto py-2 scrollbar-none">
-                {gallery.map((imgUrl, idx) => (
-                  <a
-                    key={`thumb-${idx}`}
-                    href={`#gallery-img-${idx < 2 ? idx : 0}`}
-                    className="relative w-16 h-20 flex-shrink-0 bg-neutral-100 border border-neutral-300 overflow-hidden"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={imgUrl}
-                      alt={`Thumbnail ${idx + 1}`}
-                      className="w-full h-full object-cover"
-                    />
-                  </a>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* RIGHT: Sticky Details & Purchase Pane */}
-          <div className="lg:col-span-4 lg:sticky lg:top-28 space-y-6">
-            {/* Tag */}
-            {product.isNew !== false && (
-              <p className="text-sm font-normal text-[#2563eb]">New</p>
-            )}
+          {/* Purchase panel */}
+          <div className="lg:col-span-5 xl:col-span-4 lg:sticky lg:top-24 px-4 sm:px-0 space-y-6">
+            <div className="space-y-2">
+              {product.isNew && <p className="eyebrow text-muted">New</p>}
+              <h1 className="heading-display text-3xl sm:text-4xl">{product.title}</h1>
+              {product.subtitle && <p className="text-sm text-neutral-600">{product.subtitle}</p>}
+              <p className="text-base font-semibold pt-1">{price}</p>
+            </div>
 
-            {/* Title */}
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
-              {product.title}
-            </h1>
-
-            {/* Price */}
-            <p className="text-sm font-bold text-black">
-              {product.formattedPriceETB || `Br${product.priceETB.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB`}
-            </p>
-
-            {/* Color Swatch Selector */}
-            <div className="space-y-2.5 pt-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs uppercase tracking-wider text-neutral-500 font-semibold">
-                    Color:
-                  </span>
-                  <span className="text-sm text-black font-bold">
-                    {currentColor.name}
-                  </span>
-                  {selectedColorIndex === defaultColorIndex && (
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 border border-amber-300">
-                      ★ Active Color
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-neutral-400 font-medium">
-                  {colors.length} {colors.length === 1 ? "colorway" : "colorways"}
-                </span>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5 pt-0.5">
-                {colors.map((c, idx) => {
-                  const isSelected = selectedColorIndex === idx;
-                  const isDefaultActive = idx === defaultColorIndex;
-
-                  return (
+            {colors.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm">
+                  <span className="font-bold">Colour:</span> {currentColor?.name}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {colors.map((c, idx) => (
                     <button
                       key={c.name}
                       type="button"
-                      onClick={() => setSelectedColorOverride(idx)}
-                      title={`Switch to ${c.name}${isDefaultActive ? " (Active default)" : ""}`}
-                      aria-label={`Select color ${c.name}`}
-                      className={`group relative p-1 rounded-sm border transition-all flex items-center gap-2 ${
-                        isSelected
-                          ? "border-black bg-neutral-50 ring-1 ring-black"
-                          : "border-neutral-200 hover:border-neutral-400 bg-white"
+                      onClick={() => setColorOverride(idx)}
+                      title={c.name}
+                      aria-label={`Colour ${c.name}`}
+                      aria-pressed={idx === colorIdx}
+                      className={`size-9 rounded-full border-2 p-0.5 transition-colors ${
+                        idx === colorIdx ? "border-black" : "border-transparent hover:border-neutral-300"
                       }`}
                     >
-                      <span
-                        className="w-5 h-5 rounded-xs border border-black/15 shadow-2xs block flex-shrink-0"
-                        style={{ backgroundColor: c.hex }}
-                      />
-                      <span className={`text-xs pr-1 ${isSelected ? "font-bold text-black" : "text-neutral-700"}`}>
-                        {c.name}
-                      </span>
-                      {isDefaultActive && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mr-0.5" title="Active default color" />
-                      )}
+                      <span className="block w-full h-full rounded-full border border-black/15" style={{ backgroundColor: c.hex }} />
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Size Guide Link */}
-            <div className="pt-2">
-              <button
-                type="button"
-                onClick={() => setShowSizeGuide(true)}
-                className="text-xs text-black underline underline-offset-4 hover:opacity-70 transition-opacity"
-              >
-                Size Guide
-              </button>
-            </div>
-
-            {/* Size Dropdown Selector */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setIsSizeDropdownOpen(!isSizeDropdownOpen)}
-                className={`w-full flex items-center justify-between border px-4 py-3.5 text-sm transition-colors ${
-                  errorNotice
-                    ? "border-red-500 bg-red-50/50"
-                    : "border-black bg-white hover:bg-neutral-50"
-                }`}
-              >
-                <span className={selectedSize === "Select Size" ? "text-neutral-700" : "text-black font-medium"}>
-                  {selectedSize}
-                </span>
-                <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isSizeDropdownOpen ? "rotate-180" : ""}`} />
-              </button>
-
-              {errorNotice && (
-                <p className="text-xs text-red-600 mt-1">{errorNotice}</p>
-              )}
-
-              {isSizeDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 z-30 mt-1 bg-white border border-black shadow-lg py-1">
+            {sizes.length > 1 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm">
+                    <span className="font-bold">Size:</span> {selectedSize ?? <span className="text-muted">Select a size</span>}
+                  </p>
+                  <button type="button" onClick={() => setShowSizeGuide(true)} className="text-xs underline underline-offset-4">
+                    Size guide
+                  </button>
+                </div>
+                <div className="grid grid-cols-5 gap-1.5">
                   {sizes.map((sz) => (
                     <button
                       key={sz}
                       type="button"
                       onClick={() => {
                         setSelectedSize(sz);
-                        setIsSizeDropdownOpen(false);
-                        setErrorNotice(null);
+                        setSizeError(false);
                       }}
-                      className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between hover:bg-neutral-100 ${
-                        selectedSize === sz ? "bg-neutral-100 font-bold" : ""
+                      className={`h-11 border text-sm font-semibold transition-colors ${
+                        selectedSize === sz ? "bg-black text-white border-black" : "border-neutral-300 hover:border-black"
                       }`}
                     >
-                      <span>{sz}</span>
-                      {selectedSize === sz && <Check className="w-4 h-4 text-black" />}
+                      {sz}
                     </button>
                   ))}
                 </div>
-              )}
-            </div>
+                {sizeError && <p className="text-xs text-red-700">Please select a size.</p>}
+              </div>
+            )}
 
-            {/* Action Buttons: Add to Bag (solid black) + Wishlist (square bordered box) */}
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleAddToBag}
-                className="flex-1 bg-black text-white py-3.5 px-6 text-sm font-semibold hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
-              >
-                {addedNotice ? (
+            <div className="flex gap-2">
+              <button type="button" onClick={handleAddToBag} className="btn-primary flex-1 h-12">
+                {added ? (
                   <>
-                    <Check className="w-4 h-4" />
-                    Added to Bag
+                    <Check className="size-4" /> Added to bag
                   </>
                 ) : (
-                  "Add to Bag"
+                  "Add to bag"
                 )}
               </button>
-
               <button
                 type="button"
                 onClick={() => toggleWishlist(product.id)}
                 aria-label={isFav ? "Remove from wishlist" : "Add to wishlist"}
-                className="w-12 h-12 flex items-center justify-center border border-black hover:bg-neutral-50 transition-colors"
+                className="w-12 h-12 flex items-center justify-center border border-black hover:bg-surface transition-colors"
               >
-                <Heart
-                  className={`w-5 h-5 ${isFav ? "fill-black text-black" : "text-black stroke-[1.75]"}`}
-                />
+                <Heart className={`size-5 ${isFav ? "fill-black" : ""}`} />
               </button>
             </div>
 
-            {/* Details Accordion / Section */}
-            <div className="pt-6 border-t border-neutral-200 space-y-3">
-              <p className="text-sm font-bold text-black">Details</p>
-
-              <div className="text-xs text-neutral-800 leading-relaxed space-y-3 font-normal">
-                <p>
-                  {product.details?.overview ||
-                    product.description ||
-                    "The micro cable-knit polo. An easy silhouette with a classic collar, button-front placket and textured knit. Made from soft, lightweight merino wool."}
-                </p>
-
-                {isDetailsExpanded && (
-                  <div className="space-y-3 pt-1 animate-in fade-in duration-200">
-                    <ul className="list-disc pl-4 space-y-1 text-neutral-800">
-                      {(product.details?.measurements || [
-                        '18 1/2" long from shoulder',
-                        "Model is 5'9\" and wearing size XS",
-                      ]).map((m, i) => (
+            <div>
+              {hasDetails && (
+                <Accordion title="Details" defaultOpen>
+                  {(details?.overview || product.description) && <p>{details?.overview || product.description}</p>}
+                  {details?.measurements && details.measurements.length > 0 && (
+                    <ul className="list-disc pl-4 space-y-1">
+                      {details.measurements.map((m, i) => (
                         <li key={i}>{m}</li>
                       ))}
                     </ul>
-
-                    <div className="pt-2 space-y-1">
-                      <p>
-                        <span className="font-semibold">Fabric:</span>{" "}
-                        {product.details?.fabric || "100% Merino Wool"}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Care:</span>{" "}
-                        {product.details?.care ||
-                          "Hand wash inside out in cold water. Do not bleach. Lay flat to dry. Do not iron. Dry cleanable."}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => setIsDetailsExpanded(!isDetailsExpanded)}
-                  className="text-xs text-black underline underline-offset-4 pt-1 hover:opacity-75"
-                >
-                  {isDetailsExpanded ? "Less" : "More"}
-                </button>
-              </div>
-            </div>
-
-            {/* Shipping & Returns Accordion */}
-            <div className="pt-4 border-t border-neutral-200">
-              <button
-                type="button"
-                onClick={() => setIsShippingExpanded(!isShippingExpanded)}
-                className="w-full flex items-center justify-between py-2 text-left"
-              >
-                <span className="text-xs font-normal text-black underline underline-offset-4 hover:opacity-75">
-                  Shipping &amp; Returns
-                </span>
-                <ChevronDown className={`w-4 h-4 text-black transition-transform duration-200 ${isShippingExpanded ? "rotate-180" : ""}`} />
-              </button>
-
-              {isShippingExpanded && (
-                <div className="pt-2 text-xs text-neutral-700 space-y-2 leading-relaxed animate-in fade-in duration-200">
-                  <p>
-                    Complimentary standard shipping on all domestic orders within Ethiopia over Br15,000 ETB. International DHL express shipping calculated at checkout.
-                  </p>
-                  <p>
-                    Returns accepted within 30 days of delivery on unworn items in original packaging with tags attached.
-                  </p>
-                </div>
+                  )}
+                  {details?.fabric && (
+                    <p>
+                      <span className="font-semibold text-black">Fabric:</span> {details.fabric}
+                    </p>
+                  )}
+                  {details?.care && (
+                    <p>
+                      <span className="font-semibold text-black">Care:</span> {details.care}
+                    </p>
+                  )}
+                </Accordion>
               )}
+              <Accordion title="Shipping & returns">
+                <p>Free standard delivery within Ethiopia on orders over Br15,000. International express shipping is calculated at checkout.</p>
+                <p>Returns accepted within 30 days of delivery on unworn items with tags attached.</p>
+              </Accordion>
+              <div className="border-t border-line" />
             </div>
           </div>
         </div>
 
-        {/* Complete the Look / You May Also Like */}
-        <div className="mt-24 pt-12 border-t border-neutral-200">
-          <h2 className="text-lg font-bold tracking-tight text-black mb-6">
-            You May Also Like
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {relatedProducts.map((rel) => (
-              <Link
-                key={rel.id}
-                href={`/products/${rel.id}`}
-                className="group block space-y-2"
-              >
-                <div className="aspect-[3/4] bg-[#f4f4f4] overflow-hidden">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={rel.imageUrl}
-                    alt={rel.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div>
-                  <p className="text-xs text-black font-normal line-clamp-1 group-hover:underline">
-                    {rel.title}
-                  </p>
-                  <p className="text-xs text-neutral-600 font-normal">
-                    {rel.formattedPriceETB || `Br${rel.priceETB.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB`}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
+        {related.length > 0 && (
+          <section className="mt-20 px-4 sm:px-0">
+            <h2 className="heading-display text-3xl sm:text-4xl mb-8">You may also like</h2>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-3 gap-y-10">
+              {related.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* Size Guide Modal */}
+      {/* Size guide */}
       {showSizeGuide && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b pb-4">
-              <h3 className="text-lg font-bold text-black">Size Guide (Inches)</h3>
-              <button
-                type="button"
-                onClick={() => setShowSizeGuide(false)}
-                className="p-1 text-neutral-500 hover:text-black"
-              >
-                <X className="w-5 h-5" />
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowSizeGuide(false)}>
+          <div className="bg-white max-w-lg w-full p-6 sm:p-8 space-y-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="heading-display text-2xl">Size guide</h3>
+              <button type="button" onClick={() => setShowSizeGuide(false)} className="w-10 h-10 flex items-center justify-center -mr-2" aria-label="Close size guide">
+                <X className="size-5" />
               </button>
             </div>
-
-            <div className="overflow-x-auto text-xs">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b bg-neutral-50 font-semibold text-black">
-                    <th className="py-2.5 px-3">Size</th>
-                    <th className="py-2.5 px-3">Bust / Chest</th>
-                    <th className="py-2.5 px-3">Waist</th>
-                    <th className="py-2.5 px-3">Hips</th>
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-black">
+                  <th className="py-2 pr-3">Size</th>
+                  <th className="py-2 pr-3">Bust</th>
+                  <th className="py-2 pr-3">Waist</th>
+                  <th className="py-2">Hips</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line text-neutral-700">
+                {SIZE_GUIDE.map((row) => (
+                  <tr key={row[0]}>
+                    <td className="py-2.5 pr-3 font-semibold text-black">{row[0]}</td>
+                    <td className="py-2.5 pr-3">{row[1]}</td>
+                    <td className="py-2.5 pr-3">{row[2]}</td>
+                    <td className="py-2.5">{row[3]}</td>
                   </tr>
-                </thead>
-                <tbody className="divide-y text-neutral-700">
-                  <tr>
-                    <td className="py-2.5 px-3 font-semibold text-black">XS (0-2)</td>
-                    <td className="py-2.5 px-3">32 - 33&quot;</td>
-                    <td className="py-2.5 px-3">24 - 25&quot;</td>
-                    <td className="py-2.5 px-3">34 - 35&quot;</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-semibold text-black">S (4-6)</td>
-                    <td className="py-2.5 px-3">34 - 35&quot;</td>
-                    <td className="py-2.5 px-3">26 - 27&quot;</td>
-                    <td className="py-2.5 px-3">36 - 37&quot;</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-semibold text-black">M (8-10)</td>
-                    <td className="py-2.5 px-3">36 - 37&quot;</td>
-                    <td className="py-2.5 px-3">28 - 29&quot;</td>
-                    <td className="py-2.5 px-3">38 - 39&quot;</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-semibold text-black">L (12-14)</td>
-                    <td className="py-2.5 px-3">38 - 40&quot;</td>
-                    <td className="py-2.5 px-3">30 - 32&quot;</td>
-                    <td className="py-2.5 px-3">40 - 42&quot;</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-semibold text-black">XL (16)</td>
-                    <td className="py-2.5 px-3">41 - 43&quot;</td>
-                    <td className="py-2.5 px-3">33 - 35&quot;</td>
-                    <td className="py-2.5 px-3">43 - 45&quot;</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <p className="text-[11px] text-neutral-500 leading-normal">
-              Measurements refer to body size, not garment dimensions. If between sizes, we recommend ordering one size up for a relaxed fit.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => setShowSizeGuide(false)}
-              className="w-full bg-black text-white py-3 text-xs font-bold uppercase tracking-wider"
-            >
-              Close Size Guide
-            </button>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-xs text-muted">Body measurements in inches. Between sizes? We recommend sizing up for a relaxed fit.</p>
           </div>
         </div>
       )}
 
-      {/* MOBILE STICKY ADD TO BAG BAR (Fixed at bottom for small screens) */}
-      <div className="lg:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-md border-t border-neutral-200 p-3 px-4 z-30 flex items-center justify-between gap-3 shadow-lg">
-        <div className="flex items-center gap-2.5 min-w-0">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={product.imageUrl}
-            alt={product.title}
-            className="w-10 h-10 object-cover bg-neutral-100 flex-shrink-0"
-          />
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-black truncate">{product.title}</p>
-            <p className="text-[11px] font-semibold text-neutral-600">
-              ${product.price} USD
-            </p>
-          </div>
+      {/* Mobile sticky bar */}
+      <div className="lg:hidden fixed bottom-0 inset-x-0 bg-white border-t border-line p-3 z-30 flex items-center gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase truncate">{product.title}</p>
+          <p className="text-xs text-neutral-600">{price}</p>
         </div>
-
-        <button
-          type="button"
-          onClick={handleAddToBag}
-          className="bg-black text-white text-xs font-bold uppercase tracking-wider py-2.5 px-4 flex-shrink-0 flex items-center gap-1.5 active:scale-95 transition-transform"
-        >
-          {addedNotice ? (
+        <button type="button" onClick={handleAddToBag} className="btn-primary px-5 py-3">
+          {added ? (
             <>
-              <Check className="w-3.5 h-3.5 text-white" />
-              <span>Added</span>
+              <Check className="size-4" /> Added
             </>
           ) : (
-            <span>Add to Bag</span>
+            "Add to bag"
           )}
         </button>
       </div>

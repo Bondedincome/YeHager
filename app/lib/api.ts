@@ -1,25 +1,41 @@
 /**
  * Centralized API client for communicating with the NestJS backend.
- * 
+ *
+ * The backend serves everything under /api/v1.
  * In production (cPanel deployment):
  *   NEXT_PUBLIC_API_URL=https://api.yehagere.com/api/v1
- * In local development:
- *   NEXT_PUBLIC_API_URL=http://localhost:3001/api/v1
+ * In local development (backend on port 3000, Next.js dev server on 3001):
+ *   NEXT_PUBLIC_API_URL=http://localhost:3000/api/v1
  */
+
+const API_PREFIX = "/api/v1";
+const LOCAL_BACKEND_PORT = "3000";
+
+/** Accept "https://api.example.com" as well as ".../api/v1" — add the prefix if missing. */
+function withApiPrefix(base: string): string {
+  const trimmed = base.replace(/\/+$/, "");
+  try {
+    const url = new URL(trimmed);
+    if (url.pathname === "" || url.pathname === "/") return `${trimmed}${API_PREFIX}`;
+  } catch {
+    // relative or unusual value: use as given
+  }
+  return trimmed;
+}
 
 function resolveNestApiBase(): string {
   const configuredBase = process.env.NEXT_PUBLIC_API_URL?.trim();
-  if (configuredBase) return configuredBase.replace(/\/$/, "");
+  if (configuredBase) return withApiPrefix(configuredBase);
 
   if (typeof window !== "undefined") {
     const { hostname, protocol } = window.location;
     const apiHost = hostname === "localhost" || hostname === "127.0.0.1"
-      ? `${hostname}:3001`
+      ? `${hostname}:${LOCAL_BACKEND_PORT}`
       : `api.${hostname.replace(/^www\./, "")}`;
-    return `${protocol}//${apiHost}/api/v1`;
+    return `${protocol}//${apiHost}${API_PREFIX}`;
   }
 
-  return "http://localhost:3001/api/v1";
+  return `http://localhost:${LOCAL_BACKEND_PORT}${API_PREFIX}`;
 }
 
 export const NESTJS_API_BASE = resolveNestApiBase();

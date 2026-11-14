@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import LogoMark from "../components/LogoMark";
 import { apiFetch } from "../lib/api";
 
 export default function ContactPage() {
@@ -40,20 +39,17 @@ export default function ContactPage() {
     <div className="min-h-screen bg-white text-black py-16 px-4 sm:px-8">
       <div className="max-w-2xl mx-auto space-y-10">
         <div className="text-center space-y-3">
-          <LogoMark size="md" className="mx-auto mb-4" />
-          <h1 className="text-3xl font-bold tracking-tight text-black">
-            Client Concierge
-          </h1>
-          <p className="text-xs text-neutral-600 max-w-md mx-auto">
-            Our team is at your disposal for sizing guidance, order tracking, and private styling appointments.
+          <h1 className="heading-display text-5xl sm:text-6xl">Contact us</h1>
+          <p className="text-sm text-neutral-600 max-w-md mx-auto">
+            Questions about sizing, an order, or anything else? Send us a message and we&apos;ll reply within 24 hours.
           </p>
         </div>
 
         {submitted ? (
           <div className="bg-[#f9f9f9] border border-neutral-200 p-8 text-center space-y-3">
-            <h2 className="text-lg font-bold text-black">Message Sent</h2>
+            <h2 className="heading-display text-2xl">Message sent</h2>
             <p className="text-xs text-neutral-600 leading-relaxed">
-              Thank you for contacting YeHagere Client Services. A concierge advisor will reply to {formData.email} within 24 hours.
+              Thanks for getting in touch. We&apos;ll reply to {formData.email} within 24 hours.
             </p>
             <button
               type="button"

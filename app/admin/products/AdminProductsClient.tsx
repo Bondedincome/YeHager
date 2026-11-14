@@ -232,7 +232,7 @@ export default function AdminProductsClient() {
 
     const confirmMsg =
       assignedCount > 0
-        ? `Category "${cat.name}" currently has ${assignedCount} garment(s) assigned to it. Deleting this category will reassign those garments to "Matching Sets". Proceed?`
+        ? `Category "${cat.name}" currently has ${assignedCount} product(s) assigned to it. Deleting this category will reassign those products to "Matching Sets". Proceed?`
         : `Are you sure you want to delete category "${cat.name}"?`;
 
     if (!confirm(confirmMsg)) return;
@@ -322,7 +322,7 @@ export default function AdminProductsClient() {
       colors: formData.colors,
       activeColorIndex: formData.activeColorIndex,
       activeColorName: activeColor?.name,
-      description: formData.description || "Impeccably tailored contemporary garment woven by master artisans in Addis Ababa.",
+      description: formData.description || "Impeccably tailored contemporary product woven by master artisans in Addis Ababa.",
       details: {
         overview: formData.description,
         measurements: ["Tailored contemporary fit", "Model is 5'10\" and wears size Small"],
@@ -342,7 +342,7 @@ export default function AdminProductsClient() {
       setProducts((prev) => [created, ...prev]);
       setFormData(initialForm);
       setShowAddModal(false);
-      showToast(`Garment "${created.title || formData.title}" added to atelier catalog.`);
+      showToast(`Product "${created.title || formData.title}" added.`);
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to create product");
     }
@@ -373,7 +373,7 @@ export default function AdminProductsClient() {
       });
       if (!response.ok) throw new Error("Failed to update product");
       setProducts((prev) => prev.map((product) => product.id === editingProduct.id ? updates : product));
-      showToast(`Garment #${editingProduct.id} "${editingProduct.title}" updated successfully.`);
+      showToast(`Product #${editingProduct.id} "${editingProduct.title}" updated successfully.`);
       setEditingProduct(null);
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to update product");
@@ -430,7 +430,7 @@ export default function AdminProductsClient() {
 
   // Delete Product
   const handleDelete = async (id: Product["id"], title: string) => {
-    if (!confirm(`Are you sure you want to remove "${title}" from the atelier catalog?`)) return;
+    if (!confirm(`Are you sure you want to remove "${title}" ? This can't be undone.`)) return;
     try {
       const response = await apiFetch(`${productsApi}/${id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to remove product");
@@ -497,26 +497,14 @@ export default function AdminProductsClient() {
   );
 
   return (
-    <div className="min-h-screen bg-[#fafafa] text-black pb-24">
+    <div className="min-h-screen bg-white text-black pb-24">
       {/* Main Container */}
       <div className="max-w-[1520px] mx-auto px-4 sm:px-8 pt-8 space-y-8">
         {/* Title & Actions Row */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-neutral-200">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-[0.25em] text-neutral-500">
-                Catalog &amp; Inventory Governance
-              </span>
-              <span className="inline-block px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black text-white">
-                Live Merchandising
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-black">
-              Garment Collections &amp; Stock Levels
-            </h1>
-            <p className="text-xs text-neutral-600 mt-1">
-              Full administrative control: adjust pricing in USD and ETB, update stock in real-time, toggle campaign tags, and duplicate silhouettes.
-            </p>
+            <h1 className="text-2xl font-semibold text-black">Products</h1>
+          <p className="text-sm text-neutral-600 mt-1">Add and edit products, prices, stock and categories.</p>
           </div>
 
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full md:w-auto">
@@ -542,7 +530,7 @@ export default function AdminProductsClient() {
               className="flex-1 sm:flex-initial px-4 sm:px-5 py-2.5 text-xs font-bold uppercase tracking-wider bg-black text-white hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 shadow-2xs"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Garment</span>
+              <span>Add Product</span>
             </button>
           </div>
         </div>
@@ -555,7 +543,7 @@ export default function AdminProductsClient() {
             </span>
             <div className="text-xl sm:text-2xl font-extrabold text-black mt-1 flex items-baseline gap-2">
               {products.length}
-              <span className="text-xs font-normal text-neutral-500">silhouettes</span>
+              <span className="text-xs font-normal text-neutral-500">products</span>
             </div>
           </div>
 
@@ -611,7 +599,7 @@ export default function AdminProductsClient() {
             <Search className="w-4 h-4 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search garments by name, tag, category..."
+              placeholder="Search products by name, tag, category..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-[#f4f4f4] text-xs text-black placeholder:text-neutral-400 focus:outline-none focus:ring-1 focus:ring-black"
@@ -662,7 +650,7 @@ export default function AdminProductsClient() {
         <div className="md:hidden space-y-3">
           {filteredProducts.length === 0 ? (
             <div className="bg-white border border-neutral-200 p-8 text-center text-xs text-neutral-500">
-              No garments matching your filter criteria.
+              No products matching your filter criteria.
             </div>
           ) : (
             filteredProducts.map((p) => {
@@ -698,7 +686,7 @@ export default function AdminProductsClient() {
                         {p.title}
                       </h3>
                       <span className="text-[11px] text-neutral-500 block truncate">
-                        {p.subtitle || "Atelier Handcrafted Piece"}
+                        {p.subtitle || "Handmade"}
                       </span>
 
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
@@ -834,7 +822,7 @@ export default function AdminProductsClient() {
         {/* DESKTOP PRODUCTS TABLE (hidden md:block) */}
         <div className="hidden md:block bg-white border border-neutral-200 divide-y divide-neutral-100 overflow-hidden shadow-2xs">
           <div className="grid grid-cols-12 px-6 py-3.5 bg-neutral-50 text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-            <div className="col-span-4">Garment Silhouette</div>
+            <div className="col-span-4">Product Silhouette</div>
             <div className="col-span-2">Category &amp; Tag</div>
             <div className="col-span-2 text-right">Price (USD / ETB)</div>
             <div className="col-span-2 text-center">Stock Inventory</div>
@@ -843,7 +831,7 @@ export default function AdminProductsClient() {
 
           {filteredProducts.length === 0 ? (
             <div className="p-12 text-center text-xs text-neutral-500">
-              No garments matching your filter criteria.
+              No products matching your filter criteria.
             </div>
           ) : (
             filteredProducts.map((p) => {
@@ -856,7 +844,7 @@ export default function AdminProductsClient() {
                   key={p.id}
                   className="grid grid-cols-12 px-6 py-4 items-center hover:bg-neutral-50/75 transition-colors"
                 >
-                  {/* Garment Details */}
+                  {/* Product Details */}
                   <div className="col-span-4 flex items-center gap-4">
                     <div className="w-14 h-16 bg-neutral-100 relative flex-shrink-0 overflow-hidden border border-neutral-200">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -870,7 +858,7 @@ export default function AdminProductsClient() {
                         <span className="text-[10px] text-neutral-400 font-mono">#{p.id}</span>
                       </div>
                       <span className="text-[11px] text-neutral-500 block truncate">
-                        {p.subtitle || "Atelier Handcrafted Piece"}
+                        {p.subtitle || "Handmade"}
                       </span>
 
                       {/* Colorways and 1-Click Active Selector */}
@@ -983,14 +971,14 @@ export default function AdminProductsClient() {
                     <button
                       onClick={() => setEditingProduct({ ...p })}
                       className="p-2 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors"
-                      title="Edit Garment Details"
+                      title="Edit Product Details"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDuplicate(p)}
                       className="p-2 text-neutral-600 hover:text-black hover:bg-neutral-100 transition-colors"
-                      title="Clone / Duplicate Garment"
+                      title="Clone / Duplicate Product"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
@@ -1005,7 +993,7 @@ export default function AdminProductsClient() {
                     <button
                       onClick={() => handleDelete(p.id, p.title)}
                       className="p-2 text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                      title="Delete Garment"
+                      title="Delete Product"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -1030,9 +1018,8 @@ export default function AdminProductsClient() {
               </div>
               <button
                 onClick={() => setEditingProduct(null)}
-                className="p-1 text-neutral-400 hover:text-black text-sm font-bold"
-              >
-                ✕
+                className="p-1 text-neutral-400 hover:text-black text-sm font-bold" aria-label="Close">
+                <X className="size-5" />
               </button>
             </div>
 
@@ -1229,7 +1216,7 @@ export default function AdminProductsClient() {
 
               <div className="space-y-1">
                 <label className="text-xs font-bold uppercase tracking-wider text-black">
-                  Garment Description
+                  Product Description
                 </label>
                 <textarea
                   rows={3}
@@ -1286,7 +1273,7 @@ export default function AdminProductsClient() {
                 <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-400">
                   Catalog Creation
                 </span>
-                <h3 className="text-xl font-bold text-black">New Garment Piece</h3>
+                <h3 className="text-xl font-bold text-black">New Product Piece</h3>
               </div>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -1485,7 +1472,7 @@ export default function AdminProductsClient() {
                   type="submit"
                   className="px-6 py-2 text-xs font-bold uppercase tracking-wider bg-black text-white hover:bg-neutral-800 shadow-sm"
                 >
-                  Save to Atelier Catalog
+                  Save product
                 </button>
               </div>
             </form>
@@ -1493,7 +1480,7 @@ export default function AdminProductsClient() {
         </div>
       )}
 
-      {/* Quick Add Category Modal (Invoked from inside Add/Edit Garment Form) */}
+      {/* Quick Add Category Modal (Invoked from inside Add/Edit Product Form) */}
       {quickCategoryTarget && (
         <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white border border-neutral-200 w-full max-w-md p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
@@ -1516,7 +1503,7 @@ export default function AdminProductsClient() {
             </div>
 
             <p className="text-xs text-neutral-600">
-              Create a new merchandise category. It will be immediately saved to the atelier taxonomy and selected for this garment.
+              Create a new merchandise category. It will be saved and selected for this product.
             </p>
 
             {catError && (
@@ -1610,7 +1597,7 @@ export default function AdminProductsClient() {
                   </span>
                 </div>
                 <h2 className="text-xl font-extrabold text-black">
-                  Atelier Garment Categories
+                  Categories
                 </h2>
                 <p className="text-xs text-neutral-600 mt-0.5">
                   Create new collection categories, adjust metadata, and organize your storefront catalog filters.
@@ -1775,7 +1762,7 @@ export default function AdminProductsClient() {
                                 )}
                               </div>
                               <p className="text-xs text-neutral-500">
-                                {cat.description || "Atelier seasonal collection"}
+                                {cat.description || "No description"}
                               </p>
                             </>
                           )}
@@ -1785,7 +1772,7 @@ export default function AdminProductsClient() {
                           <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-t-0 border-neutral-100">
                             <div className="text-left sm:text-right">
                               <span className="text-xs font-bold text-black block">
-                                {assigned} {assigned === 1 ? "garment" : "garments"}
+                                {assigned} {assigned === 1 ? "product" : "products"}
                               </span>
                               <span className="text-[10px] text-neutral-400">
                                 in inventory

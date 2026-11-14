@@ -17,7 +17,7 @@ export default function StorefrontShell({ children }: { children: React.ReactNod
 
   if (isAdminLoginPage) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#fafafa] text-black">
+      <div className="min-h-screen flex flex-col bg-white text-black">
         <main className="flex-1">{children}</main>
       </div>
     );

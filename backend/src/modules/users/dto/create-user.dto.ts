@@ -38,7 +38,7 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 
-  @ApiPropertyOptional({ example: 'atelier.staff' })
+  @ApiPropertyOptional({ example: 'store.staff' })
   @IsOptional()
   @IsString()
   @MinLength(3)

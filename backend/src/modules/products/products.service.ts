@@ -77,7 +77,7 @@ export class ProductsService implements OnModuleInit {
         ],
         categoryName: 'heritage',
         isNew: true,
-        tag: 'Atelier Signature',
+        tag: 'Signature',
         colors: [
           { name: 'Pure White & Gold', hex: '#FAF9F6', active: true },
         ],

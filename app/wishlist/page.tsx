@@ -2,10 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { Trash2 } from "../components/icons";
 import { useWishlist } from "../components/WishlistProvider";
 import { Product } from "../lib/products-store";
-import MicroProductCard from "../components/MicroProductCard";
+import ProductCard from "../components/ProductCard";
 import { apiFetch } from "../lib/api";
 
 export default function WishlistPage() {
@@ -25,24 +25,18 @@ export default function WishlistPage() {
   const savedProducts = allProducts.filter((p) => wishlistIds.includes(p.id));
 
   return (
-    <div className="min-h-screen bg-white text-black py-10 px-4 sm:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
-        <div className="flex items-center justify-between border-b border-neutral-200 pb-6">
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
-              Wishlist
-            </h1>
-            <p className="text-xs text-neutral-500">
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pt-10 sm:pt-14 pb-20">
+      <div className="space-y-8">
+        <div className="flex items-end justify-between border-b border-line pb-6">
+          <div className="space-y-2">
+            <h1 className="heading-display text-4xl sm:text-6xl">Wishlist</h1>
+            <p className="text-sm text-muted">
               {wishlistIds.length} {wishlistIds.length === 1 ? "item" : "items"} saved
             </p>
           </div>
 
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-black hover:opacity-75"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Return to Store
+          <Link href="/products" className="link-underline">
+            Continue shopping
           </Link>
         </div>
 
@@ -50,31 +44,28 @@ export default function WishlistPage() {
 
         {savedProducts.length === 0 ? (
           <div className="py-24 text-center space-y-4 max-w-md mx-auto">
-            <p className="text-lg font-bold text-black">Your wishlist is empty</p>
-            <p className="text-xs text-neutral-600 leading-relaxed">
-              Tap the heart icon on any garment to save your favorites for later.
+            <p className="heading-display text-2xl">Your wishlist is empty</p>
+            <p className="text-sm text-neutral-600 leading-relaxed">
+              Tap the heart on any product to save it for later.
             </p>
             <div className="pt-2">
-              <Link
-                href="/"
-                className="inline-block bg-black text-white! px-8 py-3.5 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800! transition-colors"
-              >
-                Explore Collection
+              <Link href="/products" className="btn-primary">
+                Shop all
               </Link>
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-3 gap-y-10">
             {savedProducts.map((product) => (
               <div key={product.id} className="relative group">
-                <MicroProductCard product={product} />
+                <ProductCard product={product} />
                 <button
                   type="button"
                   onClick={() => toggleWishlist(product.id)}
-                  className="mt-2 text-xs text-neutral-500 hover:text-black flex items-center gap-1"
+                  className="mt-3 text-xs text-neutral-500 hover:text-black flex items-center gap-1.5"
                 >
-                  <Trash2 className="w-3 h-3" />
-                  Remove from wishlist
+                  <Trash2 className="size-4" />
+                  Remove
                 </button>
               </div>
             ))}

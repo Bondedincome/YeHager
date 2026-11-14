@@ -25,6 +25,7 @@ import { TransformInterceptor } from './common/interceptors/transform.intercepto
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { LoggerService } from './common/logger/logger.service';
 import { InquiriesModule } from './modules/inquiries/inquiries.module';
+import { SiteContentModule } from './modules/site-content/site-content.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { InquiriesModule } from './modules/inquiries/inquiries.module';
     AuthModule,
     CoreModule,
     InquiriesModule,
+    SiteContentModule,
   ],
   controllers: [],
   providers: [

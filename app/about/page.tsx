@@ -1,55 +1,54 @@
 import React from "react";
 import Link from "next/link";
-import LogoMark from "../components/LogoMark";
+
+const VALUES = [
+  {
+    title: "Handmade",
+    body: "Every piece is spun, woven and finished by hand in Ethiopia by people we know by name.",
+  },
+  {
+    title: "Natural materials",
+    body: "Organic Ethiopian cotton, fine merino and pure linen, chosen to feel good and last for years.",
+  },
+  {
+    title: "Ethically made",
+    body: "Fair wages, safe workshops and small batches. Eco friendly and cruelty free, always.",
+  },
+];
 
 export default function AboutPage() {
   return (
-    <div className="min-h-screen bg-white text-black py-16 px-4 sm:px-8">
-      <div className="max-w-3xl mx-auto space-y-12">
-        <div className="text-center space-y-4">
-          <LogoMark size="lg" className="mx-auto mb-6" />
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-black">
-            The YeHagere Ethos
-          </h1>
-          <p className="text-sm text-neutral-600 max-w-xl mx-auto leading-relaxed">
-            Crafting architectural simplicity, refined natural textiles, and timeless silhouettes.
-          </p>
-        </div>
+    <div>
+      <section className="max-w-[1600px] mx-auto px-4 sm:px-6 pt-14 sm:pt-24 pb-12">
+        <p className="eyebrow text-muted mb-4">About YeHagere</p>
+        <h1 className="heading-display text-5xl sm:text-7xl lg:text-8xl max-w-5xl">
+          Made with lots of hearts and souls.
+        </h1>
+        <p className="mt-8 text-base sm:text-lg text-neutral-700 max-w-2xl leading-relaxed">
+          YeHagere is a handmade clothing brand from Ethiopia. We bring traditional Ethiopian craft into clean,
+          modern pieces made to be worn every day and kept for years.
+        </p>
+      </section>
 
-        <div className="space-y-6 text-sm text-neutral-800 leading-relaxed pt-6 border-t border-neutral-200">
-          <p>
-            Founded with a vision to redefine everyday luxury, YeHagere merges ancestral Ethiopian craftsmanship with clean, modernist silhouettes. Every piece—from our micro cable polo to our signature low slung baggy denim—is designed to be lived in, layered, and cherished for seasons to come.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4">
-            <div className="p-6 bg-[#f9f9f9] border border-neutral-200 space-y-2">
-              <h3 className="font-bold text-black text-base">Conscious Materials</h3>
-              <p className="text-xs text-neutral-600 leading-relaxed">
-                We select ethically sourced fine merino wool, raw cotton twills, and pure flax linens to create garments with natural tactile richness.
-              </p>
+      <section className="border-t border-line">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-14 grid grid-cols-1 md:grid-cols-3 gap-10">
+          {VALUES.map((v) => (
+            <div key={v.title} className="space-y-3">
+              <h2 className="heading-display text-2xl sm:text-3xl">{v.title}</h2>
+              <p className="text-sm text-neutral-700 leading-relaxed">{v.body}</p>
             </div>
-            <div className="p-6 bg-[#f9f9f9] border border-neutral-200 space-y-2">
-              <h3 className="font-bold text-black text-base">Architectural Cut</h3>
-              <p className="text-xs text-neutral-600 leading-relaxed">
-                Precision proportions, relaxed drape, and discreet tailoring ensure seamless movement between casual days and evening gatherings.
-              </p>
-            </div>
-          </div>
-
-          <p className="pt-4">
-            Our collections are released in thoughtful, limited batches to prioritize quality over volume. Thank you for being part of our journey.
-          </p>
+          ))}
         </div>
+      </section>
 
-        <div className="pt-8 text-center">
-          <Link
-            href="/"
-            className="inline-block bg-black text-white! px-8 py-3.5 text-xs font-semibold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
-          >
-            Explore the Collection
+      <section className="border-t border-line">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-16 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <h2 className="heading-display text-3xl sm:text-5xl">See the collection</h2>
+          <Link href="/products" className="btn-primary self-start sm:self-auto">
+            Shop all
           </Link>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

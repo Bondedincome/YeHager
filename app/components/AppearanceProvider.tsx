@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useCallback, useContext, useMemo, useSyncExternalStore } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
+import { apiClient } from "../lib/api";
 
 export type HeroBanner = {
   imageUrl: string;
@@ -88,77 +89,77 @@ export type SiteCMSContent = {
 export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
   announcement: {
     enabled: true,
-    text: "Complimentary worldwide express shipping on orders over Br 25,000 ETB",
-    linkText: "Discover New In",
-    linkUrl: "/products/1",
+    text: "Free delivery in Addis Ababa on orders over Br25,000",
+    linkText: "Shop new in",
+    linkUrl: "/products",
     themeColor: "black",
     tickerMode: false,
   },
   hero: {
     imageUrl: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=1800&auto=format&fit=crop&q=80",
-    headline: "MATCHING SETS",
-    subheadline: "The sets you'll live in—your most effortless outfits start here",
-    ctaText: "Shop Now",
-    ctaLink: "/products/3",
-    badge: "AUTUMN / WINTER '26 ATELIER CAPSULE",
-    secondaryCtaText: "Explore Lookbook",
-    secondaryCtaLink: "#fall-lookbook",
+    headline: "Matching Sets",
+    subheadline: "The sets you'll live in. Your most effortless outfits start here.",
+    ctaText: "Shop now",
+    ctaLink: "/products",
+    badge: "New season",
+    secondaryCtaText: "",
+    secondaryCtaLink: "",
     alignment: "left",
     overlayOpacity: "medium",
   },
   lookbook: {
-    title: "Hello, Fall",
-    subtitle: "Check every box: layers, denim, done. The layers that set the tone for fall.",
+    title: "New In",
+    subtitle: "Layers, denim, done. The pieces that set the tone this season.",
     categoryFilter: "all",
-    badge: "SEASONAL EDIT",
-    viewAllLinkText: "View Full Lookbook",
+    badge: "",
+    viewAllLinkText: "Shop all",
     itemLimit: 4,
   },
   splitSection1: {
     enabled: true,
-    title: "New In Denim: Low Slung Baggy",
-    subtitle: "Meet your new favorite relaxed silhouette, tailored with Ethiopian cotton selvedge.",
-    ctaText: "Shop New Denim",
-    ctaLink: "/products/2",
+    title: "Low Slung Denim",
+    subtitle: "Meet your new favourite relaxed fit, cut from Ethiopian cotton.",
+    ctaText: "Shop denim",
+    ctaLink: "/products",
     campaignImageUrl: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=1200&auto=format&fit=crop&q=80",
     featuredProductIds: [2, 1, 3],
-    badge: "SIGNATURE SILHOUETTES",
+    badge: "",
     reverseLayout: false,
   },
   splitSection2: {
     enabled: true,
-    title: "Hand-Loomed Outerwear & Coats",
-    subtitle: "Warmth infused with ancestral weave techniques, crafted for modern cosmopolitan silhouettes.",
-    ctaText: "Explore Outerwear",
-    ctaLink: "/products/4",
+    title: "Hand-Loomed Outerwear",
+    subtitle: "Warmth woven with traditional techniques, cut for everyday wear.",
+    ctaText: "Shop outerwear",
+    ctaLink: "/products",
     campaignImageUrl: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=1200&auto=format&fit=crop&q=80",
     featuredProductIds: [4, 5, 2],
-    badge: "CAPSULE HIGHLIGHT",
+    badge: "",
     reverseLayout: true,
   },
   storySection: {
     enabled: true,
-    badge: "ATELIER HERITAGE & PROVENANCE",
-    title: "Preserving Centuries-Old Hand-Loom Traditions in Modern Addis Ababa",
-    paragraph1: "Every YeHageré silhouette is born from the convergence of ancestral Ethiopian hand-weaving and contemporary architectural tailoring. We spin sustainably farmed organic cotton on traditional drop spindles before weaving each textile on custom wooden pit looms.",
-    paragraph2: "By circumventing industrial synthetic manufacturing, we honor our artisanal community with dignified wages, fair-trade workshop environments, and heirloom-grade garments engineered to endure for decades.",
+    badge: "Our story",
+    title: "Hand-loomed in Addis Ababa",
+    paragraph1: "Every YeHagere piece starts with organic Ethiopian cotton, spun by hand and woven on traditional wooden pit looms.",
+    paragraph2: "We pay our weavers fair wages and make clothes built to last for years, not seasons.",
     imageUrl: "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1200&auto=format&fit=crop&q=80",
-    quote: "True luxury is born when ancient cultural craftsmanship meets intentional, slow-fashion minimalism.",
-    quoteAuthor: "YeHageré Lead Atelier Master",
+    quote: "Made with lots of hearts and souls.",
+    quoteAuthor: "YeHagere",
     stat1Value: "100%",
-    stat1Label: "Organic Ethiopian Cotton",
-    stat2Value: "48+ Hrs",
-    stat2Label: "Artisan Hand-Loom Time",
-    stat3Value: "Fair Wage",
-    stat3Label: "Cooperative Guarantee",
+    stat1Label: "Organic cotton",
+    stat2Value: "48+ hrs",
+    stat2Label: "Loom time per piece",
+    stat3Value: "Fair wage",
+    stat3Label: "For every weaver",
   },
-  footerNotice: "YEHAGERÉ ATELIER • HAND-CRAFTED ETHIOPIAN TEXTILES & CONTEMPORARY TAILORING",
+  footerNotice: "Handmade in Ethiopia",
   footer: {
-    notice: "YEHAGERÉ ATELIER • HAND-CRAFTED ETHIOPIAN TEXTILES & CONTEMPORARY TAILORING",
+    notice: "Handmade in Ethiopia",
     conciergePhone: "+251 91 123 4567",
-    conciergeEmail: "concierge@yehagere.com",
-    boutiqueAddress: "Bole Sub-City, Kebele 03, Addis Ababa, Ethiopia",
-    openingHours: "Mon – Sat: 9:00 AM – 7:30 PM EAT",
+    conciergeEmail: "hello@yehagere.com",
+    boutiqueAddress: "Bole, Addis Ababa, Ethiopia",
+    openingHours: "Mon – Sat, 9:00 – 19:30",
     instagramUrl: "https://instagram.com",
     tiktokUrl: "https://tiktok.com",
     telegramUrl: "https://t.me",
@@ -166,88 +167,169 @@ export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
   },
 };
 
+/**
+ * Old built-in defaults that are now retired. If a saved CMS still holds one of
+ * these exact strings (i.e. the admin never changed it), swap in the new default.
+ */
+const RETIRED_DEFAULTS = new Set([
+  "AUTUMN / WINTER '26 ATELIER CAPSULE",
+  "ATELIER HERITAGE & PROVENANCE",
+  "YeHageré Lead Atelier Master",
+  "YEHAGERÉ ATELIER • HAND-CRAFTED ETHIOPIAN TEXTILES & CONTEMPORARY TAILORING",
+  "Discover Atelier Heritage",
+  "Special Addis Ababa Pop-Up • Private Appointments Available via Atelier Concierge",
+  "#fall-lookbook",
+  "Explore Lookbook",
+]);
+
+function dropRetired<T extends object>(saved: Partial<T> | undefined, defaults: T): T {
+  const merged = { ...defaults, ...(saved || {}) } as T;
+  for (const key of Object.keys(merged) as (keyof T)[]) {
+    const value = merged[key];
+    if (typeof value === "string" && RETIRED_DEFAULTS.has(value)) {
+      merged[key] = defaults[key];
+    }
+  }
+  return merged;
+}
+
 type AppearanceContextValue = {
   cms: SiteCMSContent;
-  updateCMS: (v: Partial<SiteCMSContent>) => void;
-  resetCMS: () => void;
+  /** "loading" until the server copy has been fetched once. */
+  status: "loading" | "ready" | "error";
+  updatedAt: string | null;
+  /** Saves the full content to the server. Throws with a readable message on failure. */
+  saveCMS: (content: SiteCMSContent) => Promise<void>;
+  /** Clears server content so everyone sees the defaults. */
+  resetCMS: () => Promise<void>;
 };
 
 const AppearanceContext = createContext<AppearanceContextValue | undefined>(undefined);
-const CMS_STORAGE_KEY = "yehagere_cms_content_v2";
+
+/** Server endpoint (NestJS SiteContentModule). */
+const CMS_ENDPOINT = "site-content/homepage";
+/** Local cache of the last server copy, used only for a fast first paint. */
+const CMS_CACHE_KEY = "yehagere_cms_cache_v3";
+/** Old key from when content lived only in the browser. Read for one-time import. */
+export const LEGACY_CMS_STORAGE_KEY = "yehagere_cms_content_v2";
 const CMS_UPDATED_EVENT = "yehagere_cms:updated";
-let cachedCMS: SiteCMSContent | undefined;
 
-function readCMS(): SiteCMSContent {
+type StoreState = {
+  cms: SiteCMSContent;
+  status: AppearanceContextValue["status"];
+  updatedAt: string | null;
+};
+
+const SERVER_STATE: StoreState = { cms: DEFAULT_CMS_CONTENT, status: "loading", updatedAt: null };
+let state: StoreState | undefined;
+let fetchStarted = false;
+
+/** Merge any stored/partial content with defaults so missing fields never break the page. */
+export function normalizeCMS(raw: unknown): SiteCMSContent {
+  if (!raw || typeof raw !== "object") return DEFAULT_CMS_CONTENT;
+  const p = raw as Partial<SiteCMSContent>;
+  const D = DEFAULT_CMS_CONTENT;
+  const footer = dropRetired(p.footer, D.footer);
+  const footerNotice = p.footerNotice && !RETIRED_DEFAULTS.has(p.footerNotice) ? p.footerNotice : footer.notice;
+  return {
+    announcement: dropRetired(p.announcement, D.announcement),
+    hero: dropRetired(p.hero, D.hero),
+    lookbook: dropRetired(p.lookbook, D.lookbook),
+    splitSection1: dropRetired(p.splitSection1, D.splitSection1),
+    splitSection2: dropRetired(p.splitSection2, D.splitSection2),
+    storySection: dropRetired(p.storySection, D.storySection),
+    footerNotice,
+    footer: { ...footer, notice: footerNotice },
+  };
+}
+
+function readCache(): SiteCMSContent {
   try {
-    const raw = localStorage.getItem(CMS_STORAGE_KEY);
-    if (!raw) return DEFAULT_CMS_CONTENT;
-
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return DEFAULT_CMS_CONTENT;
-    const p = parsed as Partial<SiteCMSContent>;
-    return {
-      ...DEFAULT_CMS_CONTENT,
-      ...p,
-      announcement: { ...DEFAULT_CMS_CONTENT.announcement, ...(p.announcement || {}) },
-      hero: { ...DEFAULT_CMS_CONTENT.hero, ...(p.hero || {}) },
-      lookbook: { ...DEFAULT_CMS_CONTENT.lookbook, ...(p.lookbook || {}) },
-      splitSection1: { ...DEFAULT_CMS_CONTENT.splitSection1, ...(p.splitSection1 || {}) },
-      splitSection2: { ...DEFAULT_CMS_CONTENT.splitSection2, ...(p.splitSection2 || {}) },
-      storySection: { ...DEFAULT_CMS_CONTENT.storySection, ...(p.storySection || {}) },
-      footer: { ...DEFAULT_CMS_CONTENT.footer, ...(p.footer || {}) },
-    };
+    const raw = localStorage.getItem(CMS_CACHE_KEY);
+    return raw ? normalizeCMS(JSON.parse(raw)) : DEFAULT_CMS_CONTENT;
   } catch {
     return DEFAULT_CMS_CONTENT;
   }
 }
 
-function getCMSSnapshot(): SiteCMSContent {
-  cachedCMS ??= readCMS();
-  return cachedCMS;
+function getSnapshot(): StoreState {
+  state ??= { cms: readCache(), status: "loading", updatedAt: null };
+  return state;
 }
 
-function subscribeToCMS(onStoreChange: () => void) {
-  window.addEventListener("storage", onStoreChange);
-  window.addEventListener(CMS_UPDATED_EVENT, onStoreChange);
-  return () => {
-    window.removeEventListener("storage", onStoreChange);
-    window.removeEventListener(CMS_UPDATED_EVENT, onStoreChange);
-  };
-}
-
-function setCMSSnapshot(newContent: SiteCMSContent) {
-  cachedCMS = newContent;
-  try {
-    localStorage.setItem(CMS_STORAGE_KEY, JSON.stringify(newContent));
-  } catch {
-    // Storage fail-safe
+function setState(next: Partial<StoreState>) {
+  state = { ...getSnapshot(), ...next };
+  if (next.cms) {
+    try {
+      localStorage.setItem(CMS_CACHE_KEY, JSON.stringify(next.cms));
+    } catch {
+      // storage unavailable — the server copy is still the source of truth
+    }
   }
-  window.dispatchEvent(new CustomEvent(CMS_UPDATED_EVENT, { detail: newContent }));
+  window.dispatchEvent(new Event(CMS_UPDATED_EVENT));
+}
+
+function subscribe(onChange: () => void) {
+  window.addEventListener(CMS_UPDATED_EVENT, onChange);
+  return () => window.removeEventListener(CMS_UPDATED_EVENT, onChange);
+}
+
+type ServerPayload = { content: unknown; updatedAt: string | null };
+
+async function fetchFromServer() {
+  const result = await apiClient<ServerPayload>(CMS_ENDPOINT, { cache: "no-store" });
+  if (result.error !== undefined) {
+    setState({ status: "error" });
+    return;
+  }
+  setState({
+    cms: result.data?.content ? normalizeCMS(result.data.content) : DEFAULT_CMS_CONTENT,
+    updatedAt: result.data?.updatedAt ?? null,
+    status: "ready",
+  });
 }
 
 export default function AppearanceProvider({ children }: Readonly<{ children: React.ReactNode }>) {
-  const cms = useSyncExternalStore(subscribeToCMS, getCMSSnapshot, () => DEFAULT_CMS_CONTENT);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, () => SERVER_STATE);
 
-  const updateCMS = useCallback((partial: Partial<SiteCMSContent>) => {
-    const current = getCMSSnapshot();
-    const updated: SiteCMSContent = {
-      ...current,
-      ...partial,
-    };
-    setCMSSnapshot(updated);
+  useEffect(() => {
+    if (fetchStarted) return;
+    fetchStarted = true;
+    void fetchFromServer();
   }, []);
 
-  const resetCMS = useCallback(() => {
-    setCMSSnapshot(DEFAULT_CMS_CONTENT);
+  const saveCMS = useCallback(async (content: SiteCMSContent) => {
+    const body = { ...content, footer: { ...content.footer, notice: content.footerNotice } };
+    const result = await apiClient<ServerPayload>(CMS_ENDPOINT, {
+      method: "PUT",
+      body: JSON.stringify({ content: body }),
+    });
+    if (result.error !== undefined) {
+      throw new Error(
+        result.status === 401 || result.status === 403
+          ? "You need to be signed in as an admin to save."
+          : result.error || "Could not save. Please try again."
+      );
+    }
+    setState({
+      cms: normalizeCMS(result.data?.content ?? body),
+      updatedAt: result.data?.updatedAt ?? new Date().toISOString(),
+      status: "ready",
+    });
   }, []);
 
-  const contextValue = useMemo(() => ({ cms, updateCMS, resetCMS }), [cms, updateCMS, resetCMS]);
+  const resetCMS = useCallback(async () => {
+    const result = await apiClient(CMS_ENDPOINT, { method: "DELETE" });
+    if (result.error !== undefined) throw new Error(result.error || "Could not reset. Please try again.");
+    setState({ cms: DEFAULT_CMS_CONTENT, updatedAt: null, status: "ready" });
+  }, []);
 
-  return (
-    <AppearanceContext.Provider value={contextValue}>
-      {children}
-    </AppearanceContext.Provider>
+  const value = useMemo(
+    () => ({ cms: snapshot.cms, status: snapshot.status, updatedAt: snapshot.updatedAt, saveCMS, resetCMS }),
+    [snapshot, saveCMS, resetCMS]
   );
+
+  return <AppearanceContext.Provider value={value}>{children}</AppearanceContext.Provider>;
 }
 
 export function useAppearance() {

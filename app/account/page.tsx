@@ -139,11 +139,11 @@ export default function AccountPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-black">{user.name}</h1>
                 <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider bg-black text-white">
-                  {user.role === "admin" ? "Staff Admin" : user.role === "vip" ? "VIP Patron" : "Patron Member"}
+                  {user.role === "admin" ? "Staff Admin" : user.role === "vip" ? "VIP Customer" : "Customer"}
                 </span>
               </div>
               <p className="text-xs text-neutral-500">{user.email}</p>
-              <p className="text-[11px] text-neutral-400">Patron Member since {user.memberSince || "2024"}</p>
+              <p className="text-[11px] text-neutral-400">Member since {user.memberSince || "2024"}</p>
             </div>
           </div>
 
@@ -226,7 +226,7 @@ export default function AccountPage() {
               selectedTab === "profile" ? "border-black text-black" : "border-transparent text-neutral-400 hover:text-black"
             }`}
           >
-            Patron Profile
+            Profile
           </button>
         </div>
 
@@ -251,7 +251,7 @@ export default function AccountPage() {
 
             {userOrders.length === 0 ? (
               <div className="bg-[#fafafa] border border-neutral-200 p-12 text-center space-y-4">
-                <Package className="w-10 h-10 text-neutral-400 mx-auto stroke-[1.5]" />
+                <Package className="w-10 h-10 text-neutral-400 mx-auto" />
                 <h3 className="text-base font-bold text-black">No Orders Placed Yet</h3>
                 <p className="text-xs text-neutral-500 max-w-sm mx-auto">
                   When you purchase pieces using our secure Stripe checkout, your receipts, tracking, and garments will appear here.
@@ -405,7 +405,7 @@ export default function AccountPage() {
         {selectedTab === "profile" && (
           <div className="space-y-8 max-w-xl">
             <div className="space-y-4">
-              <h2 className="text-lg font-bold text-black">Patron Information</h2>
+              <h2 className="text-lg font-bold text-black">Personal information</h2>
               <div className="bg-[#fafafa] border border-neutral-200 p-6 space-y-4 text-xs">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
@@ -424,7 +424,7 @@ export default function AccountPage() {
                     Account Tier
                   </label>
                   <p className="text-sm font-semibold text-black uppercase tracking-wider">
-                    {user.role} Patron
+                    {user.role}
                   </p>
                 </div>
               </div>

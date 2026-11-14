@@ -284,7 +284,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch {
       return {
         success: false,
-        error: "Failed to establish secure patron connection.",
+        error: "Could not connect. Please try again.",
       };
     }
   };

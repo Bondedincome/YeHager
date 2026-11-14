@@ -76,7 +76,7 @@ function OrdersContent() {
 
         {/* Order Cards List */}
         {filteredOrders.length === 0 ? (
-          <div className="bg-[#fafafa] border border-neutral-200 p-12 text-center space-y-4">
+          <div className="bg-white border border-neutral-200 p-12 text-center space-y-4">
             <Package className="w-12 h-12 text-neutral-400 mx-auto" />
             <h2 className="text-base font-bold text-black">No Orders Found</h2>
             <p className="text-xs text-neutral-500 max-w-sm mx-auto">

@@ -140,7 +140,7 @@ export default function ProductColorManager({
         <div className="flex items-center gap-2">
           <Palette className="w-4 h-4 text-black" />
           <h4 className="text-xs font-bold uppercase tracking-wider text-black">
-            Colorways &amp; Active Garment Color
+            Colorways &amp; Active Product Color
           </h4>
         </div>
 
@@ -160,7 +160,7 @@ export default function ProductColorManager({
       </div>
 
       <p className="text-xs text-neutral-600">
-        Add multiple colors for this garment. The <strong className="text-black">Active Color</strong> will be displayed by default in the catalog and storefront, and customers can easily check the clothes in each available color.
+        Add multiple colors for this product. The <strong className="text-black">Active Color</strong> will be displayed by default in the catalog and storefront, and customers can easily check the clothes in each available color.
       </p>
 
       {/* Colors List */}
@@ -218,13 +218,13 @@ export default function ProductColorManager({
                   </div>
                 </div>
 
-                {/* Center: Garment Image in this color */}
+                {/* Center: Product Image in this color */}
                 <div className="flex items-center gap-2 flex-1 w-full md:w-auto">
                   <div className="relative flex-1">
                     <input
                       type="url"
                       value={color.image || ""}
-                      placeholder="Garment photo URL for this colorway..."
+                      placeholder="Product photo URL for this colorway..."
                       onChange={(e) => handleUpdateColor(idx, "image", e.target.value)}
                       className="w-full bg-[#f8f8f8] border border-neutral-300 pl-7 pr-2 py-1.5 text-xs text-neutral-800 focus:outline-none focus:bg-white focus:ring-1 focus:ring-black truncate"
                     />
@@ -300,11 +300,11 @@ export default function ProductColorManager({
           </button>
 
           <span className="text-[11px] text-neutral-500 font-medium">
-            Or quick-add an Ethiopian atelier tone:
+            Or quick-add a common colour:
           </span>
         </div>
 
-        {/* Quick Atelier Palette Pills */}
+        {/* Quick palette */}
         <div className="flex flex-wrap items-center gap-1.5 pt-1">
           {PRESET_PALETTES.map((preset) => {
             const isAdded = safeColors.some(
