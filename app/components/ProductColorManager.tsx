@@ -4,46 +4,39 @@ import React from "react";
 import { Plus, Trash2, Star, Palette, Image as ImageIcon, Check } from "lucide-react";
 import { ProductColor } from "../lib/products-store";
 
-const PRESET_PALETTES: { name: string; hex: string; defaultImage?: string }[] = [
+/** Colour presets. Photos are added per colour by the admin; none are pre-filled. */
+const PRESET_PALETTES: { name: string; hex: string }[] = [
   {
     name: "Tena Indigo",
     hex: "#3b5998",
-    defaultImage: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=1000&auto=format&fit=crop&q=80",
   },
   {
     name: "Off White / Raw Silk",
     hex: "#f3f4f6",
-    defaultImage: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=1000&auto=format&fit=crop&q=80",
   },
   {
     name: "Charcoal Onyx",
     hex: "#27272a",
-    defaultImage: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=1000&auto=format&fit=crop&q=80",
   },
   {
     name: "Saffron Ochre",
     hex: "#d97706",
-    defaultImage: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=1000&auto=format&fit=crop&q=80",
   },
   {
     name: "Forest Emerald",
     hex: "#1e3a2b",
-    defaultImage: "https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=1000&auto=format&fit=crop&q=80",
   },
   {
     name: "Terracotta Earth",
     hex: "#c25e40",
-    defaultImage: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=1000&auto=format&fit=crop&q=80",
   },
   {
     name: "Camel Sand",
     hex: "#c49a6c",
-    defaultImage: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=1000&auto=format&fit=crop&q=80",
   },
   {
     name: "Stonewash Blue",
     hex: "#60a5fa",
-    defaultImage: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=1000&auto=format&fit=crop&q=80",
   },
 ];
 
@@ -112,7 +105,7 @@ export default function ProductColorManager({
       {
         name: preset.name,
         hex: preset.hex,
-        image: preset.defaultImage,
+        image: "",
         active: true,
       },
     ];

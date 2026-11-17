@@ -32,6 +32,7 @@ import { useAuth } from "../../components/AuthProvider";
 import { CustomerOrder, OrderStatus } from "../../lib/auth-store";
 import { Product } from "../../lib/products-store";
 import { apiFetch } from "../../lib/api";
+import { paymentLabel, toProduct } from "../../lib/format";
 import { getStoreSettings } from "../../lib/settings-store";
 
 export default function AdminOrdersClient() {
@@ -73,16 +74,16 @@ export default function AdminOrdersClient() {
   }>({
     customerName: "",
     customerEmail: "",
-    street: "Bole Sub-City, Kebele 03",
+    street: "",
     city: "Addis Ababa",
-    postalCode: "1000",
+    postalCode: "",
     country: "Ethiopia",
     selectedProductId: "",
-    size: "M",
-    color: "Heritage",
+    size: "",
+    color: "",
     quantity: 1,
     paymentMethod: "manual_boutique",
-    internalNotes: "Manual VIP boutique walk-in order",
+    internalNotes: "",
   });
 
   const [catalogProducts, setCatalogProducts] = useState<Product[]>([]);
@@ -93,7 +94,7 @@ export default function AdminOrdersClient() {
       .then((response) => response.ok ? response.json() : [])
       .then((payload) => {
         const items = Array.isArray(payload) ? payload : payload?.data;
-        setCatalogProducts(Array.isArray(items) ? items : []);
+        setCatalogProducts(Array.isArray(items) ? items.map(toProduct) : []);
       })
       .catch(() => setCatalogProducts([]));
   }, []);
@@ -381,7 +382,7 @@ export default function AdminOrdersClient() {
                         })}
                       </span>
                       <span className="text-[10px] font-mono text-neutral-400 uppercase">
-                        {order.paymentMethod || "stripe"}
+                        {paymentLabel(order.paymentMethod, order.last4)}
                       </span>
                     </div>
 
@@ -866,6 +867,7 @@ export default function AdminOrdersClient() {
                     onChange={(e) => setManualForm({ ...manualForm, size: e.target.value })}
                     className="w-full px-3 py-2 bg-[#f4f4f4] border border-neutral-300 font-bold text-black"
                   >
+                    <option value="">Not set</option>
                     <option value="XS">XS</option>
                     <option value="S">S</option>
                     <option value="M">M</option>

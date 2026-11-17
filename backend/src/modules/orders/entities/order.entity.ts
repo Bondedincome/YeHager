@@ -88,6 +88,8 @@ export class Order extends BaseModel {
     title?: string;
     price?: number;
     priceETB?: number;
+    /** Unit cost (USD) at the time of sale, used for profit reports. */
+    cost?: number | null;
     quantity?: number;
     color?: string;
     size?: string;

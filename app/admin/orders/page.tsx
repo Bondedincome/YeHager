@@ -3,7 +3,7 @@ import AdminOrdersClient from "./AdminOrdersClient";
 
 export const metadata = {
   title: "Orders & Transactions Fulfillment | YeHageré Admin",
-  description: "Manage incoming customer orders, live Stripe payments, courier fulfillment, and tracking numbers.",
+  description: "Customer orders, payments, delivery and tracking numbers.",
 };
 
 export default function AdminOrdersPage() {

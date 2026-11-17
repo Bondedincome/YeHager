@@ -1,813 +1,320 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  TrendingUp,
-  DollarSign,
-  ShoppingBag,
-  Users,
-  Sliders,
-  ArrowUpRight,
-  Receipt,
-  PackageCheck,
-  CheckCircle2,
-  CreditCard,
-  Settings,
-  Tag,
-  AlertTriangle,
-  Check,
-  Sparkles, ArrowRight
-} from "lucide-react";
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { AlertTriangle, ArrowRight, Check } from "../components/icons";
 import { useAuth } from "../components/AuthProvider";
-import { useAppearance } from "../components/AppearanceProvider";
-import { Product } from "../lib/products-store";
-import { Category } from "../lib/categories-store";
-import { apiFetch } from "../lib/api";
-import { getStoreSettings, updateStoreSettings } from "../lib/settings-store";
+import type { CustomerOrder } from "../lib/auth-store";
+import type { Product } from "../lib/products-store";
+import { apiClient, apiFetch } from "../lib/api";
+import { toList, toProduct } from "../lib/format";
+import { getStoreSettings } from "../lib/settings-store";
+
+const DAYS = 30;
+
+type ProfitSummary = { summary: { grossProfit: number; margin: number | null; unitsMissingCost: number } };
+
+const usd = (n: number) =>
+  `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const dayKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Paid (or manually entered) and not cancelled. Unpaid Chapa checkouts don't count as sales. */
+function isSale(order: CustomerOrder) {
+  const payment = String((order as { paymentStatus?: string }).paymentStatus ?? "PAID").toUpperCase();
+  return order.status !== "cancelled" && payment === "PAID";
+}
+
+const STATUS_OPTIONS: { value: CustomerOrder["status"]; label: string }[] = [
+  { value: "confirmed", label: "Confirmed" },
+  { value: "preparing", label: "Preparing" },
+  { value: "shipped", label: "Shipped" },
+  { value: "delivered", label: "Delivered" },
+  { value: "cancelled", label: "Cancelled" },
+];
+
+function Stat({ label, value, note, href }: { label: string; value: string; note?: string; href?: string }) {
+  const body = (
+    <>
+      <p className="text-sm text-neutral-600">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums">{value}</p>
+      {note && <p className="mt-1 text-xs text-neutral-500">{note}</p>}
+    </>
+  );
+  return href ? (
+    <Link href={href} className="block bg-white border border-neutral-200 rounded-lg p-5 hover:border-black transition-colors">
+      {body}
+    </Link>
+  ) : (
+    <div className="bg-white border border-neutral-200 rounded-lg p-5">{body}</div>
+  );
+}
 
 export default function AdminAnalyticsClient() {
   const { orders, usersList, updateOrderStatus } = useAuth();
-  const { cms, saveCMS } = useAppearance();
-  const [storeSettings, setStoreSettings] = useState(() => getStoreSettings());
-  const [exchangeRateInput, setExchangeRateInput] = useState(storeSettings.exchangeRateUSDToETB);
-  const [announcementText, setAnnouncementText] = useState(cms.announcement.text);
-  const [announcementSaved, setAnnouncementSaved] = useState(false);
-  const [rateSaved, setRateSaved] = useState(false);
-  const [productsList, setProductsList] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const settings = useMemo(() => getStoreSettings(), []);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [profit, setProfit] = useState<ProfitSummary["summary"] | null>(null);
+  const [restocking, setRestocking] = useState<string | null>(null);
 
-  const [timeRange, setTimeRange] = useState<"7d" | "30d" | "all">("30d");
+  // One stable "now" per visit keeps the 30-day window consistent across renders.
+  const [since] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate() - (DAYS - 1));
+  });
 
   useEffect(() => {
-    Promise.all([apiFetch("products"), apiFetch("categories")])
-      .then(async ([productsResponse, categoriesResponse]) => {
-        const [productsPayload, categoriesPayload] = await Promise.all([
-          productsResponse.ok ? productsResponse.json() : [],
-          categoriesResponse.ok ? categoriesResponse.json() : [],
-        ]);
-        const products = productsPayload?.data ?? productsPayload;
-        const categoryItems = categoriesPayload?.data ?? categoriesPayload;
-        setProductsList(Array.isArray(products) ? products : []);
-        setCategories(Array.isArray(categoryItems) ? categoryItems.map((category) => ({
-          ...category,
-          id: category.slug || category.id,
-          apiId: category.id,
-        })) : []);
-      })
-      .catch(() => {
-        setProductsList([]);
-        setCategories([]);
-      });
-  }, []);
+    apiFetch("products")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((payload) => setProducts(toList<Product>(payload).map(toProduct)))
+      .catch(() => setProducts([]));
 
-  // Key KPI calculations
-  const totalRevenueUSD = useMemo(() => {
-    return orders.reduce((sum, o) => sum + (o.totalUSD || 0), 0);
-  }, [orders]);
+    apiClient<ProfitSummary>("analytics/profit", {
+      cache: "no-store",
+      params: { from: since.toISOString(), tzOffset: new Date().getTimezoneOffset() },
+    }).then((result) => setProfit(result.error === undefined ? result.data.summary : null));
+  }, [since]);
 
-  const totalRevenueETB = totalRevenueUSD * storeSettings.exchangeRateUSDToETB;
-  const totalOrdersCount = orders.length;
-  const totalCustomersCount = usersList.filter((u) => u.role !== "admin").length;
-  const activeProductsCount = productsList.length;
-  const avgOrderValue = totalOrdersCount > 0 ? Math.round(totalRevenueUSD / totalOrdersCount) : 0;
+  const recentSales = useMemo(
+    () => orders.filter((o) => isSale(o) && new Date(o.createdAt) >= since),
+    [orders, since]
+  );
 
-  const lowStockProducts = useMemo(() => {
-    return productsList.filter((p) => (p.stock ?? 10) <= (storeSettings.lowStockThreshold || 5));
-  }, [productsList, storeSettings.lowStockThreshold]);
+  const revenue = recentSales.reduce((sum, o) => sum + (Number(o.totalUSD) || 0), 0);
+  const avgOrder = recentSales.length ? revenue / recentSales.length : 0;
+  const customers = usersList.filter((u) => u.role !== "admin").length;
+  const toShip = orders.filter((o) => o.status === "confirmed" || o.status === "preparing");
 
-  const handleQuickRestock = async (productId: Product["id"]) => {
-    const p = productsList.find((x) => x.id === productId);
-    if (!p) return;
-    const current = p.stock ?? 10;
-    const newStock = current + 10;
-    const response = await apiFetch(`products/${productId}`, {
-      method: "PUT",
-      body: JSON.stringify({ stock: newStock }),
+  const chart = useMemo(() => {
+    const byDay = new Map<string, number>();
+    recentSales.forEach((o) => {
+      const key = dayKey(new Date(o.createdAt));
+      byDay.set(key, (byDay.get(key) ?? 0) + (Number(o.totalUSD) || 0));
     });
-    if (response.ok) {
-      setProductsList((prev) => prev.map((product) => product.id === productId ? { ...product, stock: newStock } : product));
-    }
-  };
-
-  const handleSaveAnnouncement = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await saveCMS({ ...cms, announcement: { ...cms.announcement, text: announcementText } });
-      setAnnouncementSaved(true);
-      setTimeout(() => setAnnouncementSaved(false), 2500);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not save.");
-    }
-  };
-
-  const handleToggleAnnouncement = async () => {
-    try {
-      await saveCMS({ ...cms, announcement: { ...cms.announcement, enabled: !cms.announcement.enabled } });
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Could not save.");
-    }
-  };
-
-  const handleSaveRate = () => {
-    const updated = updateStoreSettings({ exchangeRateUSDToETB: exchangeRateInput });
-    setStoreSettings(updated);
-    setRateSaved(true);
-    setTimeout(() => setRateSaved(false), 2500);
-  };
-
-  // Chart data: 30-day sales growth
-  const salesTrendData = useMemo(() => {
-    return [
-      { date: "Aug 02", revenue: 840, orders: 3, etb: 105000 },
-      { date: "Aug 06", revenue: 1260, orders: 4, etb: 157500 },
-      { date: "Aug 10", revenue: 980, orders: 3, etb: 122500 },
-      { date: "Aug 14", revenue: 2100, orders: 6, etb: 262500 },
-      { date: "Aug 18", revenue: 1850, orders: 5, etb: 231250 },
-      { date: "Aug 22", revenue: 2940, orders: 8, etb: 367500 },
-      { date: "Aug 26", revenue: 2420, orders: 7, etb: 302500 },
-      { date: "Aug 30", revenue: 3100, orders: 9, etb: 387500 },
-      { date: "Today", revenue: totalRevenueUSD, orders: totalOrdersCount, etb: totalRevenueETB },
-    ];
-  }, [totalRevenueUSD, totalOrdersCount, totalRevenueETB]);
-
-  // Category distribution
-  const categoryData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    productsList.forEach((p) => {
-      const cat = (p.category || "sets").toLowerCase();
-      counts[cat] = (counts[cat] || 0) + 1;
+    return Array.from({ length: DAYS }, (_, i) => {
+      const d = new Date(since.getFullYear(), since.getMonth(), since.getDate() + i);
+      const key = dayKey(d);
+      return { date: key, revenue: Math.round((byDay.get(key) ?? 0) * 100) / 100 };
     });
+  }, [recentSales, since]);
 
-    const palette = [
-      "#111111",
-      "#4f46e5",
-      "#d97706",
-      "#059669",
-      "#7c3aed",
-      "#e11d48",
-      "#0284c7",
-      "#ca8a04",
-      "#0d9488",
-    ];
+  const threshold = settings.lowStockThreshold || 5;
+  const lowStock = useMemo(
+    () => products.filter((p) => (p.stock ?? 0) <= threshold).sort((a, b) => (a.stock ?? 0) - (b.stock ?? 0)),
+    [products, threshold]
+  );
 
-    return categories.map((cat, idx) => ({
-      name: cat.name,
-      value: counts[cat.id.toLowerCase()] || 0,
-      color: palette[idx % palette.length],
-    }));
-  }, [productsList, categories]);
-
-  // Order status counts
-  const pendingOrders = orders.filter((o) => o.status === "confirmed" || o.status === "preparing").length;
+  const restock = async (product: Product) => {
+    const next = (product.stock ?? 0) + 10;
+    setRestocking(String(product.id));
+    try {
+      const response = await apiFetch(`products/${product.id}`, { method: "PUT", body: JSON.stringify({ stock: next }) });
+      if (response.ok) setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, stock: next } : p)));
+    } finally {
+      setRestocking(null);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-white py-8 px-4 sm:px-8 space-y-8 max-w-[1520px] mx-auto">
-      {/* Top Banner / Headline */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-200 pb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-black">Overview</h1>
-          <p className="text-sm text-neutral-600 mt-1">Sales, orders, customers and stock at a glance.</p>
-        </div>
+    <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8 space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold">Overview</h1>
+        <p className="text-sm text-neutral-600 mt-1">The last {DAYS} days at a glance.</p>
+      </div>
 
-        {/* Executive Action Controls (Time Range & Live Storefront Preview) */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full sm:w-auto">
-          {/* Timeframe Selector */}
-          <div className="flex items-center bg-white border border-neutral-300 p-0.5 shadow-2xs flex-1 sm:flex-initial justify-between">
-            <button
-              type="button"
-              onClick={() => setTimeRange("7d")}
-              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors flex-1 text-center ${
-                timeRange === "7d" ? "bg-black text-white" : "text-neutral-600 hover:text-black"
-              }`}
-            >
-              7 Days
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeRange("30d")}
-              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors flex-1 text-center ${
-                timeRange === "30d" ? "bg-black text-white" : "text-neutral-600 hover:text-black"
-              }`}
-            >
-              30 Days
-            </button>
-            <button
-              type="button"
-              onClick={() => setTimeRange("all")}
-              className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors flex-1 text-center ${
-                timeRange === "all" ? "bg-black text-white" : "text-neutral-600 hover:text-black"
-              }`}
-            >
-              All Time
-            </button>
-          </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat
+          label="Sales"
+          value={usd(revenue)}
+          note={`≈ Br${Math.round(revenue * settings.exchangeRateUSDToETB).toLocaleString()}`}
+        />
+        <Stat
+          label="Gross profit"
+          value={profit ? usd(profit.grossProfit) : "—"}
+          note={
+            profit
+              ? profit.unitsMissingCost > 0
+                ? "Some items have no cost yet"
+                : profit.margin === null
+                ? "No sales yet"
+                : `${(profit.margin * 100).toFixed(1)}% margin`
+              : "Open the report"
+          }
+          href="/admin/analytics"
+        />
+        <Stat label="Orders" value={String(recentSales.length)} note={`Average ${usd(avgOrder)}`} href="/admin/orders" />
+        <Stat label="Customers" value={String(customers)} note="Registered accounts" href="/admin/users" />
+      </div>
 
-          {/* Direct Storefront Preview */}
-          <Link
-            href="/"
-            target="_blank"
-            className="px-4 py-2 bg-black text-white hover:bg-neutral-800 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors shadow-2xs w-full sm:w-auto text-center"
-          >
-            <span>Preview Storefront</span>
-            <ArrowUpRight className="w-3.5 h-3.5 text-neutral-300" />
+      <section className="bg-white border border-neutral-200 rounded-lg">
+        <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between gap-3">
+          <h2 className="text-base font-semibold">Sales by day</h2>
+          <Link href="/admin/analytics" className="text-sm flex items-center gap-1 hover:underline">
+            Profit &amp; loss <ArrowRight className="size-4" />
           </Link>
         </div>
-      </div>
-
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1: Total Revenue */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-2xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-              Total Gross Revenue
-            </span>
-            <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center">
-              <DollarSign className="w-4 h-4 text-black" />
+        <div className="h-64 p-4">
+          {recentSales.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-sm text-neutral-500">
+              No sales in the last {DAYS} days.
             </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-2xl sm:text-3xl font-extrabold text-black tracking-tight">
-              ${totalRevenueUSD.toLocaleString()} <span className="text-xs font-semibold text-neutral-400">USD</span>
-            </p>
-            <p className="text-xs font-mono text-neutral-500">
-              ≈ Br{totalRevenueETB.toLocaleString()} ETB
-            </p>
-          </div>
-          <div className="pt-2 border-t border-neutral-100 flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>+18.4% compared to last cycle</span>
-          </div>
-        </div>
-
-        {/* Metric 2: Total Orders */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-2xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-              Orders Processed
-            </span>
-            <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center">
-              <Receipt className="w-4 h-4 text-black" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-2xl sm:text-3xl font-extrabold text-black tracking-tight">
-              {totalOrdersCount}
-            </p>
-            <p className="text-xs text-neutral-500">
-              {pendingOrders} awaiting packaging &amp; courier
-            </p>
-          </div>
-          <div className="pt-2 border-t border-neutral-100 flex items-center gap-1.5 text-[11px] text-neutral-600 font-medium">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            <span>100% Stripe Payment Succeeded</span>
-          </div>
-        </div>
-
-        {/* Metric 3: Active Customers */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-2xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-              Customers &amp; Clients
-            </span>
-            <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center">
-              <Users className="w-4 h-4 text-black" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-2xl sm:text-3xl font-extrabold text-black tracking-tight">
-              {totalCustomersCount}
-            </p>
-            <p className="text-xs text-neutral-500">
-              {usersList.filter((u) => u.role === "vip").length} VIP Tier Customers
-            </p>
-          </div>
-          <div className="pt-2 border-t border-neutral-100 flex items-center gap-1.5 text-[11px] text-emerald-600 font-semibold">
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>+12% client retention rate</span>
-          </div>
-        </div>
-
-        {/* Metric 4: Average Order Value */}
-        <div className="bg-white border border-neutral-200 p-6 shadow-2xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-neutral-500">
-              Average Order Value (AOV)
-            </span>
-            <div className="w-8 h-8 rounded-full bg-neutral-100 flex items-center justify-center">
-              <PackageCheck className="w-4 h-4 text-black" />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <p className="text-2xl sm:text-3xl font-extrabold text-black tracking-tight">
-              ${avgOrderValue} <span className="text-xs font-semibold text-neutral-400">USD</span>
-            </p>
-            <p className="text-xs font-mono text-neutral-500">
-              ≈ Br{(avgOrderValue * 125).toLocaleString()} ETB
-            </p>
-          </div>
-          <div className="pt-2 border-t border-neutral-100 flex items-center gap-1.5 text-[11px] text-neutral-600 font-medium">
-            <span>{activeProductsCount} Live Active Products</span>
-          </div>
-        </div>
-      </div>
-
-      {/* EXECUTIVE QUICK CONTROLS HUB */}
-      <div className="bg-white border border-neutral-200 p-6 shadow-2xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-neutral-400">
-                Quick settings
-              </span>
-              <span className="px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-black text-white">
-                Live Storefront Governance
-              </span>
-            </div>
-            <h2 className="text-base font-bold text-black">Instant Operational Actions</h2>
-            <p className="text-xs text-neutral-500">
-              Directly adjust storefront broadcast banners, currency conversion ratios, and execute 1-click inventory restocks.
-            </p>
-          </div>
-          <Link
-            href="/admin/settings"
-            className="text-xs font-bold uppercase tracking-wider text-black border border-neutral-300 hover:border-black px-3 py-1.5 bg-neutral-50 transition-colors self-start sm:self-auto flex items-center gap-1.5"
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>Full Settings &amp; Promos</span>
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Control 1: Announcement Bar Live Toggle & Edit */}
-          <div className="bg-[#fafafa] border border-neutral-200 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                Storefront Announcement Bar
-              </span>
-              <button
-                onClick={handleToggleAnnouncement}
-                className={`px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  cms.announcement.enabled
-                    ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
-                    : "bg-neutral-200 text-neutral-600"
-                }`}
-              >
-                {cms.announcement.enabled ? "Live / Active" : "Hidden"}
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveAnnouncement} className="space-y-2">
-              <input
-                type="text"
-                value={announcementText}
-                onChange={(e) => setAnnouncementText(e.target.value)}
-                placeholder="Broadcast message at top of storefront..."
-                className="w-full p-2 bg-white border border-neutral-300 text-xs text-black"
-              />
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] text-neutral-400">Appears globally on all client pages</span>
-                <button
-                  type="submit"
-                  className="px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 hover:bg-neutral-800 transition-colors"
-                >
-                  {announcementSaved ? (
-                    <>
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span>Saved!</span>
-                    </>
-                  ) : (
-                    <span>Update Banner</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Control 2: Live Currency Conversion Rate */}
-          <div className="bg-[#fafafa] border border-neutral-200 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-                Active Forex Valuation
-              </span>
-              <span className="text-[10px] font-mono font-bold text-neutral-700">
-                USD : ETB
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold font-mono text-black">$1 USD =</span>
-                <input
-                  type="number"
-                  min="1"
-                  step="0.5"
-                  value={exchangeRateInput}
-                  onChange={(e) => setExchangeRateInput(parseFloat(e.target.value) || 125)}
-                  className="w-24 p-2 bg-white border border-neutral-300 text-xs font-mono font-bold text-black"
-                />
-                <span className="text-xs font-bold font-mono text-black">ETB</span>
-              </div>
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[10px] text-neutral-400">Recalculates cart &amp; checkout</span>
-                <button
-                  onClick={handleSaveRate}
-                  className="px-3 py-1 bg-black text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 hover:bg-neutral-800 transition-colors"
-                >
-                  {rateSaved ? (
-                    <>
-                      <Check className="w-3 h-3 text-emerald-400" />
-                      <span>Updated!</span>
-                    </>
-                  ) : (
-                    <span>Set Rate</span>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Control 3: Urgent Inventory Restock Radar */}
-          <div className="bg-[#fafafa] border border-neutral-200 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 text-amber-500" />
-                <span>Low Inventory Radar ({lowStockProducts.length})</span>
-              </span>
-              <Link
-                href="/admin/products"
-                className="text-[10px] font-bold uppercase tracking-wider text-blue-700 hover:underline"
-              >
-                All products <ArrowRight className="size-3.5 inline" />
-              </Link>
-            </div>
-
-            {lowStockProducts.length === 0 ? (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>All products have more than {storeSettings.lowStockThreshold} units.</span>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-32 overflow-y-auto pr-1">
-                {lowStockProducts.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between bg-white p-2 border border-neutral-200 text-xs"
-                  >
-                    <div className="truncate pr-2">
-                      <span className="font-bold text-black block truncate">{p.title}</span>
-                      <span className="text-[10px] text-rose-600 font-bold">
-                        Only {p.stock ?? 0} remaining
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => handleQuickRestock(p.id)}
-                      className="px-2 py-1 bg-black text-white hover:bg-neutral-800 text-[9px] font-bold uppercase tracking-wider flex-shrink-0"
-                    >
-                      +10 Restock
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Analytics Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Main Revenue Chart (8 cols) */}
-        <div className="lg:col-span-8 bg-white border border-neutral-200 p-6 shadow-2xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-100 pb-4">
-            <div>
-              <h2 className="text-base font-bold text-black">Revenue &amp; Sales Velocity</h2>
-              <p className="text-xs text-neutral-500">
-                Gross sales in USD across recent retail cycles.
-              </p>
-            </div>
-            <div className="flex items-center gap-1.5 bg-neutral-100 p-1 rounded-none text-xs font-bold uppercase">
-              {(["7d", "30d", "all"] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setTimeRange(r)}
-                  className={`px-3 py-1 text-[11px] transition-colors ${
-                    timeRange === r ? "bg-white text-black shadow-xs" : "text-neutral-500 hover:text-black"
-                  }`}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="h-[280px] w-full">
+          ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart data={chart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#111111" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="#111111" stopOpacity={0.0} />
+                  <linearGradient id="salesFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#111" stopOpacity={0.18} />
+                    <stop offset="95%" stopColor="#111" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eaeaea" />
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#737373" }} stroke="#e5e5e5" />
-                <YAxis
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ececec" />
+                <XAxis
+                  dataKey="date"
                   tick={{ fontSize: 11, fill: "#737373" }}
                   stroke="#e5e5e5"
-                  tickFormatter={(val) => `$${val}`}
+                  minTickGap={16}
+                  tickFormatter={(d: string) =>
+                    new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+                  }
                 />
+                <YAxis tick={{ fontSize: 11, fill: "#737373" }} stroke="#e5e5e5" width={64} tickFormatter={(v: number) => `$${v}`} />
                 <Tooltip
-                  formatter={(val: unknown) => [`$${Number(val).toLocaleString()} USD`, "Gross Revenue"]}
-                  contentStyle={{
-                    backgroundColor: "#111111",
-                    color: "#ffffff",
-                    border: "none",
-                    fontSize: "12px",
-                    fontWeight: "bold",
-                  }}
+                  formatter={(v) => [usd(Number(v)), "Sales"]}
+                  labelFormatter={(d) => new Date(`${String(d)}T00:00:00`).toLocaleDateString()}
+                  contentStyle={{ fontSize: 12, borderRadius: 6, border: "1px solid #e5e5e5" }}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#111111"
-                  strokeWidth={2.5}
-                  fillOpacity={1}
-                  fill="url(#colorRev)"
-                />
+                <Area type="monotone" dataKey="revenue" stroke="#111" strokeWidth={2} fill="url(#salesFill)" />
               </AreaChart>
             </ResponsiveContainer>
-          </div>
+          )}
         </div>
+      </section>
 
-        {/* Category Breakdown (4 cols) */}
-        <div className="lg:col-span-4 bg-white border border-neutral-200 p-6 shadow-2xs space-y-6">
-          <div className="border-b border-neutral-100 pb-4">
-            <h2 className="text-base font-bold text-black">Inventory by Silhouette</h2>
-            <p className="text-xs text-neutral-500">Products per category.</p>
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* To ship */}
+        <section className="bg-white border border-neutral-200 rounded-lg">
+          <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between">
+            <h2 className="text-base font-semibold">To ship ({toShip.length})</h2>
+            <Link href="/admin/orders" className="text-sm flex items-center gap-1 hover:underline">
+              All orders <ArrowRight className="size-4" />
+            </Link>
           </div>
-
-          <div className="h-[180px] w-full flex items-center justify-center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={75}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#111111",
-                    color: "#ffffff",
-                    fontSize: "11px",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="space-y-2 pt-2 border-t border-neutral-100 text-xs">
-            {categoryData.map((cat) => (
-              <div key={cat.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: cat.color }} />
-                  <span className="text-neutral-700 font-medium">{cat.name}</span>
-                </div>
-                <span className="font-bold text-black">{cat.value} items</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Control Hub Navigation Blocks */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card 1: CMS Control */}
-        <div className="bg-white border border-neutral-200 p-6 space-y-4 shadow-2xs hover:border-black transition-all">
-          <div className="w-10 h-10 bg-neutral-100 flex items-center justify-center">
-            <Sliders className="w-5 h-5 text-black" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-black">The Store CMS</h3>
-            <p className="text-xs text-neutral-500 leading-relaxed">
-              Curate the Hero campaign, split denim banners, Fall lookbook headline, and global announcements in real-time.
+          {toShip.length === 0 ? (
+            <p className="p-5 text-sm text-neutral-500 flex items-center gap-2">
+              <Check className="size-4 text-emerald-600" /> Nothing waiting to be shipped.
             </p>
-          </div>
-          <Link
-            href="/admin/appearance"
-            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-black underline underline-offset-4 hover:opacity-75"
-          >
-            <span>Open Homepage</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {/* Card 2: Products Control */}
-        <div className="bg-white border border-neutral-200 p-6 space-y-4 shadow-2xs hover:border-black transition-all">
-          <div className="w-10 h-10 bg-neutral-100 flex items-center justify-center">
-            <ShoppingBag className="w-5 h-5 text-black" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-black">Products &amp; Inventory</h3>
-            <p className="text-xs text-neutral-500 leading-relaxed">
-              Add new bespoke pieces, edit dual USD &amp; ETB price rates, update stock inventory, and manage photo galleries.
-            </p>
-          </div>
-          <Link
-            href="/admin/products"
-            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-black underline underline-offset-4 hover:opacity-75"
-          >
-            <span>Manage Product Catalog</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {/* Card 3: Users Control */}
-        <div className="bg-white border border-neutral-200 p-6 space-y-4 shadow-2xs hover:border-black transition-all">
-          <div className="w-10 h-10 bg-neutral-100 flex items-center justify-center">
-            <Users className="w-5 h-5 text-black" />
-          </div>
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-black">Customer &amp; Staff Users</h3>
-            <p className="text-xs text-neutral-500 leading-relaxed">
-              Control registered client accounts, assign Admin and VIP roles, inspect order histories, or manage access.
-            </p>
-          </div>
-          <Link
-            href="/admin/users"
-            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-black underline underline-offset-4 hover:opacity-75"
-          >
-            <span>Open User Directory</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
-
-      {/* Recent Orders / Transactions Table */}
-      <div className="bg-white border border-neutral-200 shadow-2xs">
-        <div className="p-6 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h2 className="text-base font-bold text-black">Recent Transactions &amp; Orders</h2>
-            <p className="text-xs text-neutral-500">
-              Live transactions settled via Stripe with real customer order statuses.
-            </p>
-          </div>
-          <Link
-            href="/admin/orders"
-            className="px-3.5 py-1.5 border border-neutral-300 hover:border-black text-xs font-bold uppercase tracking-wider text-black bg-white transition-colors self-start sm:self-auto"
-          >
-            View all orders ({orders.length}) <ArrowRight className="size-3.5 inline" />
-          </Link>
-        </div>
-
-        {/* Desktop View */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-[#fafafa] border-b border-neutral-200 text-[10px] font-bold uppercase tracking-wider text-neutral-500">
-              <tr>
-                <th className="py-3.5 px-6">Order</th>
-                <th className="py-3.5 px-6">Customer</th>
-                <th className="py-3.5 px-6">Items</th>
-                <th className="py-3.5 px-6">Total (USD / ETB)</th>
-                <th className="py-3.5 px-6">Payment</th>
-                <th className="py-3.5 px-6">Status</th>
-                <th className="py-3.5 px-6 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-neutral-100">
-              {orders.slice(0, 5).map((order) => (
-                <tr key={order.id} className="hover:bg-neutral-50 transition-colors">
-                  <td className="py-4 px-6 font-mono font-bold text-black">
-                    #{order.orderNumber}
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-semibold text-black block">{order.customerName}</span>
-                    <span className="text-[11px] text-neutral-500">{order.customerEmail}</span>
-                  </td>
-                  <td className="py-4 px-6 text-neutral-700">
-                    {order.items.reduce((s, i) => s + i.quantity, 0)} products
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-bold text-black block">${order.totalUSD} USD</span>
-                    <span className="text-[10px] text-neutral-400 font-mono">
-                      Br{(order.totalETB || order.totalUSD * 125).toLocaleString()} ETB
+          ) : (
+            <ul className="divide-y divide-neutral-100">
+              {toShip.slice(0, 6).map((o) => (
+                <li key={o.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                  <Link href={`/admin/orders?highlight=${o.orderNumber}`} className="min-w-0 hover:underline">
+                    <span className="font-medium">#{o.orderNumber}</span>
+                    <span className="block text-xs text-neutral-500 truncate">
+                      {o.customerName || o.customerEmail} · {new Date(o.createdAt).toLocaleDateString()}
                     </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-neutral-800">
-                      <CreditCard className="w-3 h-3 text-neutral-500" />
-                      Stripe ({order.last4 || "4242"})
-                    </span>
-                  </td>
-                  <td className="py-4 px-6">
-                    <select
-                      value={order.status}
-                      onChange={(e) =>
-                        updateOrderStatus(
-                          order.id,
-                          e.target.value as "confirmed" | "preparing" | "shipped" | "delivered"
-                        )
-                      }
-                      className="bg-neutral-100 border border-neutral-300 text-[11px] font-bold uppercase tracking-wider py-1 px-2 text-black outline-none cursor-pointer"
-                    >
-                      <option value="confirmed">Confirmed</option>
-                      <option value="preparing">Preparing</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="delivered">Delivered</option>
-                    </select>
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <Link
-                      href={`/admin/orders?highlight=${order.orderNumber}`}
-                      className="text-[11px] font-bold uppercase tracking-wider text-black underline underline-offset-2 hover:opacity-75"
-                    >
-                      Details <ArrowRight className="size-3.5 inline" />
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Mobile View */}
-        <div className="md:hidden divide-y divide-neutral-200">
-          {orders.slice(0, 5).map((order) => (
-            <div key={order.id} className="p-4 space-y-3 bg-white">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="font-mono font-bold text-sm text-black">#{order.orderNumber}</span>
-                  <span className="block text-xs font-semibold text-neutral-800">{order.customerName}</span>
-                  <span className="block text-[11px] text-neutral-500">{order.customerEmail}</span>
-                </div>
-                <div className="text-right">
-                  <span className="font-bold text-sm text-black block">${order.totalUSD} USD</span>
-                  <span className="text-[10px] text-neutral-500 font-mono">
-                    Br{(order.totalETB || order.totalUSD * 125).toLocaleString()} ETB
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-1 border-t border-neutral-100 text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-neutral-500">
-                    {order.items.reduce((s, i) => s + i.quantity, 0)} pcs
-                  </span>
-                  <span className="text-neutral-300">•</span>
-                  <span className="inline-flex items-center gap-1 text-[11px] text-neutral-600">
-                    <CreditCard className="w-3 h-3" />
-                    •••• {order.last4 || "4242"}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <select
-                    value={order.status}
-                    onChange={(e) =>
-                      updateOrderStatus(
-                        order.id,
-                        e.target.value as "confirmed" | "preparing" | "shipped" | "delivered"
-                      )
-                    }
-                    className="bg-neutral-100 border border-neutral-300 text-[10px] font-bold uppercase tracking-wider py-1 px-1.5 text-black outline-none"
-                  >
-                    <option value="confirmed">Confirmed</option>
-                    <option value="preparing">Preparing</option>
-                    <option value="shipped">Shipped</option>
-                    <option value="delivered">Delivered</option>
-                  </select>
-
-                  <Link
-                    href={`/admin/orders?highlight=${order.orderNumber}`}
-                    className="text-[11px] font-bold uppercase tracking-wider text-black underline underline-offset-2 p-1" aria-label="View order">
-                    <ArrowRight className="size-4" />
                   </Link>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+                  <span className="text-xs px-2 py-1 rounded bg-neutral-100 capitalize shrink-0">{o.status}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {/* Low stock */}
+        <section className="bg-white border border-neutral-200 rounded-lg">
+          <div className="px-5 py-4 border-b border-neutral-200 flex items-center justify-between">
+            <h2 className="text-base font-semibold">Low stock ({lowStock.length})</h2>
+            <Link href="/admin/products" className="text-sm flex items-center gap-1 hover:underline">
+              Products <ArrowRight className="size-4" />
+            </Link>
+          </div>
+          {lowStock.length === 0 ? (
+            <p className="p-5 text-sm text-neutral-500 flex items-center gap-2">
+              <Check className="size-4 text-emerald-600" />
+              {products.length === 0 ? "No products yet." : `Every product has more than ${threshold} in stock.`}
+            </p>
+          ) : (
+            <ul className="divide-y divide-neutral-100">
+              {lowStock.slice(0, 6).map((p) => (
+                <li key={p.id} className="px-5 py-3 flex items-center justify-between gap-3 text-sm">
+                  <div className="min-w-0">
+                    <span className="font-medium block truncate">{p.title || "Untitled product"}</span>
+                    <span className={`text-xs ${(p.stock ?? 0) === 0 ? "text-red-700" : "text-amber-700"}`}>
+                      {(p.stock ?? 0) === 0 ? "Out of stock" : `${p.stock} left`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => restock(p)}
+                    disabled={restocking === String(p.id)}
+                    className="h-8 px-3 rounded-md border border-neutral-300 text-xs hover:border-black disabled:opacity-50 shrink-0"
+                  >
+                    +10 stock
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
+
+      {/* Recent orders */}
+      <section className="bg-white border border-neutral-200 rounded-lg">
+        <div className="px-5 py-4 border-b border-neutral-200">
+          <h2 className="text-base font-semibold">Recent orders</h2>
+        </div>
+        {orders.length === 0 ? (
+          <p className="p-5 text-sm text-neutral-500 flex items-center gap-2">
+            <AlertTriangle className="size-4 text-neutral-400" /> No orders yet. They&apos;ll appear here as customers check out.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-left text-neutral-500 border-b border-neutral-200">
+                <tr>
+                  <th className="px-5 py-3 font-medium">Order</th>
+                  <th className="px-5 py-3 font-medium hidden sm:table-cell">Customer</th>
+                  <th className="px-5 py-3 font-medium text-right">Total</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {orders.slice(0, 6).map((o) => (
+                  <tr key={o.id}>
+                    <td className="px-5 py-3">
+                      <Link href={`/admin/orders?highlight=${o.orderNumber}`} className="font-medium hover:underline">
+                        #{o.orderNumber}
+                      </Link>
+                      <span className="block text-xs text-neutral-500">{new Date(o.createdAt).toLocaleDateString()}</span>
+                    </td>
+                    <td className="px-5 py-3 hidden sm:table-cell">
+                      <span className="block">{o.customerName || "—"}</span>
+                      <span className="block text-xs text-neutral-500">{o.customerEmail}</span>
+                    </td>
+                    <td className="px-5 py-3 text-right tabular-nums">{usd(Number(o.totalUSD) || 0)}</td>
+                    <td className="px-5 py-3">
+                      <select
+                        aria-label={`Status of order ${o.orderNumber}`}
+                        value={o.status}
+                        onChange={(e) => updateOrderStatus(o.id, e.target.value as CustomerOrder["status"])}
+                        className="h-8 px-2 rounded-md border border-neutral-300 bg-white text-xs"
+                      >
+                        {STATUS_OPTIONS.map((s) => (
+                          <option key={s.value} value={s.value}>
+                            {s.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

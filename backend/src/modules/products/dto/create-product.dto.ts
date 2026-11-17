@@ -81,6 +81,15 @@ export class CreateProductDto {
   @Min(0)
   priceETB?: number;
 
+  @ApiPropertyOptional({
+    description: 'What one unit costs you to make or buy (USD). Used for profit reports; never shown to customers.',
+    example: 85,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  costPrice?: number;
+
   @IsOptional()
   @IsString()
   formattedPriceETB?: string;

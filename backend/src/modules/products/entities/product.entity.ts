@@ -41,6 +41,10 @@ export class Product extends BaseModel {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   priceETB: number;
 
+  /** Unit cost in USD (what the item costs the shop). Admin-only; stripped from public responses. */
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  costPrice: number | null;
+
   @Column({ nullable: true })
   formattedPriceETB: string;
 

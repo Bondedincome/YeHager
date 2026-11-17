@@ -3,8 +3,19 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import { apiClient } from "../lib/api";
 
+export type MediaType = "image" | "video";
+export type Overlay = "none" | "subtle" | "medium" | "heavy";
+export type TextTone = "light" | "dark";
+export type Alignment = "left" | "center" | "right";
+
 export type HeroBanner = {
+  /** Image, or the poster/fallback when a video is used. */
   imageUrl: string;
+  /** Optional different image for phones (portrait crops work best). */
+  mobileImageUrl?: string;
+  mediaType?: MediaType;
+  /** Direct link to an .mp4 / .webm file. */
+  videoUrl?: string;
   headline: string;
   subheadline: string;
   ctaText: string;
@@ -12,17 +23,23 @@ export type HeroBanner = {
   badge?: string;
   secondaryCtaText?: string;
   secondaryCtaLink?: string;
-  alignment?: "left" | "center" | "right";
-  overlayOpacity?: "subtle" | "medium" | "heavy";
+  alignment?: Alignment;
+  verticalPosition?: "top" | "center" | "bottom";
+  height?: "medium" | "large" | "full";
+  textColor?: TextTone;
+  overlayOpacity?: Overlay;
 };
 
 export type LookbookSection = {
+  enabled?: boolean;
   title: string;
   subtitle: string;
   categoryFilter?: string;
   badge?: string;
   viewAllLinkText?: string;
   itemLimit?: number;
+  columns?: 2 | 3 | 4;
+  sort?: "newest" | "price-asc" | "price-desc";
 };
 
 export type SplitSection = {
@@ -32,9 +49,28 @@ export type SplitSection = {
   ctaText: string;
   ctaLink: string;
   campaignImageUrl: string;
-  featuredProductIds: number[];
+  mediaType?: MediaType;
+  videoUrl?: string;
+  featuredProductIds: (number | string)[];
   badge?: string;
   reverseLayout?: boolean;
+};
+
+/** Full-width banner with image or video, text and a button. */
+export type PromoBanner = {
+  enabled: boolean;
+  mediaType: MediaType;
+  imageUrl: string;
+  videoUrl: string;
+  badge: string;
+  headline: string;
+  text: string;
+  ctaText: string;
+  ctaLink: string;
+  alignment: Alignment;
+  textColor: TextTone;
+  overlayOpacity: Overlay;
+  height: "short" | "medium" | "tall";
 };
 
 export type AnnouncementBar = {
@@ -61,6 +97,9 @@ export type StorySection = {
   stat2Label: string;
   stat3Value: string;
   stat3Label: string;
+  imageSide?: "left" | "right";
+  ctaText?: string;
+  ctaLink?: string;
 };
 
 export type FooterCMS = {
@@ -75,13 +114,20 @@ export type FooterCMS = {
   facebookUrl: string;
 };
 
+/** Homepage sections below the hero, in the order they can be arranged. */
+export const HOME_SECTION_KEYS = ["lookbook", "splitSection1", "promoBanner", "splitSection2", "storySection"] as const;
+export type HomeSectionKey = (typeof HOME_SECTION_KEYS)[number];
+
 export type SiteCMSContent = {
   announcement: AnnouncementBar;
   hero: HeroBanner;
   lookbook: LookbookSection;
   splitSection1: SplitSection;
   splitSection2: SplitSection;
+  promoBanner: PromoBanner;
   storySection: StorySection;
+  /** Order of the sections under the hero. */
+  sectionOrder: HomeSectionKey[];
   footerNotice: string;
   footer: FooterCMS;
 };
@@ -97,6 +143,9 @@ export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
   },
   hero: {
     imageUrl: "https://images.unsplash.com/photo-1509631179647-0177331693ae?w=1800&auto=format&fit=crop&q=80",
+    mobileImageUrl: "",
+    mediaType: "image",
+    videoUrl: "",
     headline: "Matching Sets",
     subheadline: "The sets you'll live in. Your most effortless outfits start here.",
     ctaText: "Shop now",
@@ -105,15 +154,21 @@ export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
     secondaryCtaText: "",
     secondaryCtaLink: "",
     alignment: "left",
+    verticalPosition: "bottom",
+    height: "large",
+    textColor: "light",
     overlayOpacity: "medium",
   },
   lookbook: {
+    enabled: true,
     title: "New In",
     subtitle: "Layers, denim, done. The pieces that set the tone this season.",
     categoryFilter: "all",
     badge: "",
     viewAllLinkText: "Shop all",
     itemLimit: 4,
+    columns: 4,
+    sort: "newest",
   },
   splitSection1: {
     enabled: true,
@@ -122,7 +177,9 @@ export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
     ctaText: "Shop denim",
     ctaLink: "/products",
     campaignImageUrl: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=1200&auto=format&fit=crop&q=80",
-    featuredProductIds: [2, 1, 3],
+    mediaType: "image",
+    videoUrl: "",
+    featuredProductIds: [],
     badge: "",
     reverseLayout: false,
   },
@@ -133,9 +190,26 @@ export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
     ctaText: "Shop outerwear",
     ctaLink: "/products",
     campaignImageUrl: "https://images.unsplash.com/photo-1576995853123-5a10305d93c0?w=1200&auto=format&fit=crop&q=80",
-    featuredProductIds: [4, 5, 2],
+    mediaType: "image",
+    videoUrl: "",
+    featuredProductIds: [],
     badge: "",
     reverseLayout: true,
+  },
+  promoBanner: {
+    enabled: false,
+    mediaType: "image",
+    imageUrl: "",
+    videoUrl: "",
+    badge: "",
+    headline: "",
+    text: "",
+    ctaText: "Shop now",
+    ctaLink: "/products",
+    alignment: "center",
+    textColor: "light",
+    overlayOpacity: "medium",
+    height: "medium",
   },
   storySection: {
     enabled: true,
@@ -152,7 +226,11 @@ export const DEFAULT_CMS_CONTENT: SiteCMSContent = {
     stat2Label: "Loom time per piece",
     stat3Value: "Fair wage",
     stat3Label: "For every weaver",
+    imageSide: "left",
+    ctaText: "About us",
+    ctaLink: "/about",
   },
+  sectionOrder: [...HOME_SECTION_KEYS],
   footerNotice: "Handmade in Ethiopia",
   footer: {
     notice: "Handmade in Ethiopia",
@@ -235,12 +313,31 @@ export function normalizeCMS(raw: unknown): SiteCMSContent {
     announcement: dropRetired(p.announcement, D.announcement),
     hero: dropRetired(p.hero, D.hero),
     lookbook: dropRetired(p.lookbook, D.lookbook),
-    splitSection1: dropRetired(p.splitSection1, D.splitSection1),
-    splitSection2: dropRetired(p.splitSection2, D.splitSection2),
+    splitSection1: dropMockProducts(dropRetired(p.splitSection1, D.splitSection1)),
+    splitSection2: dropMockProducts(dropRetired(p.splitSection2, D.splitSection2)),
+    promoBanner: dropRetired(p.promoBanner, D.promoBanner),
     storySection: dropRetired(p.storySection, D.storySection),
+    sectionOrder: normalizeOrder(p.sectionOrder),
     footerNotice,
     footer: { ...footer, notice: footerNotice },
   };
+}
+
+/** Keep known sections in the saved order, then append any that are missing. */
+function normalizeOrder(raw: unknown): HomeSectionKey[] {
+  const known = new Set<string>(HOME_SECTION_KEYS);
+  const saved = Array.isArray(raw) ? raw.filter((k): k is HomeSectionKey => typeof k === "string" && known.has(k)) : [];
+  const unique = [...new Set(saved)];
+  return [...unique, ...HOME_SECTION_KEYS.filter((k) => !unique.includes(k))];
+}
+
+/**
+ * Old defaults pointed at numeric ids (1–5) from the retired sample catalogue.
+ * Real products have UUIDs, so drop numeric ids rather than show the wrong items.
+ */
+function dropMockProducts(section: SplitSection): SplitSection {
+  const ids = (section.featuredProductIds ?? []).filter((id) => typeof id === "string" && id.length > 8);
+  return { ...section, featuredProductIds: ids };
 }
 
 function readCache(): SiteCMSContent {

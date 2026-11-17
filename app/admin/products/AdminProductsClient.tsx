@@ -15,14 +15,68 @@ import {
   FolderPlus,
   Star,
 } from "lucide-react";
-import {
-  Product,
-  ProductColor,
-} from "../../lib/products-store";
+import { Product } from "../../lib/products-store";
 import { Category } from "../../lib/categories-store";
 import { getStoreSettings } from "../../lib/settings-store";
 import ProductColorManager from "../../components/ProductColorManager";
+import NewProductForm from "./NewProductForm";
 import { apiFetch } from "../../lib/api";
+import { marginOf, toProduct } from "../../lib/format";
+
+function MarginNote({ price, cost }: { price: number; cost: number | null | undefined }) {
+  const margin = marginOf(price, cost);
+  if (margin === null) return <div className="text-[11px] text-amber-700">No cost entered</div>;
+  return (
+    <div className={`text-[11px] ${margin < 0 ? "text-red-700" : "text-neutral-500"}`}>
+      Cost ${Number(cost).toFixed(2)} · {(margin * 100).toFixed(0)}% margin
+    </div>
+  );
+}
+
+/** Unit cost input with a live margin readout. Cost is private to admins. */
+function CostField({
+  value,
+  price,
+  rate,
+  onChange,
+}: {
+  value: string;
+  price: number;
+  rate: number;
+  onChange: (value: string) => void;
+}) {
+  const cost = value === "" ? null : parseFloat(value);
+  const margin = marginOf(price, cost !== null && Number.isFinite(cost) ? cost : null);
+  const profit = margin === null || cost === null ? null : price - cost;
+  const id = React.useId();
+  return (
+    <div className="space-y-1">
+      <label htmlFor={id} className="text-xs font-bold uppercase tracking-wider text-black">
+        Cost per item ($ USD)
+      </label>
+      <div className="flex flex-wrap items-center gap-3">
+        <input
+          id={id}
+          type="number"
+          step="0.01"
+          min="0"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="What one unit costs you"
+          className="w-48 bg-[#f4f4f4] border border-neutral-300 px-3 py-2 text-sm font-bold text-black"
+        />
+        {profit !== null && margin !== null ? (
+          <span className={`text-xs font-semibold ${profit < 0 ? "text-red-700" : "text-emerald-700"}`}>
+            {profit < 0 ? "Loss" : "Profit"} ${Math.abs(profit).toFixed(2)} (Br{Math.round(Math.abs(profit) * rate).toLocaleString()}) per item ·{" "}
+            {(margin * 100).toFixed(0)}% margin
+          </span>
+        ) : (
+          <span className="text-xs text-neutral-500">Used for the Profit &amp; loss report. Customers never see it.</span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AdminProductsClient() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -55,56 +109,8 @@ export default function AdminProductsClient() {
   const settings = useMemo(() => getStoreSettings(), []);
   const lowStockThreshold = settings.lowStockThreshold || 15;
 
-  // New Product Form State
-  const initialForm: {
-    title: string;
-    subtitle: string;
-    category: string;
-    price: string;
-    priceETB: string;
-    stock: string;
-    tag: string;
-    imageUrl: string;
-    description: string;
-    fabric: string;
-    care: string;
-    colors: ProductColor[];
-    activeColorIndex: number;
-  } = {
-    title: "",
-    subtitle: "",
-    category: "sets",
-    price: "",
-    priceETB: "",
-    stock: "20",
-    tag: "New",
-    imageUrl: "",
-    description: "",
-    fabric: "100% Hand-spun Ethiopian Cotton / Fine Wool",
-    care: "Dry clean only or delicate cold hand wash",
-    colors: [
-      {
-        name: "Violet",
-        hex: "#7071e8",
-        image: "https://images.unsplash.com/photo-1576566588028-4147f3842f27?w=1000&auto=format&fit=crop&q=80",
-        active: true,
-      },
-      {
-        name: "Off White",
-        hex: "#f3f4f6",
-        image: "https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=1000&auto=format&fit=crop&q=80",
-        active: true,
-      },
-      {
-        name: "Charcoal",
-        hex: "#27272a",
-        image: "https://images.unsplash.com/photo-1618354691373-d851c5c3a990?w=1000&auto=format&fit=crop&q=80",
-        active: true,
-      },
-    ],
-    activeColorIndex: 0,
-  };
-  const [formData, setFormData] = useState(initialForm);
+  // Category picked in the New product form (also set by the quick "New category" dialog)
+  const [newProductCategory, setNewProductCategory] = useState("");
 
   const productsApi = "products";
 
@@ -120,7 +126,7 @@ export default function AdminProductsClient() {
       if (!res.ok) throw new Error(`Product request failed (${res.status})`);
       const json = await res.json();
       const items = Array.isArray(json) ? json : json?.data;
-      setProducts(Array.isArray(items) ? items : []);
+      setProducts(Array.isArray(items) ? items.map(toProduct) : []);
     } catch {
       setProducts([]);
     } finally {
@@ -137,7 +143,7 @@ export default function AdminProductsClient() {
           const json = await res.json();
           const items = Array.isArray(json) ? json : json?.data;
           if (active && Array.isArray(items)) {
-            setProducts(items);
+            setProducts(items.map(toProduct));
             return;
           }
         }
@@ -174,7 +180,7 @@ export default function AdminProductsClient() {
 
   const getCategoryName = useCallback(
     (slug?: string) => {
-      if (!slug) return "Matching Sets";
+      if (!slug) return "No category";
       const match = categories.find((c) => c.id.toLowerCase() === slug.toLowerCase());
       if (match) return match.name;
       return slug
@@ -208,7 +214,7 @@ export default function AdminProductsClient() {
       setCategories((prev) => [created, ...prev]);
 
       if (target === "add") {
-        setFormData((prev) => ({ ...prev, category: created.id }));
+        setNewProductCategory(created.id);
         setQuickCategoryTarget(null);
       } else if (target === "edit") {
         setEditingProduct((prev) => (prev ? { ...prev, category: created.id } : null));
@@ -232,7 +238,7 @@ export default function AdminProductsClient() {
 
     const confirmMsg =
       assignedCount > 0
-        ? `Category "${cat.name}" currently has ${assignedCount} product(s) assigned to it. Deleting this category will reassign those products to "Matching Sets". Proceed?`
+        ? `Category "${cat.name}" currently has ${assignedCount} product(s) assigned to it. Deleting this category will leave those products without a category. Proceed?`
         : `Are you sure you want to delete category "${cat.name}"?`;
 
     if (!confirm(confirmMsg)) return;
@@ -241,12 +247,12 @@ export default function AdminProductsClient() {
       const reassigned = products.filter((product) => (product.category || "").toLowerCase() === cat.id.toLowerCase());
       const updates = await Promise.all(reassigned.map((product) => apiFetch(`products/${product.id}`, {
         method: "PUT",
-        body: JSON.stringify({ category: "sets" }),
+        body: JSON.stringify({ category: "" }),
       })));
       if (updates.some((response) => !response.ok)) throw new Error("Failed to reassign products from this category");
       const response = await apiFetch(`categories/${encodeURIComponent(cat.apiId || cat.id)}`, { method: "DELETE" });
       if (!response.ok) throw new Error("Failed to delete category");
-      setProducts((prev) => prev.map((product) => reassigned.some((item) => item.id === product.id) ? { ...product, category: "sets" } : product));
+      setProducts((prev) => prev.map((product) => reassigned.some((item) => item.id === product.id) ? { ...product, category: "" } : product));
       setCategories((prev) => prev.filter((category) => category.id !== cat.id));
       showToast(`Category "${cat.name}" deleted.`);
     } catch (error) {
@@ -296,58 +302,6 @@ export default function AdminProductsClient() {
     }
   };
 
-  // Create Product
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title || !formData.price) return;
-
-    const priceNum = parseFloat(formData.price) || 0;
-    const priceETBNum = formData.priceETB ? parseFloat(formData.priceETB) : priceNum * settings.exchangeRateUSDToETB;
-
-    const activeColor = formData.colors[formData.activeColorIndex] || formData.colors[0];
-    const heroImage = activeColor?.image || formData.imageUrl || "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80";
-
-    const payload = {
-      title: formData.title,
-      name: formData.title,
-      subtitle: formData.subtitle || "Handcrafted Heritage Collection",
-      category: formData.category,
-      tag: formData.tag || "New",
-      isNew: formData.tag === "New",
-      price: priceNum,
-      priceETB: priceETBNum,
-      formattedPriceETB: `Br${priceETBNum.toLocaleString("en-US", { minimumFractionDigits: 2 })} ETB`,
-      stock: parseInt(formData.stock) || 10,
-      imageUrl: heroImage,
-      colors: formData.colors,
-      activeColorIndex: formData.activeColorIndex,
-      activeColorName: activeColor?.name,
-      description: formData.description || "Impeccably tailored contemporary product woven by master artisans in Addis Ababa.",
-      details: {
-        overview: formData.description,
-        measurements: ["Tailored contemporary fit", "Model is 5'10\" and wears size Small"],
-        fabric: formData.fabric,
-        care: formData.care,
-      },
-    };
-
-    try {
-      const response = await apiFetch(productsApi, {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.message || result.error || "Failed to create product");
-      const created = result.data ?? result;
-      setProducts((prev) => [created, ...prev]);
-      setFormData(initialForm);
-      setShowAddModal(false);
-      showToast(`Product "${created.title || formData.title}" added.`);
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Failed to create product");
-    }
-  };
-
   // Update Product (Full Edit)
   const handleUpdateProduct = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -360,6 +314,10 @@ export default function AdminProductsClient() {
       ...editingProduct,
       price: Number(editingProduct.price),
       priceETB: Number(editingProduct.priceETB || editingProduct.price * settings.exchangeRateUSDToETB),
+      costPrice:
+        editingProduct.costPrice === null || editingProduct.costPrice === undefined
+          ? null
+          : Math.max(0, Number(editingProduct.costPrice) || 0),
       stock: Number(editingProduct.stock),
       activeColorIndex: activeIdx,
       activeColorName: activeColor?.name,
@@ -404,6 +362,7 @@ export default function AdminProductsClient() {
       category: product.category,
       price: product.price,
       priceETB: product.priceETB,
+      costPrice: product.costPrice ?? null,
       stock: product.stock,
       tag: product.tag,
       imageUrl: product.imageUrl,
@@ -421,7 +380,7 @@ export default function AdminProductsClient() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.message || result.error || "Failed to duplicate product");
-      setProducts((prev) => [result.data ?? result, ...prev]);
+      setProducts((prev) => [toProduct(result.data ?? result), ...prev]);
       showToast(`Duplicated "${product.title}"`);
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to duplicate product");
@@ -699,6 +658,7 @@ export default function AdminProductsClient() {
                         <span className="text-[10px] text-neutral-400">
                           (Br{p.priceETB ? p.priceETB.toLocaleString() : (p.price * settings.exchangeRateUSDToETB).toLocaleString()})
                         </span>
+                        <MarginNote price={p.price} cost={p.costPrice} />
                       </div>
 
                       {/* Mobile Colorways & Active Selector */}
@@ -930,6 +890,7 @@ export default function AdminProductsClient() {
                     <div className="text-[11px] text-neutral-500">
                       Br{p.priceETB ? p.priceETB.toLocaleString() : (p.price * settings.exchangeRateUSDToETB).toLocaleString()} ETB
                     </div>
+                    <MarginNote price={p.price} cost={p.costPrice} />
                   </div>
 
                   {/* Stock Controls (Interactive +/- buttons) */}
@@ -1102,7 +1063,7 @@ export default function AdminProductsClient() {
                   </label>
                   <input
                     type="number"
-                    value={editingProduct.stock ?? 10}
+                    value={editingProduct.stock ?? 0}
                     onChange={(e) =>
                       setEditingProduct({
                         ...editingProduct,
@@ -1113,6 +1074,15 @@ export default function AdminProductsClient() {
                   />
                 </div>
               </div>
+
+              <CostField
+                value={editingProduct.costPrice === null || editingProduct.costPrice === undefined ? "" : String(editingProduct.costPrice)}
+                price={Number(editingProduct.price) || 0}
+                rate={settings.exchangeRateUSDToETB}
+                onChange={(v) =>
+                  setEditingProduct({ ...editingProduct, costPrice: v === "" ? null : Math.max(0, parseFloat(v) || 0) })
+                }
+              />
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
@@ -1136,7 +1106,7 @@ export default function AdminProductsClient() {
                     </button>
                   </div>
                   <select
-                    value={editingProduct.category || "sets"}
+                    value={editingProduct.category || ""}
                     onChange={(e) => {
                       if (e.target.value === "__NEW__") {
                         setCatError("");
@@ -1150,6 +1120,7 @@ export default function AdminProductsClient() {
                     }}
                     className="w-full bg-[#f4f4f4] border border-neutral-300 px-3 py-2 text-xs font-bold text-black focus:outline-none focus:ring-1 focus:ring-black"
                   >
+                    <option value="">No category</option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
                         {cat.name}
@@ -1266,218 +1237,26 @@ export default function AdminProductsClient() {
 
       {/* ADD GARMENT MODAL */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 border border-neutral-200 shadow-xl space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-widest text-neutral-400">
-                  Catalog Creation
-                </span>
-                <h3 className="text-xl font-bold text-black">New Product Piece</h3>
-              </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="p-1 text-neutral-400 hover:text-black"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-black">
-                  Title / Silhouette Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="e.g. The Hand-Loomed Tibeb Coat"
-                  className="w-full bg-[#f4f4f4] border border-neutral-300 px-4 py-2 text-sm text-black"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-black">
-                    Price (USD $)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={formData.price}
-                    onChange={(e) => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setFormData({
-                        ...formData,
-                        price: e.target.value,
-                        priceETB: (val * settings.exchangeRateUSDToETB).toString(),
-                      });
-                    }}
-                    placeholder="240.00"
-                    className="w-full bg-[#f4f4f4] border border-neutral-300 px-4 py-2 text-sm text-black"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-black">
-                    Price in ETB (Br)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.priceETB}
-                    onChange={(e) => setFormData({ ...formData, priceETB: e.target.value })}
-                    placeholder="30000"
-                    className="w-full bg-[#f4f4f4] border border-neutral-300 px-4 py-2 text-sm text-black"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold uppercase tracking-wider text-black">
-                      Category
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCatError("");
-                        setNewCatName("");
-                        setNewCatSlug("");
-                        setNewCatDesc("");
-                        setQuickCategoryTarget("add");
-                      }}
-                      className="text-[10px] font-extrabold uppercase tracking-wider text-neutral-800 hover:text-black underline flex items-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" />
-                      New Category
-                    </button>
-                  </div>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => {
-                      if (e.target.value === "__NEW__") {
-                        setCatError("");
-                        setNewCatName("");
-                        setNewCatSlug("");
-                        setNewCatDesc("");
-                        setQuickCategoryTarget("add");
-                      } else {
-                        setFormData({ ...formData, category: e.target.value });
-                      }
-                    }}
-                    className="w-full bg-[#f4f4f4] border border-neutral-300 px-3 py-2 text-xs font-bold text-black focus:outline-none focus:ring-1 focus:ring-black"
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </option>
-                    ))}
-                    <option value="__NEW__" className="font-bold text-neutral-900 bg-neutral-100">
-                      + Create New Category...
-                    </option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-black">
-                    Display Tag
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.tag}
-                    onChange={(e) => setFormData({ ...formData, tag: e.target.value })}
-                    placeholder="New"
-                    className="w-full bg-[#f4f4f4] border border-neutral-300 px-3 py-2 text-xs text-black"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-xs font-bold uppercase tracking-wider text-black">
-                    Stock
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    placeholder="20"
-                    className="w-full bg-[#f4f4f4] border border-neutral-300 px-3 py-2 text-xs text-black"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-black">
-                  Image URL
-                </label>
-                <input
-                  type="url"
-                  value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                  placeholder="https://images.unsplash.com/..."
-                  className="w-full bg-[#f4f4f4] border border-neutral-300 px-4 py-2 text-xs text-black"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-black">
-                  Fabric &amp; Care
-                </label>
-                <input
-                  type="text"
-                  value={formData.fabric}
-                  onChange={(e) => setFormData({ ...formData, fabric: e.target.value })}
-                  placeholder="100% Hand-Spun Cotton"
-                  className="w-full bg-[#f4f4f4] border border-neutral-300 px-4 py-2 text-xs text-black"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-black">
-                  Description
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Artisan tailored silhouette woven with authentic Ethiopian heritage motifs..."
-                  className="w-full bg-[#f4f4f4] border border-neutral-300 px-4 py-2 text-xs text-black"
-                />
-              </div>
-
-              {/* Multi-Color Management & Active Color Selector */}
-              <ProductColorManager
-                colors={formData.colors}
-                activeColorIndex={formData.activeColorIndex}
-                onChange={(colors, activeIndex) => {
-                  const activeColor = colors[activeIndex];
-                  setFormData({
-                    ...formData,
-                    colors,
-                    activeColorIndex: activeIndex,
-                    imageUrl: activeColor?.image || formData.imageUrl,
-                  });
-                }}
-              />
-
-              <div className="pt-4 flex items-center justify-end gap-3 border-t border-neutral-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-black"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 text-xs font-bold uppercase tracking-wider bg-black text-white hover:bg-neutral-800 shadow-sm"
-                >
-                  Save product
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <NewProductForm
+          categories={categories}
+          rate={settings.exchangeRateUSDToETB || 125}
+          category={newProductCategory}
+          onCategoryChange={setNewProductCategory}
+          onRequestNewCategory={() => {
+            setCatError("");
+            setNewCatName("");
+            setNewCatSlug("");
+            setNewCatDesc("");
+            setQuickCategoryTarget("add");
+          }}
+          onCancel={() => setShowAddModal(false)}
+          onCreated={(created) => {
+            setProducts((prev) => [created, ...prev]);
+            setShowAddModal(false);
+            setNewProductCategory("");
+            showToast(`Product "${created.title}" added.`);
+          }}
+        />
       )}
 
       {/* Quick Add Category Modal (Invoked from inside Add/Edit Product Form) */}

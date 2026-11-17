@@ -1,492 +1,367 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  Trash2,
-  ArrowLeft,
-  CheckCircle2,
-  Lock,
-  CreditCard,
-  ShieldCheck,
-  Truck,
-  User,
-} from "lucide-react";
-import { useCart } from "../components/CartProvider";
+import { ArrowLeft, Check, Lock, Trash2, Truck, User } from "../components/icons";
+import { useCart, CartItem } from "../components/CartProvider";
 import { useAuth } from "../components/AuthProvider";
 import { apiFetch } from "../lib/api";
+
+/* Must match the API (orders.service.ts) so the total here equals what Chapa charges. */
+const ETB_PER_USD = 125;
+const FREE_SHIPPING_OVER_USD = 200;
+const SHIPPING_USD = 25;
+
+const birr = (n: number) =>
+  `Br${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+const lineETB = (item: CartItem) => (item.priceETB ?? item.price * ETB_PER_USD) * item.quantity;
+
+type CheckoutStatus = { paid: boolean; status: "paid" | "pending" | "failed"; orderNumber: string; totalETB: number };
+
+const inputClass =
+  "w-full h-11 px-3.5 border border-neutral-300 bg-white text-sm focus:outline-none focus:border-black focus:ring-1 focus:ring-black";
+
+function Field({ id, label, hint, children }: { id: string; label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-xs font-semibold text-neutral-700">
+        {label}
+      </label>
+      {children}
+      {hint && <p className="text-xs text-neutral-500">{hint}</p>}
+    </div>
+  );
+}
 
 export default function CartPage() {
   const { items, removeItem, clear, count, syncError } = useCart();
   const { user, isAuthenticated } = useAuth();
 
-  const [orderConfirmation, setOrderConfirmation] = useState<{
-    orderNumber: string;
-    totalUSD: number;
-    totalETB: number;
-    itemsCount: number;
-  } | null>(null);
-
+  const [confirmed, setConfirmed] = useState<{ orderNumber: string; totalETB: number } | null>(null);
+  const [pendingRef, setPendingRef] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
-  const [checkoutStep, setCheckoutStep] = useState<"bag" | "payment">("bag");
+  const [step, setStep] = useState<"bag" | "details">("bag");
 
-  // Shipping & Payment Form State
   const [customerName, setCustomerName] = useState(user?.name || "");
   const [customerEmail, setCustomerEmail] = useState(user?.email || "");
-  const [street, setStreet] = useState(user?.shippingAddress?.street || "Kazanchis Heritage Quarter, No. 12");
+  const [customerPhone, setCustomerPhone] = useState(user?.phone || "");
+  const [street, setStreet] = useState(user?.shippingAddress?.street || "");
   const [city, setCity] = useState(user?.shippingAddress?.city || "Addis Ababa");
-  const [postalCode, setPostalCode] = useState(user?.shippingAddress?.zip || "1000");
+  const [postalCode, setPostalCode] = useState(user?.shippingAddress?.zip || "");
   const [country] = useState(user?.shippingAddress?.country || "Ethiopia");
 
+  const clearRef = useRef(clear);
+  useEffect(() => {
+    clearRef.current = clear;
+  }, [clear]);
+
+  /** Asks the API (which asks Chapa) whether this payment went through. Retries while pending. */
+  const checkPayment = useCallback(async (txRef: string, attempts = 5) => {
+    setChecking(true);
+    setCheckoutError(null);
+    try {
+      for (let i = 0; i < attempts; i++) {
+        const response = await apiFetch(`orders/checkout/${encodeURIComponent(txRef)}`, { cache: "no-store" });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.message || "We couldn't check your payment. Please try again.");
+        const data: CheckoutStatus = payload.data ?? payload;
+        if (data.paid) {
+          setConfirmed({ orderNumber: data.orderNumber, totalETB: Number(data.totalETB) });
+          setPendingRef(null);
+          clearRef.current();
+          window.history.replaceState({}, "", "/cart");
+          return;
+        }
+        if (data.status === "failed") {
+          setPendingRef(null);
+          setStep("details");
+          setCheckoutError("The payment didn't go through and you weren't charged. You can try again.");
+          window.history.replaceState({}, "", "/cart");
+          return;
+        }
+        if (i < attempts - 1) await new Promise((resolve) => setTimeout(resolve, 2500));
+      }
+      setPendingRef(txRef);
+    } catch (error) {
+      setPendingRef(txRef);
+      setCheckoutError(error instanceof Error ? error.message : "We couldn't check your payment.");
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  // Chapa sends customers back to /cart?checkout=return&tx_ref=…
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
-    const sessionId = query.get("session_id");
-    if (query.get("checkout") === "cancelled") {
-      queueMicrotask(() => {
-        setCheckoutStep("payment");
-        setCheckoutError("Checkout was canceled. Your bag is still here when you are ready.");
-      });
-      return;
-    }
-    if (query.get("checkout") !== "success" || !sessionId) return;
+    const txRef = query.get("tx_ref") || query.get("trx_ref");
+    if (query.get("checkout") !== "return" || !txRef) return;
+    queueMicrotask(() => void checkPayment(txRef));
+  }, [checkPayment]);
 
-    let active = true;
-    apiFetch(`orders/checkout-session/${encodeURIComponent(sessionId)}`)
-      .then(async (response) => {
-        const payload = await response.json();
-        const data = payload.data ?? payload;
-        if (!response.ok) throw new Error(payload.message || "Payment is not confirmed yet.");
-        if (active) {
-          setOrderConfirmation({
-            orderNumber: data.orderNumber,
-            totalUSD: Number(data.total),
-            totalETB: Number(data.totalETB),
-            itemsCount: items.length,
-          });
-          await clear();
-          window.history.replaceState({}, "", "/cart");
-        }
-      })
-      .catch((error: unknown) => {
-        if (active) setCheckoutError(error instanceof Error ? error.message : "Payment confirmation is pending.");
-      });
+  const subtotalUSD = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotalETB = items.reduce((sum, item) => sum + lineETB(item), 0);
+  const shippingETB = subtotalUSD > FREE_SHIPPING_OVER_USD ? 0 : SHIPPING_USD * ETB_PER_USD;
+  const totalETB = subtotalETB + shippingETB;
 
-    return () => { active = false; };
-  }, [clear, items.length]);
-
-  // Price calculations in USD and ETB
-  const totalUSD = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shippingUSD = totalUSD > 200 ? 0 : 25;
-  const grandTotalUSD = totalUSD + shippingUSD;
-  const grandTotalETB = grandTotalUSD * 125;
-  const itemCountLabel = count === 1 ? "item" : "items";
-
-  const handleStripePayment = async (e: React.FormEvent) => {
+  const startPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isCheckingOut) return;
     setIsCheckingOut(true);
     setCheckoutError(null);
-
     try {
-      const response = await apiFetch("orders/checkout-session", {
+      const response = await apiFetch("orders/checkout", {
         method: "POST",
         body: JSON.stringify({
           customerName: customerName.trim(),
           customerEmail: customerEmail.trim(),
+          customerPhone: customerPhone.trim() || undefined,
           items: items.map((item) => ({
             productId: String(item.id),
             quantity: item.quantity,
             size: item.size,
             color: item.color,
           })),
-          shippingAddress: {
-          street,
-          city,
-          postalCode,
-          country,
-          },
+          shippingAddress: { street: street.trim(), city: city.trim(), postalCode: postalCode.trim(), country },
         }),
       });
-      const payload = await response.json();
+      const payload = await response.json().catch(() => ({}));
       const data = payload.data ?? payload;
-      if (!response.ok) throw new Error(payload.message || "Could not start Stripe Checkout.");
-      if (!data.checkoutUrl) throw new Error("Stripe did not return a checkout URL.");
+      if (!response.ok) throw new Error(payload.message || "We couldn't start the payment. Please try again.");
+      if (!data.checkoutUrl) throw new Error("The payment page didn't open. Please try again.");
       window.location.assign(data.checkoutUrl);
     } catch (error) {
-      setCheckoutError(error instanceof Error ? error.message : "Checkout could not be completed.");
-    } finally {
+      setCheckoutError(error instanceof Error ? error.message : "We couldn't start the payment.");
       setIsCheckingOut(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-white text-black py-10 px-4 sm:px-8">
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Top Header */}
-        <div className="flex items-center justify-between border-b border-neutral-200 pb-6">
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">
-              {checkoutStep === "payment" ? "Stripe Secure Checkout" : "Shopping Bag"}
-            </h1>
-            <p className="text-xs text-neutral-500">
-              {checkoutStep === "payment"
-                ? "Powered by Stripe Payment Gateway • 256-bit Encryption"
-                : `${count} ${itemCountLabel} in your shopping bag`}
-            </p>
-          </div>
+  /* ---------- confirmation / waiting states ---------- */
 
-          <div className="flex items-center gap-4">
-            {checkoutStep === "payment" ? (
-              <button
-                onClick={() => setCheckoutStep("bag")}
-                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-black hover:opacity-75"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Bag
-              </button>
-            ) : (
-              <Link
-                href="/"
-                className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-black hover:opacity-75"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Continue Shopping
-              </Link>
-            )}
-          </div>
+  if (confirmed) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-20 text-center space-y-5">
+        <div className="size-14 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center mx-auto">
+          <Check className="size-7" />
         </div>
+        <h1 className="heading-display text-3xl">Thank you!</h1>
+        <p className="text-sm text-neutral-700">
+          Your payment of <strong>{birr(confirmed.totalETB)}</strong> was received. Your order number is{" "}
+          <strong className="font-mono">#{confirmed.orderNumber}</strong>. Chapa has emailed you a receipt.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+          {isAuthenticated && (
+            <Link href="/orders" className="btn-primary">
+              View my orders
+            </Link>
+          )}
+          <Link href="/products" className="btn-outline">
+            Keep shopping
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
-        {syncError && <p className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{syncError}</p>}
-        {checkoutError && <p className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{checkoutError}</p>}
-
-        {/* Auth prompt if not signed in */}
-        {!isAuthenticated && !orderConfirmation && items.length > 0 && (
-          <div className="bg-[#fafafa] border border-neutral-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
-              <User className="w-4 h-4 text-black" />
-              <span>
-                Have an account? <strong className="text-black">Sign in</strong> to save this order to your transaction history.
-              </span>
-            </div>
-            <Link
-              href="/login"
-              className="px-3.5 py-1.5 bg-black text-white text-[11px] font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors whitespace-nowrap"
-            >
-              Sign In
+  if (checking || pendingRef) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-20 text-center space-y-5" aria-live="polite">
+        <h1 className="heading-display text-3xl">{checking ? "Checking your payment…" : "Payment still processing"}</h1>
+        <p className="text-sm text-neutral-700">
+          {checking
+            ? "This usually takes a few seconds."
+            : "Chapa hasn't confirmed your payment yet. This can take a minute for mobile money. Don't pay again. Check again in a moment."}
+        </p>
+        {checkoutError && <p className="text-sm text-red-700">{checkoutError}</p>}
+        {!checking && pendingRef && (
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button type="button" className="btn-primary" onClick={() => void checkPayment(pendingRef, 3)}>
+              Check again
+            </button>
+            <Link href="/contact" className="btn-outline">
+              Contact us
             </Link>
           </div>
         )}
+      </div>
+    );
+  }
 
-        {orderConfirmation && (
-          <div className="bg-[#fafafa] border border-neutral-200 p-8 sm:p-12 text-center space-y-5 max-w-xl mx-auto shadow-sm">
-            <div className="w-14 h-14 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8" />
-            </div>
+  /* ---------- bag and details ---------- */
 
-            <div className="space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                Payment Authorized via Stripe
-              </span>
-              <h2 className="text-2xl font-bold text-black">Order Placed Successfully</h2>
-              <p className="text-xs text-neutral-600 leading-relaxed max-w-md mx-auto">
-                Thank you for acquiring from YeHageré. Your tracking confirmation number is{" "}
-                <span className="font-bold text-black font-mono">#{orderConfirmation.orderNumber}</span>.
-                A confirmation receipt of{" "}
-                <strong className="text-black">${orderConfirmation.totalUSD} USD</strong> (Br
-                {orderConfirmation.totalETB.toLocaleString()} ETB) has been processed.
-              </p>
-            </div>
-
-            <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Link
-                href="/orders"
-                className="w-full sm:w-auto bg-black text-white px-6 py-3.5 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors"
-              >
-                View in Order History &amp; Receipts
-              </Link>
-              <Link
-                href="/"
-                onClick={() => setOrderConfirmation(null)}
-                className="w-full sm:w-auto border border-neutral-300 px-6 py-3.5 text-xs font-bold uppercase tracking-wider hover:border-black transition-colors"
-              >
-                Return to Storefront
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {!orderConfirmation && items.length === 0 && (
-          <div className="py-20 text-center space-y-4 max-w-md mx-auto">
-            <p className="text-lg font-bold text-black">Your bag is empty</p>
-            <p className="text-xs text-neutral-600 leading-relaxed">
-              Explore our new arrivals, effortless matching sets, and relaxed low slung denim.
-            </p>
-            <div className="pt-2">
-              <Link
-                href="/"
-                className="inline-block bg-black text-white! px-8 py-3.5 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800! transition-colors"
-              >
-                Shop New Arrivals
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {!orderConfirmation && items.length > 0 && checkoutStep === "bag" && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Bag Items List */}
-            <div className="lg:col-span-8 divide-y divide-neutral-200">
-              {items.map((item) => {
-                const itemETB = item.price * 125 * item.quantity;
-                return (
-                  <div key={item.id} className="py-6 flex gap-4 sm:gap-6 items-start">
-                    <div className="w-20 h-28 bg-[#f4f4f4] shrink-0 overflow-hidden border border-neutral-200">
-                      {item.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.imageUrl}
-                          alt={item.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-[10px] text-neutral-400 font-semibold">
-                          YH
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex-1 flex flex-col justify-between self-stretch">
-                      <div className="space-y-1">
-                        <div className="flex justify-between items-start">
-                          <h3 className="text-sm font-bold text-black uppercase tracking-wide">
-                            {item.title}
-                          </h3>
-                          <button
-                            onClick={() => removeItem(item.id)}
-                            className="text-neutral-400 hover:text-black transition-colors p-1"
-                            aria-label={`Remove ${item.title}`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                        <p className="text-xs text-neutral-500">
-                          {item.color || "Standard"} • Size {item.size || "M"} • Qty {item.quantity}
-                        </p>
-                      </div>
-
-                      <div className="flex justify-between items-end pt-4">
-                        <span className="text-xs text-neutral-500 font-medium">
-                          Quantity: {item.quantity}
-                        </span>
-                        <div className="text-right">
-                          <div className="text-sm font-bold text-black">
-                            ${item.price * item.quantity} USD
-                          </div>
-                          <div className="text-[11px] text-neutral-500">
-                            Br{itemETB.toLocaleString()} ETB
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Bag Summary Box */}
-            <div className="lg:col-span-4 bg-[#fafafa] border border-neutral-200 p-6 space-y-6">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-black border-b border-neutral-200 pb-3">
-                Order Summary
-              </h2>
-
-              <div className="space-y-3 text-xs">
-                <div className="flex justify-between text-neutral-600">
-                  <span>Subtotal</span>
-                  <span className="font-semibold text-black">${totalUSD} USD</span>
-                </div>
-                <div className="flex justify-between text-neutral-600">
-                  <span>Estimated Shipping</span>
-                  <span className="font-semibold text-black">
-                    {shippingUSD === 0 ? "Complimentary" : `$${shippingUSD} USD`}
-                  </span>
-                </div>
-                <div className="flex justify-between text-neutral-600">
-                  <span>Ethiopian Birr Approx.</span>
-                  <span className="font-mono text-neutral-500">Br{grandTotalETB.toLocaleString()} ETB</span>
-                </div>
-                <div className="pt-3 border-t border-neutral-200 flex justify-between items-baseline">
-                  <span className="text-sm font-bold text-black">Grand Total</span>
-                  <div className="text-right">
-                    <span className="text-base font-extrabold text-black">${grandTotalUSD} USD</span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setCheckoutStep("payment")}
-                className="w-full bg-black text-white px-4 py-4 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Proceed to Stripe Checkout</span>
-              </button>
-
-              <div className="pt-2 flex items-center justify-center gap-2 text-[10px] text-neutral-400">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Guaranteed Authentic &amp; Stripe Protected</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!orderConfirmation && items.length > 0 && checkoutStep !== "bag" && (
-          /* Step 2: Stripe Payment Form */
-          <form onSubmit={handleStripePayment} className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Left: Shipping & Stripe Card Details */}
-            <div className="lg:col-span-7 space-y-6">
-              {/* Shipping Card */}
-              <div className="bg-[#fafafa] border border-neutral-200 p-6 space-y-4">
-                <div className="flex items-center gap-2 border-b border-neutral-200 pb-3">
-                  <Truck className="w-4 h-4 text-black" />
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-black">
-                    1. Shipping Destination
-                  </h2>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div className="space-y-1 sm:col-span-2">
-                    <label htmlFor="customer-name" className="font-bold uppercase tracking-wider text-neutral-600">Full Name</label>
-                    <input
-                      id="customer-name"
-                      type="text"
-                      required
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1 sm:col-span-2">
-                    <label htmlFor="customer-email" className="font-bold uppercase tracking-wider text-neutral-600">Email for Stripe Receipt</label>
-                    <input
-                      id="customer-email"
-                      type="email"
-                      required
-                      value={customerEmail}
-                      onChange={(e) => setCustomerEmail(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1 sm:col-span-2">
-                    <label htmlFor="street-address" className="font-bold uppercase tracking-wider text-neutral-600">Street Address</label>
-                    <input
-                      id="street-address"
-                      type="text"
-                      required
-                      value={street}
-                      onChange={(e) => setStreet(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="city" className="font-bold uppercase tracking-wider text-neutral-600">City</label>
-                    <input
-                      id="city"
-                      type="text"
-                      required
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label htmlFor="postal-code" className="font-bold uppercase tracking-wider text-neutral-600">Postal / ZIP Code</label>
-                    <input
-                      id="postal-code"
-                      type="text"
-                      required
-                      value={postalCode}
-                      onChange={(e) => setPostalCode(e.target.value)}
-                      className="w-full bg-white border border-neutral-300 px-3.5 py-2.5 text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Stripe Payment Card Element */}
-              <div className="bg-white border border-neutral-300 p-6 space-y-4 shadow-sm">
-                <div className="flex items-center justify-between border-b border-neutral-200 pb-3">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="w-4 h-4 text-black" />
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-black">
-                      2. Payment Method (Stripe)
-                    </h2>
-                  </div>
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2 py-0.5 border border-emerald-200">
-                        Stripe-hosted
-                  </span>
-                </div>
-
-                    <div className="flex items-start gap-3 py-3 text-sm text-neutral-600">
-                      <CreditCard className="w-5 h-5 text-neutral-700 mt-0.5" />
-                      <p>Card details are entered securely on Stripe. YeHageré never receives or stores your card number or security code.</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Right: Payment Summary CTA */}
-            <div className="lg:col-span-5 bg-[#fafafa] border border-neutral-200 p-6 space-y-6">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-black border-b border-neutral-200 pb-3">
-                Payment Summary
-              </h3>
-
-              <div className="space-y-2 text-xs">
-                {items.map((i) => (
-                  <div key={i.id} className="flex justify-between text-neutral-600">
-                    <span className="truncate pr-2">
-                      {i.quantity}x {i.title}
-                    </span>
-                    <span className="font-semibold text-black">${i.price * i.quantity}</span>
-                  </div>
-                ))}
-
-                <div className="pt-3 border-t border-neutral-200 flex justify-between text-neutral-600">
-                  <span>Shipping</span>
-                  <span className="font-semibold text-black">{shippingUSD === 0 ? "FREE" : `$${shippingUSD}`}</span>
-                </div>
-
-                <div className="pt-2 border-t border-neutral-300 flex justify-between items-baseline">
-                  <span className="text-sm font-bold text-black">Total to Charge</span>
-                  <div className="text-right">
-                    <span className="text-base font-extrabold text-black">${grandTotalUSD} USD</span>
-                    <span className="block text-[11px] text-neutral-500 font-mono">
-                      ≈ Br{grandTotalETB.toLocaleString()} ETB
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isCheckingOut}
-                className="w-full bg-black text-white py-4 text-xs font-bold uppercase tracking-wider hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>
-                  {isCheckingOut ? "Connecting to Stripe..." : `Continue to Stripe for $${grandTotalUSD} USD`}
-                </span>
-              </button>
-
-              <p className="text-[10px] text-neutral-500 text-center leading-relaxed">
-                Stripe will show the final amount and collect your payment details securely. All orders are covered by our 14-day bespoke return policy.
-              </p>
-            </div>
-          </form>
+  return (
+    <div className="max-w-5xl mx-auto px-4 sm:px-8 py-10 space-y-8">
+      <div className="flex items-end justify-between gap-4 border-b border-line pb-6">
+        <div>
+          <h1 className="heading-display text-3xl sm:text-4xl">{step === "details" ? "Checkout" : "Your bag"}</h1>
+          <p className="text-sm text-neutral-600 mt-1">
+            {step === "details"
+              ? "Enter your delivery details, then pay securely with Chapa."
+              : `${count} ${count === 1 ? "item" : "items"}`}
+          </p>
+        </div>
+        {step === "details" ? (
+          <button type="button" onClick={() => setStep("bag")} className="text-sm flex items-center gap-1.5 hover:underline">
+            <ArrowLeft className="size-4" /> Back to bag
+          </button>
+        ) : (
+          <Link href="/products" className="text-sm flex items-center gap-1.5 hover:underline">
+            <ArrowLeft className="size-4" /> Keep shopping
+          </Link>
         )}
       </div>
+
+      {syncError && (
+        <p className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          {syncError}
+        </p>
+      )}
+      {checkoutError && (
+        <p className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">
+          {checkoutError}
+        </p>
+      )}
+
+      {items.length === 0 ? (
+        <div className="py-20 text-center space-y-4">
+          <p className="text-lg font-semibold">Your bag is empty</p>
+          <Link href="/products" className="btn-primary">
+            Shop new in
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="lg:col-span-7">
+            {step === "bag" ? (
+              <ul className="divide-y divide-line border-y border-line">
+                {items.map((item) => (
+                  <li key={`${item.id}:${item.size ?? ""}:${item.color ?? ""}`} className="py-5 flex gap-4">
+                    <div className="w-20 h-28 bg-surface shrink-0 overflow-hidden">
+                      {item.imageUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.imageUrl} alt="" className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div className="flex justify-between gap-3">
+                        <div>
+                          <h2 className="text-sm font-semibold">{item.title}</h2>
+                          <p className="text-xs text-neutral-600 mt-1">
+                            {[item.size && `Size ${item.size}`, item.color, `Qty ${item.quantity}`].filter(Boolean).join(" · ")}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeItem(item.id)}
+                          className="p-1 text-neutral-500 hover:text-black"
+                          aria-label={`Remove ${item.title}`}
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                      <p className="text-sm font-semibold text-right">{birr(lineETB(item))}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <form id="checkout-form" onSubmit={startPayment} className="space-y-6">
+                {!isAuthenticated && (
+                  <div className="flex items-center justify-between gap-3 border border-line px-4 py-3 text-sm">
+                    <span className="flex items-center gap-2">
+                      <User className="size-4" /> Have an account? Sign in to keep this order in your history.
+                    </span>
+                    <Link href="/login?next=/cart" className="underline whitespace-nowrap">
+                      Sign in
+                    </Link>
+                  </div>
+                )}
+
+                <fieldset className="space-y-4">
+                  <legend className="text-sm font-semibold mb-3">Contact</legend>
+                  <Field id="customer-name" label="Full name">
+                    <input id="customer-name" className={inputClass} required autoComplete="name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                  </Field>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Field id="customer-email" label="Email" hint="Your receipt is sent here.">
+                      <input id="customer-email" type="email" className={inputClass} required autoComplete="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)} />
+                    </Field>
+                    <Field id="customer-phone" label="Phone (optional)" hint="Ethiopian mobile, e.g. 0911234567">
+                      <input
+                        id="customer-phone"
+                        type="tel"
+                        inputMode="tel"
+                        autoComplete="tel"
+                        className={inputClass}
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                </fieldset>
+
+                <fieldset className="space-y-4">
+                  <legend className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Truck className="size-4" /> Delivery address
+                  </legend>
+                  <Field id="street-address" label="Street address">
+                    <input id="street-address" className={inputClass} required autoComplete="street-address" value={street} onChange={(e) => setStreet(e.target.value)} />
+                  </Field>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <Field id="city" label="City">
+                      <input id="city" className={inputClass} required autoComplete="address-level2" value={city} onChange={(e) => setCity(e.target.value)} />
+                    </Field>
+                    <Field id="postal-code" label="Postal code (optional)">
+                      <input id="postal-code" className={inputClass} autoComplete="postal-code" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} />
+                    </Field>
+                  </div>
+                </fieldset>
+              </form>
+            )}
+          </div>
+
+          <aside className="lg:col-span-5 bg-surface p-6 space-y-5 lg:sticky lg:top-28">
+            <h2 className="text-sm font-semibold">Order summary</h2>
+            <dl className="space-y-2.5 text-sm">
+              <div className="flex justify-between">
+                <dt className="text-neutral-600">Subtotal</dt>
+                <dd>{birr(subtotalETB)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt className="text-neutral-600">Delivery</dt>
+                <dd>{shippingETB === 0 ? "Free" : birr(shippingETB)}</dd>
+              </div>
+              <div className="flex justify-between pt-3 border-t border-neutral-300 text-base font-semibold">
+                <dt>Total</dt>
+                <dd>{birr(totalETB)}</dd>
+              </div>
+            </dl>
+
+            {step === "bag" ? (
+              <button type="button" onClick={() => setStep("details")} className="btn-primary w-full justify-center">
+                Checkout
+              </button>
+            ) : (
+              <button
+                type="submit"
+                form="checkout-form"
+                disabled={isCheckingOut}
+                className="btn-primary w-full justify-center gap-2 disabled:opacity-60"
+              >
+                <Lock className="size-4" />
+                {isCheckingOut ? "Opening Chapa…" : `Pay ${birr(totalETB)}`}
+              </button>
+            )}
+
+            <p className="text-xs text-neutral-600 leading-relaxed">
+              You&apos;ll pay on Chapa&apos;s secure page with telebirr, CBE Birr, M-Pesa, bank transfer or card. We never
+              see your card or PIN.
+            </p>
+          </aside>
+        </div>
+      )}
     </div>
   );
 }

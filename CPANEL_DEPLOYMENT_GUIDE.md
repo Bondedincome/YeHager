@@ -78,13 +78,23 @@ DB_LOGGING=false
 JWT_SECRET=super_secret_jwt_key_yehagere_luxury_2026_at_least_32_chars
 JWT_EXPIRES_IN=7d
 
-# Payment Gateways (Optional)
-CHAPA_SECRET_KEY=
-STRIPE_SECRET_KEY=sk_test_your_stripe_test_secret_key
-STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
+# Storefront address (used to send customers back after paying)
+FRONTEND_URL=https://yehagere.com
+
+# Payments (Chapa)
+CHAPA_SECRET_KEY=CHASECK-your_live_secret_key
+CHAPA_CALLBACK_URL=https://api.yehagere.com/api/v1/orders/chapa/callback
+CHAPA_WEBHOOK_SECRET=the_secret_hash_you_set_in_the_chapa_dashboard
 ```
 
-Keep both Stripe values on the backend only. Use `sk_live_...` and the production webhook secret for live payments; never add either secret to the frontend environment or source control. Configure a Stripe webhook destination pointing to `https://api.yehagere.com/api/v1/orders/stripe-webhook` and subscribe to `checkout.session.completed` and `checkout.session.async_payment_succeeded`. For local testing, run `stripe listen --forward-to localhost:3001/api/v1/orders/stripe-webhook` and set `STRIPE_WEBHOOK_SECRET` to the signing secret printed by Stripe CLI. Test card payments with `4242 4242 4242 4242`, any future expiry, and any CVC.
+`backend/.env.example` lists every variable with an explanation; copy it rather than this snippet if they ever differ.
+
+**Chapa setup**
+
+1. In the Chapa dashboard (dashboard.chapa.co), copy the secret key from Settings → API. Test keys start with `CHASECK_TEST-`, live keys with `CHASECK-`. Keep it in the backend `.env` only, never in the frontend or in git.
+2. In the dashboard's Webhooks tab, set the webhook URL to `https://api.yehagere.com/api/v1/orders/chapa/webhook`, choose a secret hash, and put the same value in `CHAPA_WEBHOOK_SECRET`.
+3. Customers are charged in ETB. Every payment is re-checked with Chapa's verify API before an order is marked paid, so a forged callback or webhook can't mark an order paid.
+4. Test mode: use a `CHASECK_TEST-` key. Chapa's test cards include Visa `4200 0000 0000 0000` (CVV 123, expiry 12/34). Test mobile-money numbers are `0900123456`, `0900112233` and `0900881111` (OTP `12345` where asked).
 
 ### 3.4 Set Up Node.js App in cPanel (Passenger)
 1. In cPanel, open **Software** > **Setup Node.js App**.

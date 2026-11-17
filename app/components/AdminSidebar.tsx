@@ -4,8 +4,8 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ArrowUpRight,
   BarChart3,
+  ChartLine,
   LayoutTemplate,
   LogOut,
   PanelLeftClose,
@@ -29,6 +29,7 @@ interface AdminSidebarProps {
 export const ADMIN_NAV = [
   { label: "Dashboard", href: "/admin", icon: BarChart3, exact: true },
   { label: "Orders", href: "/admin/orders", icon: Receipt },
+  { label: "Profit & loss", href: "/admin/analytics", icon: ChartLine },
   { label: "Products", href: "/admin/products", icon: ShoppingBag },
   { label: "Homepage", href: "/admin/appearance", icon: LayoutTemplate },
   { label: "Customers", href: "/admin/users", icon: Users },
@@ -86,20 +87,6 @@ export default function AdminSidebar({ collapsed, onToggleCollapse, mobileOpen, 
           </Link>
         );
       })}
-
-      <div className="pt-3 mt-3 border-t border-neutral-200">
-        <Link
-          href="/"
-          target="_blank"
-          title={compact ? "View store" : undefined}
-          className={`flex items-center gap-3 h-10 rounded-md text-sm text-neutral-700 hover:bg-neutral-100 ${
-            compact ? "justify-center" : "px-3"
-          }`}
-        >
-          <ArrowUpRight className="size-5" />
-          {!compact && <span>View store</span>}
-        </Link>
-      </div>
     </nav>
   );
 

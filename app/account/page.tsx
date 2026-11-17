@@ -18,6 +18,7 @@ import {
   Truck,
 } from "lucide-react";
 import { useAuth } from "../components/AuthProvider";
+import { paymentLabel } from "../lib/format";
 
 export default function AccountPage() {
   const { user, isAuthenticated, isAdmin, logout, userOrders, changePassword } = useAuth();
@@ -72,7 +73,7 @@ export default function AccountPage() {
           <div className="space-y-2">
             <h1 className="text-xl font-bold text-black">Sign In to View Your Account</h1>
             <p className="text-xs text-neutral-500 leading-relaxed">
-              Track your shipments, view your Stripe payment receipts, and manage your wardrobe orders.
+              Track your deliveries, see your receipts and manage your orders.
             </p>
           </div>
           <div className="pt-2 flex flex-col gap-2.5">
@@ -196,9 +197,9 @@ export default function AccountPage() {
             </span>
             <div className="flex items-center gap-2 pt-1">
               <CreditCard className="w-5 h-5 text-black" />
-              <span className="text-sm font-bold text-black">Stripe Secure Card</span>
+              <span className="text-sm font-bold text-black">Chapa</span>
             </div>
-            <span className="text-[10px] text-emerald-600 font-semibold">Active &amp; Verified</span>
+            <span className="text-[10px] text-neutral-500">telebirr, CBE Birr, M-Pesa, bank or card</span>
           </div>
         </div>
 
@@ -237,7 +238,7 @@ export default function AccountPage() {
               <div>
                 <h2 className="text-lg font-bold text-black">Previous Transactions &amp; Receipts</h2>
                 <p className="text-xs text-neutral-500">
-                  Every order includes Stripe transaction reference and live courier tracking.
+                  Every order shows its payment and delivery tracking.
                 </p>
               </div>
               <Link
@@ -254,7 +255,7 @@ export default function AccountPage() {
                 <Package className="w-10 h-10 text-neutral-400 mx-auto" />
                 <h3 className="text-base font-bold text-black">No Orders Placed Yet</h3>
                 <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                  When you purchase pieces using our secure Stripe checkout, your receipts, tracking, and garments will appear here.
+                  When you place an order, its receipt and tracking will appear here.
                 </p>
                 <div className="pt-2">
                   <Link
@@ -295,7 +296,7 @@ export default function AccountPage() {
                         </div>
                         <div>
                           <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                            Total Paid (Stripe)
+                            Total paid
                           </span>
                           <span className="text-xs font-bold text-black">
                             ${order.totalUSD} USD{" "}
@@ -349,9 +350,9 @@ export default function AccountPage() {
                     {/* Order Footer & Tracking */}
                     <div className="p-4 bg-[#fbfbfb] flex flex-wrap items-center justify-between gap-3 text-xs">
                       <div className="flex items-center gap-3 text-neutral-500">
-                        <span>Courier Tracking: <strong className="text-black font-mono">{order.trackingNumber || "DHL-ET-8849102"}</strong></span>
+                        <span>Courier Tracking: <strong className="text-black font-mono">{order.trackingNumber || "Not shipped yet"}</strong></span>
                         <span>•</span>
-                        <span>Payment: <strong className="text-black">Stripe (Card ending in {order.last4 || "4242"})</strong></span>
+                        <span>Payment: <strong className="text-black">{paymentLabel(order.paymentMethod, order.last4)}</strong></span>
                       </div>
 
                       <div className="flex items-center gap-2">

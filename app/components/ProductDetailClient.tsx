@@ -87,11 +87,13 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       return;
     }
     setSizeError(false);
-    const colorLabel = currentColor ? `, ${currentColor.name}` : "";
     addItem({
       id: product.id,
-      title: `${product.title} (${size}${colorLabel})`,
-      price: product.price,
+      title: product.title,
+      price: Number(product.price) || 0,
+      priceETB: Number(product.priceETB) || undefined,
+      size,
+      color: currentColor?.name,
       imageUrl: gallery[0] || product.imageUrl,
     });
     setAdded(true);

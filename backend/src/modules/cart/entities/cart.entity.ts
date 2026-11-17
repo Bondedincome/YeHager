@@ -38,6 +38,7 @@ export class Cart extends BaseModel {
     productId: string;
     title: string;
     price: number;
+    priceETB?: number;
     quantity: number;
     imageUrl?: string;
     size?: string;

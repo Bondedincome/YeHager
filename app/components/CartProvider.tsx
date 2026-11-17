@@ -7,7 +7,10 @@ import { apiFetch } from "../lib/api";
 export type CartItem = {
   id: number | string;
   title: string;
+  /** USD price. */
   price: number;
+  /** ETB price — what Chapa actually charges. */
+  priceETB?: number;
   quantity: number;
   imageUrl?: string;
   size?: string;
@@ -76,6 +79,7 @@ function normalizeCartItems(items: unknown): CartItem[] {
     id: item.productId ?? item.id,
     title: item.title,
     price: Number(item.price) || 0,
+    priceETB: Number(item.priceETB) > 0 ? Number(item.priceETB) : undefined,
     quantity: Number(item.quantity) || 1,
     imageUrl: item.imageUrl,
     size: item.size,

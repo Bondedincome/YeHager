@@ -339,15 +339,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const placeOrder = async (orderData: Omit<CustomerOrder, "id" | "createdAt" | "orderNumber">) => {
     const generatedOrderNumber = `YH-${Math.floor(100000 + Math.random() * 900000)}`;
-    const trackingNumber = `DHL-ET-${Math.floor(1000000 + Math.random() * 9000000)}`;
 
+    // Tracking numbers are added by staff once the order is shipped.
     const newOrder: CustomerOrder = {
       ...orderData,
       id: `ord_${Date.now()}`,
       orderNumber: generatedOrderNumber,
       createdAt: new Date().toISOString(),
       status: "confirmed",
-      trackingNumber,
     };
 
     setMutationError(null);

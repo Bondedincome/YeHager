@@ -1075,7 +1075,7 @@ export default function AdminSettingsClient() {
                 {dbStatus ? dbStatus.postgresOrdersCount ?? "Unavailable" : "..."}
               </div>
               <p className="text-[10px] text-neutral-500">
-                Stripe &amp; Telebirr live transactions
+                Orders saved in the database
               </p>
             </div>
 

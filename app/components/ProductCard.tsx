@@ -53,11 +53,13 @@ export default function ProductCard({ product }: { product: Product }) {
   const href = `/products/${product.id}`;
 
   const handleAdd = (size: string) => {
-    const colorLabel = currentColor ? `, ${currentColor.name}` : "";
     addItem({
       id: product.id,
-      title: `${product.title} (${size}${colorLabel})`,
-      price: product.price,
+      title: product.title,
+      price: Number(product.price) || 0,
+      priceETB: Number(product.priceETB) || undefined,
+      size,
+      color: currentColor?.name,
       imageUrl: primary,
     });
     setAdded(true);

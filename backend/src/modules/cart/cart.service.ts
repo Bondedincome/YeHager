@@ -37,6 +37,7 @@ export class CartService {
         productId: product.id,
         title: product.name || product.title,
         price: Number(product.price),
+        priceETB: Number(product.priceETB) > 0 ? Number(product.priceETB) : Number(product.price) * 125,
         quantity: line.quantity,
         imageUrl: product.imageUrl || undefined,
         size: line.size,

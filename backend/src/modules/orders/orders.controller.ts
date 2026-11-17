@@ -20,41 +20,59 @@ import { OptionalAuth, Public } from '../../auth/decorators/public.decorator';
 import { Roles } from '../../auth/decorators/roles.decorator';
 import { Role } from '../users/entities/user.entity';
 import { OrdersService } from './orders.service';
+import { ChapaService } from './chapa.service';
 
 @ApiTags('Orders')
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) { }
+  constructor(
+    private readonly ordersService: OrdersService,
+    private readonly chapa: ChapaService,
+  ) { }
 
-  @Post('checkout-session')
+  /** Starts a Chapa payment. Works for guests and signed-in customers. */
+  @Post('checkout')
   @OptionalAuth()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  createCheckoutSession(@Body() dto: any, @Req() req: any) {
-    return this.ordersService.createCheckoutSession(dto, req.user?.id);
+  createCheckout(@Body() dto: any, @Req() req: any) {
+    return this.ordersService.createCheckout(dto, req.user?.id);
   }
 
-  @Get('checkout-session/:sessionId')
+  /** The cart page calls this after Chapa sends the customer back. */
+  @Get('checkout/:txRef')
   @Public()
-  getCheckoutOrder(@Param('sessionId') sessionId: string) {
-    return this.ordersService.getPaidCheckoutOrder(sessionId);
+  checkoutStatus(@Param('txRef') txRef: string) {
+    return this.ordersService.confirmChapaPayment(txRef);
   }
 
-  @Post('stripe-webhook')
+  /**
+   * Chapa's callback_url (GET). The reference may arrive as trx_ref or tx_ref.
+   * The payment is always re-checked with Chapa, so this can't be faked.
+   */
+  @Get('chapa/callback')
+  @Public()
+  async chapaCallback(@Query('trx_ref') trxRef?: string, @Query('tx_ref') txRef?: string) {
+    const reference = trxRef || txRef;
+    if (!reference) return { received: false };
+    const status = await this.ordersService.confirmChapaPayment(reference).catch(() => null);
+    return { received: true, status: status?.status ?? 'unknown' };
+  }
+
+  /** Chapa webhook (POST). Signature is checked when CHAPA_WEBHOOK_SECRET is set. */
+  @Post('chapa/webhook')
   @Public()
   @HttpCode(200)
-  async stripeWebhook(
+  async chapaWebhook(
     @Req() request: RawBodyRequest<Request>,
-    @Headers('stripe-signature') signature: string,
+    @Body() body: { tx_ref?: string; trx_ref?: string; event?: string },
+    @Headers() headers: Record<string, unknown>,
   ) {
-    if (!request.rawBody || !signature) {
-      throw new UnauthorizedException('Missing Stripe webhook signature');
+    if (!this.chapa.verifyWebhookSignature(request.rawBody, body, headers)) {
+      throw new UnauthorizedException('Invalid Chapa signature');
     }
-    const event = this.ordersService.constructStripeEvent(request.rawBody, signature);
-    if (
-      event.type === 'checkout.session.completed' ||
-      event.type === 'checkout.session.async_payment_succeeded'
-    ) {
-      await this.ordersService.fulfillStripeSession(event.data.object);
+    const reference = body?.tx_ref || body?.trx_ref;
+    if (reference && (!body.event || body.event.startsWith('charge.'))) {
+      await this.ordersService.confirmChapaPayment(reference).catch(() => null);
     }
     return { received: true };
   }

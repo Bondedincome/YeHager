@@ -68,53 +68,12 @@ export const DEFAULT_STORE_SETTINGS: StoreSettings = {
   boutiqueHours: "Monday - Saturday: 9:00 AM - 7:00 PM EAT",
   conciergeContact: "@yehagere",
 
-  promoCodes: [
-    {
-      id: "promo_1",
-      code: "WELCOME10",
-      discountType: "percentage",
-      value: 10,
-      minSpendUSD: 100,
-      active: true,
-      usageCount: 42,
-      expiresAt: "2026-12-31",
-      description: "10% off your first order",
-    },
-    {
-      id: "promo_2",
-      code: "HELLOFALL",
-      discountType: "percentage",
-      value: 15,
-      minSpendUSD: 150,
-      active: true,
-      usageCount: 29,
-      expiresAt: "2026-11-30",
-      description: "15% off Autumn Lookbook editorial pieces",
-    },
-    {
-      id: "promo_3",
-      code: "VIP20",
-      discountType: "percentage",
-      value: 20,
-      minSpendUSD: 200,
-      active: true,
-      usageCount: 64,
-      expiresAt: "2027-01-01",
-      description: "Exclusive 20% privilege for VIP customers",
-    },
-    {
-      id: "promo_4",
-      code: "ADDIS2500",
-      discountType: "fixed_etb",
-      value: 2500,
-      minSpendUSD: 160,
-      active: true,
-      usageCount: 18,
-      expiresAt: "2026-12-31",
-      description: "Br 2,500 ETB savings on orders above Br 20,000",
-    },
-  ],
+  promoCodes: [],
 };
+
+/** Sample codes that used to ship as defaults. Removed from saved settings on load. */
+const RETIRED_SAMPLE_CODES = new Set(["promo_1:WELCOME10", "promo_2:HELLOFALL", "promo_3:VIP20", "promo_4:ADDIS2500"]);
+const isRetiredSample = (p: PromoCode) => RETIRED_SAMPLE_CODES.has(`${p.id}:${p.code}`);
 
 const SETTINGS_KEY = "yehagere_store_settings_v2";
 const SETTINGS_EVENT = "yehagere_settings:updated";
@@ -131,9 +90,7 @@ export function getStoreSettings(): StoreSettings {
     return {
       ...DEFAULT_STORE_SETTINGS,
       ...parsed,
-      promoCodes: Array.isArray(parsed.promoCodes) && parsed.promoCodes.length > 0
-        ? parsed.promoCodes
-        : DEFAULT_STORE_SETTINGS.promoCodes,
+      promoCodes: Array.isArray(parsed.promoCodes) ? parsed.promoCodes.filter((p: PromoCode) => !isRetiredSample(p)) : [],
     };
   } catch {
     return DEFAULT_STORE_SETTINGS;

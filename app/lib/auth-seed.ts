@@ -46,8 +46,7 @@ export type CustomerOrder = {
   totalUSD: number;
   totalETB: number;
   status: OrderStatus;
-  paymentMethod: "stripe" | "card" | "apple_pay" | "cash_on_delivery" | "manual_boutique";
-  paymentIntentId?: string;
+  paymentMethod: "chapa" | "cash_on_delivery" | "manual_boutique" | "stripe" | "card";
   last4?: string;
   createdAt: string;
   shippingAddress: {
@@ -60,88 +59,3 @@ export type CustomerOrder = {
   carrier?: string;
   internalNotes?: string;
 };
-
-export const INITIAL_USERS: AppUser[] = [
-  {
-    id: "usr_admin_1",
-    name: "Daniot Mihrete",
-    email: "daniot.mihrete-ug@aau.edu.et",
-    role: "admin",
-    // Salted PBKDF2 hash of "YeHagere2026!" (100,000 rounds)
-    passwordSalt: "a1b2c3d4e5f60718293a4b5c6d7e8f90",
-    passwordHash: "34dd07f8d9eec4baac2d17e01b56c028e18dd42b5ad183d6740b1b5d6ee170b00b26102f982d7a4ce94a1cb722afea1a2c5b46e9b3004cb36d8a0c0e97613820",
-    memberSince: "2024-01-10",
-    status: "active",
-    totalOrders: 4,
-    totalSpentUSD: 1420,
-    phone: "+251 91 123 4567",
-    shippingAddress: {
-      street: "Bole Medhanialem St., Suite 400",
-      city: "Addis Ababa",
-      state: "Addis Ababa",
-      zip: "1000",
-      country: "Ethiopia",
-    },
-  },
-  {
-    id: "usr_cust_1",
-    name: "Selamawit Bekele",
-    email: "selamawit.bekele@example.com",
-    role: "vip",
-    // Salted PBKDF2 hash (100,000 rounds)
-    passwordSalt: "b2c3d4e5f60718293a4b5c6d7e8f90a1",
-    passwordHash: "b78dd5d51f1a243bc86c9f37606bcdb6a552ba059bd2ecd5f9623dcf857b4084c883164031b8310f42edc7a869170bd4def8dbcd54d141e2e586583e2c5bc398",
-    memberSince: "2024-03-15",
-    status: "active",
-    totalOrders: 5,
-    totalSpentUSD: 1890,
-    phone: "+251 92 987 6543",
-    shippingAddress: {
-      street: "Kazanchis Heritage Quarter, No. 12",
-      city: "Addis Ababa",
-      state: "Addis Ababa",
-      zip: "1000",
-      country: "Ethiopia",
-    },
-  },
-  {
-    id: "usr_cust_2",
-    name: "Elena Vance",
-    email: "elena.vance@example.com",
-    role: "customer",
-    passwordSalt: "b2c3d4e5f60718293a4b5c6d7e8f90a1",
-    passwordHash: "b78dd5d51f1a243bc86c9f37606bcdb6a552ba059bd2ecd5f9623dcf857b4084c883164031b8310f42edc7a869170bd4def8dbcd54d141e2e586583e2c5bc398",
-    memberSince: "2024-06-20",
-    status: "active",
-    totalOrders: 2,
-    totalSpentUSD: 680,
-    phone: "+1 (415) 555-0199",
-    shippingAddress: {
-      street: "742 Evergreen Terrace",
-      city: "San Francisco",
-      state: "CA",
-      zip: "94107",
-      country: "United States",
-    },
-  },
-  {
-    id: "usr_cust_3",
-    name: "Marcus Thorne",
-    email: "marcus.thorne@arch-collective.org",
-    role: "customer",
-    passwordSalt: "b2c3d4e5f60718293a4b5c6d7e8f90a1",
-    passwordHash: "b78dd5d51f1a243bc86c9f37606bcdb6a552ba059bd2ecd5f9623dcf857b4084c883164031b8310f42edc7a869170bd4def8dbcd54d141e2e586583e2c5bc398",
-    memberSince: "2024-08-01",
-    status: "active",
-    totalOrders: 1,
-    totalSpentUSD: 340,
-    phone: "+44 20 7946 0912",
-    shippingAddress: {
-      street: "18 Kensington Church St",
-      city: "London",
-      state: "Greater London",
-      zip: "W8 4EP",
-      country: "United Kingdom",
-    },
-  },
-];

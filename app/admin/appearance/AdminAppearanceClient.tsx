@@ -2,11 +2,26 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowUpRight, Check, RotateCcw, X } from "../../components/icons";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpRight,
+  Check,
+  Eye,
+  EyeOff,
+  Film,
+  ImageIcon,
+  RotateCcw,
+  X,
+} from "../../components/icons";
 import {
   useAppearance,
   normalizeCMS,
   LEGACY_CMS_STORAGE_KEY,
+  HomeSectionKey,
+  MediaType,
+  Overlay,
   SiteCMSContent,
   SplitSection,
 } from "../../components/AppearanceProvider";
@@ -16,16 +31,25 @@ import { formatProductPrice, toList } from "../../lib/format";
 
 type ApiCategory = { id: number | string; name: string; slug: string };
 
-type SectionKey = "announcement" | "hero" | "lookbook" | "splitSection1" | "splitSection2" | "storySection" | "footer";
+type SectionKey = "layout" | "announcement" | "hero" | HomeSectionKey | "footer";
 
-const SECTIONS: { key: SectionKey; label: string; hint: string }[] = [
-  { key: "announcement", label: "Announcement bar", hint: "Thin strip at the very top of every page" },
-  { key: "hero", label: "Hero banner", hint: "Large image at the top of the homepage" },
-  { key: "lookbook", label: "New in", hint: "Row of products under the hero" },
-  { key: "splitSection1", label: "Feature 1", hint: "Big image with 3 products" },
-  { key: "splitSection2", label: "Feature 2", hint: "Big image with 3 products" },
-  { key: "storySection", label: "Our story", hint: "Brand story near the bottom" },
-  { key: "footer", label: "Footer & contact", hint: "Address, phone, email and socials" },
+const SECTION_INFO: Record<SectionKey, { label: string; hint: string }> = {
+  layout: { label: "Page layout", hint: "Choose which sections show and in what order" },
+  announcement: { label: "Announcement bar", hint: "Thin strip at the very top of every page" },
+  hero: { label: "Hero banner", hint: "Large image or video at the top of the homepage" },
+  lookbook: { label: "New in", hint: "Row of products" },
+  splitSection1: { label: "Feature 1", hint: "Big image or video with 3 products" },
+  splitSection2: { label: "Feature 2", hint: "Big image or video with 3 products" },
+  promoBanner: { label: "Promo banner", hint: "Full-width image or video with a message and button" },
+  storySection: { label: "Our story", hint: "Brand story with image and highlights" },
+  footer: { label: "Footer & contact", hint: "Address, phone, email and socials" },
+};
+
+const OVERLAY_OPTIONS: { value: Overlay; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "subtle", label: "Light" },
+  { value: "medium", label: "Medium" },
+  { value: "heavy", label: "Strong" },
 ];
 
 /* ---------- small form building blocks ---------- */
@@ -100,7 +124,17 @@ function Segmented<T extends string>({
   );
 }
 
-function ImageField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function ImageField({
+  label,
+  value,
+  onChange,
+  hint = "Paste an image link (https://…). Wide, high-resolution photos work best.",
+}: {
+  label: string;
+  value: string | undefined;
+  onChange: (v: string) => void;
+  hint?: string;
+}) {
   return (
     <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
       <div className="aspect-[3/4] rounded-md bg-neutral-100 overflow-hidden border border-neutral-200">
@@ -108,12 +142,104 @@ function ImageField({ label, value, onChange }: { label: string; value: string; 
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={value} alt="" className="w-full h-full object-cover" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-xs text-neutral-400">No image</div>
+          <div className="w-full h-full flex items-center justify-center text-neutral-400">
+            <ImageIcon className="size-6" />
+          </div>
         )}
       </div>
-      <Field label={label} hint="Paste an image link (https://…). Wide, high-resolution photos work best.">
-        <TextInput value={value} onChange={onChange} placeholder="https://" />
+      <Field label={label} hint={hint}>
+        <TextInput value={value} onChange={(v) => onChange(v.trim())} placeholder="https://" />
       </Field>
+    </div>
+  );
+}
+
+const VIDEO_HOSTS = /(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|instagram\.com|drive\.google\.com)/i;
+
+function videoWarning(url: string | undefined): string | null {
+  if (!url) return null;
+  if (VIDEO_HOSTS.test(url)) {
+    return "This looks like a page link (YouTube, Vimeo, Drive…). Those can't play as a background. Use a direct link to the video file instead.";
+  }
+  if (!/^https?:\/\//i.test(url) && !url.startsWith("/")) return "The link should start with https://";
+  if (!/\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(url)) {
+    return "Make sure this links straight to an .mp4 or .webm file. If the preview below stays blank, the link won't work on the site.";
+  }
+  return null;
+}
+
+/** Image-or-video picker. The image doubles as the video's poster and fallback. */
+function MediaField({
+  mediaType = "image",
+  imageUrl,
+  videoUrl,
+  onChange,
+  imageLabel = "Image link",
+}: {
+  mediaType?: MediaType;
+  imageUrl: string;
+  videoUrl?: string;
+  onChange: (patch: { mediaType?: MediaType; imageUrl?: string; videoUrl?: string }) => void;
+  imageLabel?: string;
+}) {
+  const warning = mediaType === "video" ? videoWarning(videoUrl) : null;
+  return (
+    <div className="space-y-5">
+      <Field label="Show">
+        <Segmented
+          value={mediaType}
+          options={[
+            { value: "image", label: "Image" },
+            { value: "video", label: "Video" },
+          ]}
+          onChange={(v) => onChange({ mediaType: v })}
+        />
+      </Field>
+
+      {mediaType === "video" && (
+        <div className="grid grid-cols-[96px_1fr] gap-4 items-start">
+          <div className="aspect-[3/4] rounded-md bg-neutral-900 overflow-hidden border border-neutral-200 flex items-center justify-center">
+            {videoUrl ? (
+              <video
+                key={videoUrl}
+                src={videoUrl}
+                poster={imageUrl || undefined}
+                muted
+                loop
+                playsInline
+                autoPlay
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <Film className="size-6 text-neutral-500" />
+            )}
+          </div>
+          <div className="space-y-2">
+            <Field
+              label="Video link"
+              hint="Direct link to an .mp4 or .webm file. Keep it short (5–20 s), silent and under about 10 MB so it loads fast on phones."
+            >
+              <TextInput value={videoUrl} onChange={(v) => onChange({ videoUrl: v.trim() })} placeholder="https://…/video.mp4" />
+            </Field>
+            {warning && (
+              <p className="flex gap-2 text-xs text-amber-800">
+                <AlertTriangle className="size-4 shrink-0" /> {warning}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <ImageField
+        label={mediaType === "video" ? "Cover image" : imageLabel}
+        hint={
+          mediaType === "video"
+            ? "Shown while the video loads, and to visitors who turn off motion or on slow connections."
+            : undefined
+        }
+        value={imageUrl}
+        onChange={(v) => onChange({ imageUrl: v })}
+      />
     </div>
   );
 }
@@ -137,17 +263,19 @@ function ProductPicker({
   max = 3,
 }: {
   products: Product[];
-  selected: number[];
-  onChange: (ids: number[]) => void;
+  selected: (number | string)[];
+  onChange: (ids: string[]) => void;
   max?: number;
 }) {
   const [query, setQuery] = useState("");
-  const selectedSet = new Set(selected.map(String));
-  const filtered = products.filter((p) => p.title.toLowerCase().includes(query.toLowerCase()));
+  // Only keep ids that still exist, so deleted products don't use up a slot.
+  const existing = selected.map(String).filter((id) => products.some((p) => String(p.id) === id));
+  const selectedSet = new Set(existing);
+  const filtered = products.filter((p) => (p.title || "").toLowerCase().includes(query.toLowerCase()));
 
-  const toggle = (id: number) => {
-    if (selectedSet.has(String(id))) onChange(selected.filter((x) => String(x) !== String(id)));
-    else if (selected.length < max) onChange([...selected, id]);
+  const toggle = (id: string) => {
+    if (selectedSet.has(id)) onChange(existing.filter((x) => x !== id));
+    else if (existing.length < max) onChange([...existing, id]);
   };
 
   return (
@@ -155,16 +283,16 @@ function ProductPicker({
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium">Products shown</span>
         <span className="text-xs text-neutral-500">
-          {selected.length} of {max} selected{selected.length === 0 && " (first products will be used)"}
+          {existing.length} of {max} selected{existing.length === 0 && " (newest products will be used)"}
         </span>
       </div>
       <input type="search" className={inputClass} placeholder="Search products" value={query} onChange={(e) => setQuery(e.target.value)} />
       <div className="max-h-72 overflow-y-auto rounded-md border border-neutral-200 divide-y divide-neutral-100">
         {filtered.length === 0 && <p className="p-4 text-sm text-neutral-500">No products found.</p>}
         {filtered.map((p) => {
-          const id = Number(p.id);
-          const isOn = selectedSet.has(String(p.id));
-          const disabled = !isOn && selected.length >= max;
+          const id = String(p.id);
+          const isOn = selectedSet.has(id);
+          const disabled = !isOn && existing.length >= max;
           return (
             <button
               key={p.id}
@@ -242,8 +370,20 @@ function FeatureEditor({
           />
         </Field>
       </Card>
-      <Card title="Image">
-        <ImageField label="Image link" value={value.campaignImageUrl} onChange={(v) => set("campaignImageUrl", v)} />
+      <Card title="Image or video">
+        <MediaField
+          mediaType={value.mediaType}
+          imageUrl={value.campaignImageUrl}
+          videoUrl={value.videoUrl}
+          onChange={(m) =>
+            onChange({
+              ...value,
+              ...(m.mediaType !== undefined && { mediaType: m.mediaType }),
+              ...(m.videoUrl !== undefined && { videoUrl: m.videoUrl }),
+              ...(m.imageUrl !== undefined && { campaignImageUrl: m.imageUrl }),
+            })
+          }
+        />
       </Card>
       <Card title="Products">
         <ProductPicker products={products} selected={value.featuredProductIds ?? []} onChange={(ids) => set("featuredProductIds", ids)} />
@@ -356,18 +496,40 @@ export default function AdminAppearanceClient() {
 
   const isEnabled = (key: SectionKey) => {
     if (key === "announcement") return content.announcement.enabled;
+    if (key === "lookbook") return content.lookbook.enabled ?? true;
     if (key === "splitSection1") return content.splitSection1.enabled ?? true;
     if (key === "splitSection2") return content.splitSection2.enabled ?? true;
+    if (key === "promoBanner") return content.promoBanner.enabled;
     if (key === "storySection") return content.storySection.enabled;
     return true;
   };
 
+  const setEnabled = (key: HomeSectionKey, enabled: boolean) => {
+    if (key === "lookbook") patch("lookbook", { ...content.lookbook, enabled });
+    if (key === "splitSection1") patch("splitSection1", { ...content.splitSection1, enabled });
+    if (key === "splitSection2") patch("splitSection2", { ...content.splitSection2, enabled });
+    if (key === "promoBanner") patch("promoBanner", { ...content.promoBanner, enabled });
+    if (key === "storySection") patch("storySection", { ...content.storySection, enabled });
+  };
+
+  const move = (index: number, delta: -1 | 1) => {
+    const order = [...content.sectionOrder];
+    const target = index + delta;
+    if (target < 0 || target >= order.length) return;
+    [order[index], order[target]] = [order[target], order[index]];
+    patch("sectionOrder", order);
+  };
+
+  // Sidebar follows the real page order.
+  const navKeys: SectionKey[] = ["layout", "announcement", "hero", ...content.sectionOrder, "footer"];
+
   const hero = content.hero;
   const a = content.announcement;
   const lb = content.lookbook;
+  const pb = content.promoBanner;
   const st = content.storySection;
   const ft = content.footer;
-  const current = SECTIONS.find((s) => s.key === active)!;
+  const current = { key: active, ...SECTION_INFO[active] };
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8 space-y-6">
@@ -425,23 +587,26 @@ export default function AdminAppearanceClient() {
       <div className="grid lg:grid-cols-[240px_1fr] gap-6 items-start">
         {/* Section list */}
         <nav className="flex lg:flex-col gap-1 overflow-x-auto scrollbar-none lg:sticky lg:top-24 -mx-4 px-4 lg:mx-0 lg:px-0">
-          {SECTIONS.map((s, i) => {
-            const on = isEnabled(s.key);
+          {navKeys.map((key) => {
+            const on = isEnabled(key);
+            const isLayout = key === "layout";
             return (
               <button
-                key={s.key}
+                key={key}
                 type="button"
-                onClick={() => setActive(s.key)}
+                onClick={() => setActive(key)}
+                aria-current={active === key ? "page" : undefined}
                 className={`shrink-0 lg:w-full flex items-center gap-3 px-3 h-11 rounded-md text-sm text-left transition-colors ${
-                  active === s.key ? "bg-black text-white" : "bg-white lg:bg-transparent border lg:border-0 border-neutral-200 hover:bg-neutral-100"
-                }`}
+                  active === key ? "bg-black text-white" : "bg-white lg:bg-transparent border lg:border-0 border-neutral-200 hover:bg-neutral-100"
+                } ${isLayout ? "lg:mb-2" : ""}`}
               >
-                <span className={`text-xs tabular-nums ${active === s.key ? "text-neutral-400" : "text-neutral-400"}`}>{i + 1}</span>
-                <span className="flex-1 whitespace-nowrap">{s.label}</span>
-                <span
-                  className={`size-2 rounded-full ${on ? "bg-emerald-500" : "bg-neutral-300"}`}
-                  title={on ? "Visible" : "Hidden"}
-                />
+                <span className="flex-1 whitespace-nowrap">{SECTION_INFO[key].label}</span>
+                {!isLayout && (
+                  <span
+                    className={`size-2 rounded-full ${on ? "bg-emerald-500" : "bg-neutral-300"}`}
+                    title={on ? "Visible" : "Hidden"}
+                  />
+                )}
               </button>
             );
           })}
@@ -460,6 +625,139 @@ export default function AdminAppearanceClient() {
             <h2 className="text-lg font-semibold">{current.label}</h2>
             <p className="text-sm text-neutral-500">{current.hint}</p>
           </div>
+
+          {active === "layout" && (
+            <Card
+              title="Sections under the hero"
+              description="The announcement bar and hero always come first, and the footer always comes last."
+            >
+              <ol className="divide-y divide-neutral-100 -my-2">
+                {content.sectionOrder.map((key, i) => {
+                  const on = isEnabled(key);
+                  return (
+                    <li key={key} className="flex items-center gap-3 py-2.5">
+                      <span className="w-5 text-xs text-neutral-400 tabular-nums">{i + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => setActive(key)}
+                        className={`flex-1 text-left text-sm hover:underline ${on ? "" : "text-neutral-400"}`}
+                      >
+                        {SECTION_INFO[key].label}
+                        <span className="block text-xs text-neutral-500 no-underline">{SECTION_INFO[key].hint}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEnabled(key, !on)}
+                        className="h-8 px-2.5 rounded-md border border-neutral-300 text-xs flex items-center gap-1.5 hover:border-black"
+                        aria-pressed={on}
+                      >
+                        {on ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                        {on ? "Shown" : "Hidden"}
+                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => move(i, -1)}
+                          disabled={i === 0}
+                          aria-label={`Move ${SECTION_INFO[key].label} up`}
+                          className="size-8 rounded-md border border-neutral-300 flex items-center justify-center hover:border-black disabled:opacity-30 disabled:hover:border-neutral-300"
+                        >
+                          <ArrowUp className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => move(i, 1)}
+                          disabled={i === content.sectionOrder.length - 1}
+                          aria-label={`Move ${SECTION_INFO[key].label} down`}
+                          className="size-8 rounded-md border border-neutral-300 flex items-center justify-center hover:border-black disabled:opacity-30 disabled:hover:border-neutral-300"
+                        >
+                          <ArrowDown className="size-4" />
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </Card>
+          )}
+
+          {active === "promoBanner" && (
+            <>
+              <Card title="Content">
+                <Toggle checked={pb.enabled} onChange={(v) => patch("promoBanner", { ...pb, enabled: v })} label="Show on homepage" />
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <Field label="Headline">
+                    <TextInput value={pb.headline} onChange={(v) => patch("promoBanner", { ...pb, headline: v })} />
+                  </Field>
+                  <Field label="Small label above headline" hint="Optional">
+                    <TextInput value={pb.badge} onChange={(v) => patch("promoBanner", { ...pb, badge: v })} />
+                  </Field>
+                </div>
+                <Field label="Text" hint="Optional">
+                  <TextArea value={pb.text} onChange={(v) => patch("promoBanner", { ...pb, text: v })} rows={2} />
+                </Field>
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <Field label="Button text" hint="Leave empty to hide the button">
+                    <TextInput value={pb.ctaText} onChange={(v) => patch("promoBanner", { ...pb, ctaText: v })} />
+                  </Field>
+                  <Field label="Button link">
+                    <TextInput value={pb.ctaLink} onChange={(v) => patch("promoBanner", { ...pb, ctaLink: v })} />
+                  </Field>
+                </div>
+              </Card>
+              <Card title="Image or video">
+                <MediaField
+                  mediaType={pb.mediaType}
+                  imageUrl={pb.imageUrl}
+                  videoUrl={pb.videoUrl}
+                  onChange={(m) => patch("promoBanner", { ...pb, ...m })}
+                />
+              </Card>
+              <Card title="Layout">
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <Field label="Text position">
+                    <Segmented
+                      value={pb.alignment}
+                      options={[
+                        { value: "left", label: "Left" },
+                        { value: "center", label: "Center" },
+                        { value: "right", label: "Right" },
+                      ]}
+                      onChange={(v) => patch("promoBanner", { ...pb, alignment: v })}
+                    />
+                  </Field>
+                  <Field label="Height">
+                    <Segmented
+                      value={pb.height}
+                      options={[
+                        { value: "short", label: "Short" },
+                        { value: "medium", label: "Medium" },
+                        { value: "tall", label: "Tall" },
+                      ]}
+                      onChange={(v) => patch("promoBanner", { ...pb, height: v })}
+                    />
+                  </Field>
+                  <Field label="Text colour">
+                    <Segmented
+                      value={pb.textColor}
+                      options={[
+                        { value: "light", label: "White" },
+                        { value: "dark", label: "Black" },
+                      ]}
+                      onChange={(v) => patch("promoBanner", { ...pb, textColor: v })}
+                    />
+                  </Field>
+                  <Field label={pb.textColor === "dark" ? "Lighten background" : "Darken background"} hint="Helps text stand out">
+                    <Segmented
+                      value={pb.overlayOpacity}
+                      options={OVERLAY_OPTIONS}
+                      onChange={(v) => patch("promoBanner", { ...pb, overlayOpacity: v })}
+                    />
+                  </Field>
+                </div>
+              </Card>
+            </>
+          )}
 
           {active === "announcement" && (
             <Card title="Content">
@@ -541,10 +839,25 @@ export default function AdminAppearanceClient() {
                   </Field>
                 </div>
               </Card>
-              <Card title="Image & layout">
-                <ImageField label="Image link" value={hero.imageUrl} onChange={(v) => patch("hero", { ...hero, imageUrl: v })} />
+              <Card title="Image or video">
+                <MediaField
+                  mediaType={hero.mediaType}
+                  imageUrl={hero.imageUrl}
+                  videoUrl={hero.videoUrl}
+                  onChange={(m) => patch("hero", { ...hero, ...m })}
+                />
+                {(hero.mediaType ?? "image") === "image" && (
+                  <ImageField
+                    label="Phone image"
+                    hint="Optional. A tall (portrait) photo for phones. Leave empty to use the main image."
+                    value={hero.mobileImageUrl}
+                    onChange={(v) => patch("hero", { ...hero, mobileImageUrl: v })}
+                  />
+                )}
+              </Card>
+              <Card title="Layout">
                 <div className="grid sm:grid-cols-2 gap-5">
-                  <Field label="Text position">
+                  <Field label="Text across">
                     <Segmented
                       value={hero.alignment || "left"}
                       options={[
@@ -555,14 +868,45 @@ export default function AdminAppearanceClient() {
                       onChange={(v) => patch("hero", { ...hero, alignment: v })}
                     />
                   </Field>
-                  <Field label="Darken image" hint="Makes white text easier to read">
+                  <Field label="Text up / down">
+                    <Segmented
+                      value={hero.verticalPosition || "bottom"}
+                      options={[
+                        { value: "top", label: "Top" },
+                        { value: "center", label: "Middle" },
+                        { value: "bottom", label: "Bottom" },
+                      ]}
+                      onChange={(v) => patch("hero", { ...hero, verticalPosition: v })}
+                    />
+                  </Field>
+                  <Field label="Height">
+                    <Segmented
+                      value={hero.height || "large"}
+                      options={[
+                        { value: "medium", label: "Medium" },
+                        { value: "large", label: "Large" },
+                        { value: "full", label: "Full screen" },
+                      ]}
+                      onChange={(v) => patch("hero", { ...hero, height: v })}
+                    />
+                  </Field>
+                  <Field label="Text colour">
+                    <Segmented
+                      value={hero.textColor || "light"}
+                      options={[
+                        { value: "light", label: "White" },
+                        { value: "dark", label: "Black" },
+                      ]}
+                      onChange={(v) => patch("hero", { ...hero, textColor: v })}
+                    />
+                  </Field>
+                  <Field
+                    label={hero.textColor === "dark" ? "Lighten background" : "Darken background"}
+                    hint="Helps text stand out from busy photos"
+                  >
                     <Segmented
                       value={hero.overlayOpacity || "medium"}
-                      options={[
-                        { value: "subtle", label: "Light" },
-                        { value: "medium", label: "Medium" },
-                        { value: "heavy", label: "Strong" },
-                      ]}
+                      options={OVERLAY_OPTIONS}
                       onChange={(v) => patch("hero", { ...hero, overlayOpacity: v })}
                     />
                   </Field>
@@ -573,6 +917,7 @@ export default function AdminAppearanceClient() {
 
           {active === "lookbook" && (
             <Card title="Content">
+              <Toggle checked={lb.enabled ?? true} onChange={(v) => patch("lookbook", { ...lb, enabled: v })} label="Show on homepage" />
               <div className="grid sm:grid-cols-2 gap-5">
                 <Field label="Title">
                   <TextInput value={lb.title} onChange={(v) => patch("lookbook", { ...lb, title: v })} />
@@ -616,6 +961,30 @@ export default function AdminAppearanceClient() {
                   <TextInput value={lb.viewAllLinkText} onChange={(v) => patch("lookbook", { ...lb, viewAllLinkText: v })} />
                 </Field>
               </div>
+              <div className="grid sm:grid-cols-2 gap-5">
+                <Field label="Products per row" hint="On large screens. Phones always show 2.">
+                  <Segmented
+                    value={String(lb.columns || 4) as "2" | "3" | "4"}
+                    options={[
+                      { value: "2", label: "2" },
+                      { value: "3", label: "3" },
+                      { value: "4", label: "4" },
+                    ]}
+                    onChange={(v) => patch("lookbook", { ...lb, columns: Number(v) as 2 | 3 | 4 })}
+                  />
+                </Field>
+                <Field label="Order">
+                  <select
+                    className={inputClass}
+                    value={lb.sort || "newest"}
+                    onChange={(e) => patch("lookbook", { ...lb, sort: e.target.value as "newest" | "price-asc" | "price-desc" })}
+                  >
+                    <option value="newest">Newest first</option>
+                    <option value="price-asc">Price, low to high</option>
+                    <option value="price-desc">Price, high to low</option>
+                  </select>
+                </Field>
+              </div>
             </Card>
           )}
 
@@ -653,8 +1022,26 @@ export default function AdminAppearanceClient() {
                   </Field>
                 </div>
               </Card>
-              <Card title="Image">
+              <Card title="Image & button">
                 <ImageField label="Image link" value={st.imageUrl} onChange={(v) => patch("storySection", { ...st, imageUrl: v })} />
+                <Field label="Image position">
+                  <Segmented
+                    value={st.imageSide || "left"}
+                    options={[
+                      { value: "left", label: "Image on left" },
+                      { value: "right", label: "Image on right" },
+                    ]}
+                    onChange={(v) => patch("storySection", { ...st, imageSide: v })}
+                  />
+                </Field>
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <Field label="Button text" hint="Leave empty to hide the button">
+                    <TextInput value={st.ctaText} onChange={(v) => patch("storySection", { ...st, ctaText: v })} />
+                  </Field>
+                  <Field label="Button link">
+                    <TextInput value={st.ctaLink} onChange={(v) => patch("storySection", { ...st, ctaLink: v })} />
+                  </Field>
+                </div>
               </Card>
               <Card title="Highlights" description="Three short facts shown under the text. Leave a value empty to hide it.">
                 {([1, 2, 3] as const).map((n) => (

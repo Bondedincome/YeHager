@@ -11,6 +11,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import { useAuth } from "../components/AuthProvider";
+import { paymentLabel } from "../lib/format";
 
 function OrdersContent() {
   const searchParams = useSearchParams();
@@ -46,7 +47,7 @@ function OrdersContent() {
               Transactions &amp; Order History
             </h1>
             <p className="text-xs text-neutral-500">
-              Official archive of all your YeHageré purchases, Stripe receipts, and live courier tracking.
+              All your YeHagere orders, receipts and delivery tracking.
             </p>
           </div>
 
@@ -130,7 +131,7 @@ function OrdersContent() {
                         <span className="block text-[10px] font-bold uppercase tracking-wider text-neutral-400">
                           Payment Gateway
                         </span>
-                        <span className="text-xs font-semibold text-black">Stripe (Card ending {order.last4 || "4242"})</span>
+                        <span className="text-xs font-semibold text-black">{paymentLabel(order.paymentMethod, order.last4)}</span>
                       </div>
                     </div>
 
@@ -179,7 +180,7 @@ function OrdersContent() {
                       <div className="flex items-center gap-2">
                         <Truck className="w-3.5 h-3.5 text-neutral-500" />
                         <span className="text-neutral-600">
-                          Tracking Reference: <strong className="text-black font-mono">{order.trackingNumber || "DHL-ET-9102847"}</strong>
+                          Tracking Reference: <strong className="text-black font-mono">{order.trackingNumber || "Not shipped yet"}</strong>
                         </span>
                       </div>
                       <p className="text-[11px] text-neutral-400">
